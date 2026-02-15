@@ -21,6 +21,12 @@ const router = createRouter({
       component: () => import('../views/TaxView.vue'),
       meta: { title: 'Tax' },
     },
+    {
+      path: '/vendors',
+      name: 'vendors',
+      component: () => import('../views/VendorsView.vue'),
+      meta: { title: 'Vendors' },
+    },
   ],
 })
 

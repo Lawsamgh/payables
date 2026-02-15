@@ -49,6 +49,7 @@ export const LAYOUTS = {
   TAX_VALUE: 'Tax_Value | TBL',
   PAYABLE_INVOICE: 'Payable_Invoice',
   PAYABLES_REJECTION_HISTORY: 'Payables_Rejection_History',
+  VENDOR_TBL: 'Vendor_TBL',
 } as const
 
 /**
@@ -113,5 +114,22 @@ export interface PayableInvoiceFieldData {
   invoiceNumber?: string
   TaxName?: string
   Rate?: number
+}
+
+/**
+ * Vendor_TBL fields (from schema):
+ * Vendor_ID, Vendor_Name, Vendor_Location, Vendor_Email, GRA_Expiry_Date,
+ * Received_Date, Tin_Number, WHT_Expiry_Date, Received_WHT_Date
+ */
+export interface VendorTblFieldData {
+  Vendor_ID?: string
+  Vendor_Name?: string
+  Vendor_Location?: string
+  Vendor_Email?: string
+  GRA_Expiry_Date?: string
+  Received_Date?: string
+  Tin_Number?: string
+  WHT_Expiry_Date?: string
+  Received_WHT_Date?: string
 }
 
