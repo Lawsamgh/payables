@@ -167,9 +167,9 @@ async function onPost() {
       booklet.removeCurrent();
       const nextRef = booklet.currentTransRef;
       if (nextRef) router.push({ name: "entry", query: { transRef: nextRef } });
-      else router.push("/");
+      else router.push("/home");
     } else {
-      router.push("/");
+      router.push("/home");
     }
   } else if (markedPosted) {
     toast.success("Marked as posted.");
@@ -177,9 +177,9 @@ async function onPost() {
       booklet.removeCurrent();
       const nextRef = booklet.currentTransRef;
       if (nextRef) router.push({ name: "entry", query: { transRef: nextRef } });
-      else router.push("/");
+      else router.push("/home");
     } else {
-      router.push("/");
+      router.push("/home");
     }
   } else {
     toast.info("No changes to post. Add or edit rows and try again.");
@@ -215,9 +215,9 @@ async function onRepost() {
       booklet.removeCurrent();
       const nextRef = booklet.currentTransRef;
       if (nextRef) router.push({ name: "entry", query: { transRef: nextRef } });
-      else router.push("/");
+      else router.push("/home");
     } else {
-      router.push("/");
+      router.push("/home");
     }
   } else if (markedPosted) {
     toast.success("Saved and reposted.");
@@ -225,9 +225,9 @@ async function onRepost() {
       booklet.removeCurrent();
       const nextRef = booklet.currentTransRef;
       if (nextRef) router.push({ name: "entry", query: { transRef: nextRef } });
-      else router.push("/");
+      else router.push("/home");
     } else {
-      router.push("/");
+      router.push("/home");
     }
   } else {
     toast.info("No changes to save. Edit and try again.");

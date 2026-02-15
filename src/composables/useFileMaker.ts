@@ -7,10 +7,21 @@ import axios from 'axios'
 import type { ConnectionStatus, FileMakerCredentials, FindOptions } from '../types'
 import { getBaseUrl, getAuthHeaders, parseFileMakerError } from '../utils/filemakerApi'
 
-const baseUrl = getBaseUrl()
+const STORAGE_KEY_TOKEN = 'fm_session_token'
 
-const sessionToken = ref<string | null>(null)
-const connectionStatus = ref<ConnectionStatus>('idle')
+function loadStoredToken(): string | null {
+  try {
+    return localStorage.getItem(STORAGE_KEY_TOKEN)
+  } catch {
+    return null
+  }
+}
+
+const storedToken = loadStoredToken()
+const sessionToken = ref<string | null>(storedToken)
+const connectionStatus = ref<ConnectionStatus>(
+  storedToken && getBaseUrl()?.trim() ? 'connected' : 'idle'
+)
 const lastError = ref<string | null>(null)
 
 function createApi(token: string) {
@@ -19,7 +30,7 @@ function createApi(token: string) {
     ...getAuthHeaders(token),
   }
   return axios.create({
-    baseURL: baseUrl,
+    baseURL: getBaseUrl(),
     headers,
     timeout: 15000,
   })
@@ -29,38 +40,54 @@ export interface FileMakerFieldData {
   [key: string]: string | number | null | undefined
 }
 
+/**
+ * Get a FileMaker Data API session token by POST to /sessions with HTTP Basic auth.
+ * Requires VITE_FILEMAKER_BASE_URL (e.g. https://your-server/fmi/data/v1/databases/YourDB)
+ * and credentials (VITE_FILEMAKER_USER, VITE_FILEMAKER_PASSWORD). The token is stored
+ * and sent as Bearer on all subsequent API calls.
+ */
 export async function login(credentials: FileMakerCredentials): Promise<boolean> {
-  if (!baseUrl) {
+  const baseUrl = getBaseUrl()
+  if (!baseUrl?.trim()) {
     connectionStatus.value = 'error'
-    lastError.value = 'FileMaker base URL not configured (VITE_FILEMAKER_BASE_URL)'
+    lastError.value = 'FileMaker base URL not set. Add VITE_FILEMAKER_BASE_URL to .env (e.g. https://your-server/fmi/data/v1/databases/YourDB).'
     return false
   }
+  const url = baseUrl.replace(/\/$/, '') + '/sessions'
   connectionStatus.value = 'connecting'
   lastError.value = null
   try {
     const res = await axios.post<{ response?: { token?: string } }>(
-      `${baseUrl}/sessions`,
+      url,
       {},
       {
         auth: {
           username: credentials.username,
-          password: credentials.password,
+          password: String(credentials.password ?? ''),
         },
         headers: { 'Content-Type': 'application/json' },
-        timeout: 10000,
+        timeout: 15000,
       }
     )
-    const token = res.data?.response?.token
+    const tokenFromBody = res.data?.response?.token
+    const tokenFromHeader = res.headers?.['x-fm-data-access-token'] ?? res.headers?.['X-FM-Data-Access-Token']
+    const token = typeof tokenFromBody === 'string' ? tokenFromBody : typeof tokenFromHeader === 'string' ? tokenFromHeader : null
     if (token) {
       sessionToken.value = token
       connectionStatus.value = 'connected'
+      try {
+        localStorage.setItem(STORAGE_KEY_TOKEN, token)
+      } catch {
+        /* ignore */
+      }
       return true
     }
-    lastError.value = 'No token in response'
+    lastError.value = 'FileMaker did not return a session token. Ensure the account has the fmapi extended privilege in FileMaker.'
     connectionStatus.value = 'error'
     return false
   } catch (err) {
-    lastError.value = parseFileMakerError(err)
+    const msg = parseFileMakerError(err)
+    lastError.value = msg
     connectionStatus.value = 'error'
     return false
   }
@@ -70,6 +97,16 @@ export function logout(): void {
   sessionToken.value = null
   connectionStatus.value = 'idle'
   lastError.value = null
+  try {
+    localStorage.removeItem(STORAGE_KEY_TOKEN)
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Check if user is authenticated (has valid session token). Used by router guard. */
+export function isAuthenticated(): boolean {
+  return connectionStatus.value === 'connected'
 }
 
 export interface FindResult<T = FileMakerFieldData> {
@@ -392,7 +429,7 @@ export function useFileMaker() {
   const status = computed<ConnectionStatus>(() => connectionStatus.value)
   const error = computed(() => lastError.value)
   const isConnected = computed(() => connectionStatus.value === 'connected')
-  const hasBaseUrl = computed(() => !!baseUrl)
+  const hasBaseUrl = computed(() => !!getBaseUrl()?.trim())
 
   return {
     status,

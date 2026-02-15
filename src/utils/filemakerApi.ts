@@ -5,9 +5,29 @@
  */
 
 const DEFAULT_BASE_URL = ''
+const STORAGE_KEY_BASE_URL = 'fm_base_url'
+
+let sessionBaseUrlOverride: string | null = (() => {
+  try {
+    return localStorage.getItem(STORAGE_KEY_BASE_URL)
+  } catch {
+    return null
+  }
+})()
 
 export function getBaseUrl(): string {
-  return (import.meta.env?.VITE_FILEMAKER_BASE_URL as string) || DEFAULT_BASE_URL
+  return sessionBaseUrlOverride ?? ((import.meta.env?.VITE_FILEMAKER_BASE_URL as string) || DEFAULT_BASE_URL)
+}
+
+/** Override base URL at runtime (e.g. from Connect modal when env is not set). Persists across refresh. */
+export function setSessionBaseUrl(url: string | null): void {
+  sessionBaseUrlOverride = url
+  try {
+    if (url) localStorage.setItem(STORAGE_KEY_BASE_URL, url)
+    else localStorage.removeItem(STORAGE_KEY_BASE_URL)
+  } catch {
+    /* ignore */
+  }
 }
 
 export interface AuthCredentials {

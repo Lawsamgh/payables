@@ -1,6 +1,6 @@
 <template>
   <div
-    class="content-area flex flex-col flex-1 min-h-0 w-full max-w-[1600px] mx-auto px-4 py-5 md:px-6 md:py-6"
+    class="content-area flex flex-col flex-1 min-h-0 w-full max-w-[1600px] mx-auto px-4 py-5 md:px-6 md:py-6 min-h-[400px]"
   >
     <!-- Hero: Apple-style large title + CTA -->
     <header class="flex flex-wrap items-end justify-between gap-4 mb-8">
@@ -96,12 +96,16 @@
     </div>
     <template v-else-if="list.length === 0">
       <div class="glass rounded-2xl p-12 text-center">
-        <p class="text-[var(--color-text-muted)] mb-3">No payables yet.</p>
+        <p class="text-[var(--color-text-muted)] mb-3">
+          {{ isConnected ? 'No payables yet.' : 'Connect to FileMaker to load payables, or create a new entry.' }}
+        </p>
         <router-link
+          v-if="isConnected"
           to="/entry"
           class="text-[var(--color-accent)] font-medium hover:underline"
           >Create one</router-link
         >
+        <span v-else class="text-[var(--color-text-muted)] text-sm">Click <strong>Connect</strong> in the status bar below.</span>
       </div>
     </template>
     <div v-else class="flex flex-col gap-10">
@@ -193,7 +197,10 @@
             <span class="stat-card__label">Vendors</span>
             <span class="stat-card__value">{{ displayedVendors }}</span>
             <span class="stat-card__sublabel">vendors</span>
-            <span class="stat-card__action-icon stat-card__action-icon--vendors" aria-hidden="true">
+            <span
+              class="stat-card__action-icon stat-card__action-icon--vendors"
+              aria-hidden="true"
+            >
               <svg
                 width="18"
                 height="18"

@@ -42,7 +42,7 @@
       <!-- Nav -->
       <nav class="flex flex-col gap-0.5 flex-1 p-4 pt-4">
         <router-link
-          to="/"
+          to="/home"
           class="sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--label-size)] font-medium no-underline transition-colors"
           :class="
             route.name === 'home'
