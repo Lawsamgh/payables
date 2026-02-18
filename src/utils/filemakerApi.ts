@@ -70,6 +70,7 @@ export const LAYOUTS = {
   PAYABLE_INVOICE: 'Payable_Invoice',
   PAYABLES_REJECTION_HISTORY: 'Payables_Rejection_History',
   VENDOR_TBL: 'Vendor_TBL',
+  PAYABLES_USERS: 'Payables_Users',
 } as const
 
 /**
@@ -151,5 +152,16 @@ export interface VendorTblFieldData {
   Tin_Number?: string
   WHT_Expiry_Date?: string
   Received_WHT_Date?: string
+}
+
+/**
+ * Payables_Users fields (from schema):
+ * Email, FullName, Role, Status
+ */
+export interface PayablesUsersFieldData {
+  Email?: string
+  FullName?: string
+  Role?: string
+  Status?: string
 }
 

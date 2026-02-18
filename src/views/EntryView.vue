@@ -58,7 +58,11 @@
           </button>
         </div>
         <template
-          v-if="payableStore.mainPosted && payableStore.mainStatus === 'Posted' && payableStore.currentMainRecordId"
+          v-if="
+            payableStore.mainPosted &&
+            payableStore.mainStatus === 'Posted' &&
+            payableStore.currentMainRecordId
+          "
         >
           <button
             type="button"
@@ -66,8 +70,18 @@
             :disabled="rejecting || approving"
             @click="showRejectModal = true"
           >
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            <svg
+              class="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
             {{ rejecting ? "Rejecting…" : "Reject" }}
           </button>
@@ -77,10 +91,47 @@
             :disabled="rejecting || approving"
             @click="onApprove"
           >
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+            <svg
+              class="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M5 13l4 4L19 7"
+              />
             </svg>
             {{ approving ? "Approving…" : "Approve" }}
+          </button>
+        </template>
+        <template
+          v-if="
+            payableStore.mainPosted && payableStore.mainStatus === 'Approved'
+          "
+        >
+          <button
+            type="button"
+            class="pill-btn inline-flex items-center gap-2 rounded-full bg-slate-600 px-4 py-2.5 text-[var(--label-size)] font-semibold text-white shadow-md hover:bg-slate-500 transition-colors"
+            :disabled="downloadingPdf"
+            @click="downloadApprovedPdf"
+          >
+            <svg
+              class="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              stroke-width="2"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+            {{ downloadingPdf ? "Downloading…" : "Download PDF" }}
           </button>
         </template>
       </div>
@@ -92,16 +143,30 @@
       </span>
     </div>
 
-    <!-- Rejection history: show for Posted (resubmitted) only, not for Rejected – Officer sees only reason banner -->
+    <!-- Rejection history: show for Posted (resubmitted) only when we have data – avoids flash when none -->
     <section
-      v-if="payableStore.mainPosted && payableStore.mainStatus === 'Posted' && (rejectionHistoryLoading || rejectionHistory.length > 0)"
+      v-if="
+        payableStore.mainPosted &&
+        payableStore.mainStatus === 'Posted' &&
+        rejectionHistory.length > 0
+      "
       class="rejection-history mb-4"
     >
       <header class="rejection-history__header">
         <div class="rejection-history__header-inner">
-          <svg class="rejection-history__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/>
-            <polyline points="12 6 12 12 16 14"/>
+          <svg
+            class="rejection-history__icon"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
           </svg>
           <div>
             <h3 class="rejection-history__title">Rejection history</h3>
@@ -127,13 +192,23 @@
           class="rejection-history__item"
         >
           <span class="rejection-history__line" />
-          <span class="rejection-history__dot" :class="{ 'rejection-history__dot--first': idx === 0 }" aria-hidden="true" />
+          <span
+            class="rejection-history__dot"
+            :class="{ 'rejection-history__dot--first': idx === 0 }"
+            aria-hidden="true"
+          />
           <div class="rejection-history__card">
             <div class="rejection-history__meta">
               <span class="rejection-history__num">#{{ idx + 1 }}</span>
-              <span v-if="idx === 0" class="rejection-history__badge">Most recent</span>
-              <span class="rejection-history__date">{{ formatRejectionDate(item.RejectedDate) }}</span>
-              <span v-if="item.RejectedBy" class="rejection-history__by">by {{ item.RejectedBy }}</span>
+              <span v-if="idx === 0" class="rejection-history__badge"
+                >Most recent</span
+              >
+              <span class="rejection-history__date">{{
+                formatRejectionDate(item.RejectedDate)
+              }}</span>
+              <span v-if="item.RejectedBy" class="rejection-history__by"
+                >by {{ item.RejectedBy }}</span
+              >
             </div>
             <p class="rejection-history__reason">{{ item.Reason }}</p>
           </div>
@@ -143,19 +218,33 @@
 
     <!-- Rejected reason: show on top when entry is Rejected -->
     <div
-      v-if="payableStore.mainStatus === 'Rejected' && (payableStore.mainRejectReason || '').trim()"
+      v-if="
+        payableStore.mainStatus === 'Rejected' &&
+        (payableStore.mainRejectReason || '').trim()
+      "
       class="reject-reason-banner"
       role="alert"
     >
       <span class="reject-reason-banner__icon" aria-hidden="true">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M12 8v4M12 16h.01"/>
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 8v4M12 16h.01" />
         </svg>
       </span>
       <div class="reject-reason-banner__content">
         <strong class="reject-reason-banner__label">Rejection reason</strong>
-        <p class="reject-reason-banner__text">{{ payableStore.mainRejectReason }}</p>
+        <p class="reject-reason-banner__text">
+          {{ payableStore.mainRejectReason }}
+        </p>
       </div>
     </div>
 
@@ -412,8 +501,11 @@ import { usePayableStore } from "../stores/payableStore";
 import { useVendorStore } from "../stores/vendorStore";
 import { useBookletStore } from "../stores/bookletStore";
 import { useFileMaker } from "../composables/useFileMaker";
-import { LAYOUTS } from "../utils/filemakerApi";
-import { formatTimestampForFileMaker, formatDateOnlyForFileMaker } from "../utils/filemakerMappers";
+import { LAYOUTS, type PayableInvoiceFieldData } from "../utils/filemakerApi";
+import {
+  formatTimestampForFileMaker,
+  formatDateOnlyForFileMaker,
+} from "../utils/filemakerMappers";
 import { useToastStore } from "../stores/toastStore";
 
 const route = useRoute();
@@ -427,6 +519,7 @@ const { isConnected, updateRecord, createRecord, findRecordsByQueryWithIds } =
 const toast = useToastStore();
 const rejecting = ref(false);
 const approving = ref(false);
+const downloadingPdf = ref(false);
 const canDeleteRow = computed(() => spreadsheet.rowCount.value > 1);
 
 /** Flip direction for transition: 'next' = slide left, 'prev' = slide right */
@@ -438,7 +531,9 @@ const bookletTransitionName = computed(() =>
 function formatRejectionDate(raw?: string): string {
   if (!raw?.trim()) return "";
   const s = raw.trim();
-  const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})/.exec(s);
+  const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})/.exec(
+    s,
+  );
   if (us) {
     const [, m, d, y, h, min] = us;
     const hh = parseInt(h, 10);
@@ -522,9 +617,11 @@ async function fetchRejectionHistory() {
     return;
   }
   rejectionHistoryLoading.value = true;
-  const { data, error } = await findRecordsByQueryWithIds<
-    RejectionHistoryItem
-  >(LAYOUTS.PAYABLES_REJECTION_HISTORY, { TransRef: transRef }, 50);
+  const { data, error } = await findRecordsByQueryWithIds<RejectionHistoryItem>(
+    LAYOUTS.PAYABLES_REJECTION_HISTORY,
+    { TransRef: transRef },
+    50,
+  );
   if (error || !data?.length) {
     rejectionHistory.value = [];
   } else {
@@ -534,8 +631,12 @@ async function fetchRejectionHistory() {
       .map((fd) => {
         const raw = fd as Record<string, unknown>;
         return {
-          RejectedDate: (fd.RejectedDate ?? raw["Rejected date"]) as string | undefined,
-          RejectedBy: (fd.RejectedBy ?? raw["Rejected by"]) as string | undefined,
+          RejectedDate: (fd.RejectedDate ?? raw["Rejected date"]) as
+            | string
+            | undefined,
+          RejectedBy: (fd.RejectedBy ?? raw["Rejected by"]) as
+            | string
+            | undefined,
           Reason: (fd.Reason ?? raw["Reason"]) as string | undefined,
         };
       });
@@ -685,10 +786,271 @@ async function onApprove() {
       return;
     }
     toast.success("Entry approved.");
-    await payableStore.fetchDetailsByTransRef(payableStore.currentTransRef ?? "");
+    await payableStore.fetchDetailsByTransRef(
+      payableStore.currentTransRef ?? "",
+    );
     router.push({ name: "home" });
   } finally {
     approving.value = false;
+  }
+}
+
+/** Format number with thousand separators for PDF (e.g. 8295.4 -> "8,295.40"). */
+function formatPdfNumber(value: string | number): string {
+  const n = typeof value === "number" ? value : parseFloat(String(value).replace(/,/g, ""));
+  if (Number.isNaN(n)) return String(value ?? "—");
+  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/** Convert amount to words for PDF. */
+function amountInWords(amount: number, currencyCode = ""): string {
+  const whole = Math.floor(amount);
+  const cents = Math.round((amount - whole) * 100);
+  const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
+  const teens = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+  const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+  function toWords(n: number): string {
+    if (n === 0) return "Zero";
+    if (n < 10) return ones[n];
+    if (n < 20) return teens[n - 10];
+    if (n < 100) return (tens[Math.floor(n / 10)] + " " + ones[n % 10]).trim();
+    if (n < 1000) return (ones[Math.floor(n / 100)] + " Hundred " + toWords(n % 100)).trim();
+    if (n < 1e6) return (toWords(Math.floor(n / 1000)) + " Thousand " + toWords(n % 1000)).trim();
+    if (n < 1e9) return (toWords(Math.floor(n / 1e6)) + " Million " + toWords(n % 1e6)).trim();
+    return String(n);
+  }
+  const wholeStr = whole === 0 ? "Zero" : toWords(whole);
+  const currency = currencyCode ? ` ${currencyCode}` : "";
+  if (cents === 0) return `${wholeStr}${currency} only`;
+  return `${wholeStr}${currency} and ${cents}/100`;
+}
+
+/** Build and download PDF with pdfmake (invoice-style layout, B&W friendly). */
+async function downloadApprovedPdf() {
+  if (!payableStore.mainPosted || payableStore.mainStatus !== "Approved")
+    return;
+  downloadingPdf.value = true;
+  try {
+    const [pdfMakeModule, vfsModule] = await Promise.all([
+      import("pdfmake/build/pdfmake"),
+      import("pdfmake/build/vfs_fonts"),
+    ]);
+    const pdfMake =
+      (pdfMakeModule as { default?: { createPdf: (def: unknown) => { download: (name: string) => void }; addVirtualFileSystem?: (v: unknown) => void } }).default ??
+      (pdfMakeModule as { createPdf: (def: unknown) => { download: (name: string) => void }; addVirtualFileSystem?: (v: unknown) => void });
+    const vfs = (vfsModule as { default?: unknown }).default ?? vfsModule;
+    if (pdfMake.addVirtualFileSystem && vfs) {
+      pdfMake.addVirtualFileSystem(vfs);
+    }
+
+    const transRef = payableStore.currentTransRef?.trim() ?? "";
+    const v = vendorStore.vendor;
+    const totalAmount =
+      typeof payableStore.entryTotal === "number" ? payableStore.entryTotal : 0;
+    const totalFormatted = formatPdfNumber(totalAmount);
+    const totalStr = (v.currency ? `${v.currency} ` : "") + totalFormatted;
+    const dateStr = new Date().toLocaleDateString(undefined, {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    const vendorLine = [transRef, v.vendor_id, v.vendor_name]
+      .filter(Boolean)
+      .join("  ·  ") || "—";
+    const inWords = amountInWords(totalAmount, v.currency || "");
+
+    const rows = payableStore.rows.filter(
+      (r) =>
+        (r.invoice_number ?? "").trim() !== "" ||
+        (r.amount ?? "").trim() !== "" ||
+        (r.total ?? "").trim() !== "",
+    );
+
+    const subTotal = rows.reduce((acc, r) => {
+      const n = parseFloat(String(r.amount ?? "").replace(/,/g, ""));
+      return acc + (Number.isNaN(n) ? 0 : n);
+    }, 0);
+    const totalTax = rows.reduce((acc, r) => {
+      const n = parseFloat(String(r.tax ?? "").replace(/,/g, ""));
+      return acc + (Number.isNaN(n) ? 0 : n);
+    }, 0);
+    const subTotalStr = (v.currency ? `${v.currency} ` : "") + formatPdfNumber(subTotal);
+    const totalTaxStr = (v.currency ? `${v.currency} ` : "") + formatPdfNumber(totalTax);
+
+    const uniqueInvoices = [...new Set(rows.map((r) => (r.invoice_number ?? "").trim()).filter(Boolean))];
+    const payableInvoiceByInv = new Map<string, PayableInvoiceFieldData[]>();
+    if (isConnected.value && uniqueInvoices.length > 0) {
+      const results = await Promise.all(
+        uniqueInvoices.map((inv) =>
+          findRecordsByQueryWithIds<PayableInvoiceFieldData>(
+            LAYOUTS.PAYABLE_INVOICE,
+            { invoiceNumber: inv },
+            100
+          )
+        )
+      );
+      results.forEach((res, i) => {
+        const inv = uniqueInvoices[i];
+        if (inv && res.data?.length) {
+          payableInvoiceByInv.set(inv, res.data.map((r) => r.fieldData).filter(Boolean));
+        }
+      });
+    }
+
+    function buildTaxBreakdownText(row: (typeof rows)[0]): string {
+      const inv = (row.invoice_number ?? "").trim();
+      if (!inv) return "—";
+      const records = payableInvoiceByInv.get(inv);
+      if (!records?.length) return "—";
+      const parts = records.map((rec) => {
+        const rate = Number(rec.Rate ?? 0);
+        const name = (rec.TaxName ?? "").trim() || "Tax";
+        const rateStr = rate !== 0 ? `${rate}%` : "";
+        return `${name}${rateStr ? ` ${rateStr}` : ""}`;
+      });
+      return parts.join(", ");
+    }
+
+    const tableHeaderRow = [
+      { text: "Invoice No.", fillColor: "#ebebeb", bold: true },
+      { text: "Amount", fillColor: "#ebebeb", bold: true, alignment: "right" as const },
+      { text: "Tax", fillColor: "#ebebeb", bold: true, alignment: "right" as const },
+      { text: "Tax Amount", fillColor: "#ebebeb", bold: true, alignment: "right" as const },
+      { text: "Tax breakdown", fillColor: "#ebebeb", bold: true, fontSize: 9 },
+      { text: "Total", fillColor: "#ebebeb", bold: true, alignment: "right" as const },
+    ];
+    const tableBody = [
+      tableHeaderRow,
+      ...rows.map((r) => {
+        const taxAmount = (r.reference ?? "").trim() || (r.tax ?? "");
+        return [
+          (r.invoice_number ?? "").trim() || "—",
+          { text: formatPdfNumber(r.amount ?? ""), alignment: "right" as const },
+          { text: formatPdfNumber(r.tax ?? ""), alignment: "right" as const },
+          { text: formatPdfNumber(taxAmount), alignment: "right" as const },
+          { text: buildTaxBreakdownText(r), fontSize: 9 },
+          { text: formatPdfNumber(r.total ?? ""), alignment: "right" as const },
+        ];
+      }),
+    ];
+
+    const watermarkText = transRef ? `APPROVED · ${transRef}` : "APPROVED";
+    const docDefinition = {
+      pageSize: "A4",
+      pageOrientation: "landscape",
+      pageMargins: [40, 50, 40, 70],
+      defaultStyle: { fontSize: 10, color: "#000" },
+      watermark: {
+        text: watermarkText,
+        color: "#b0b0b0",
+        opacity: 0.12,
+        bold: true,
+        angle: -45,
+      },
+      content: [
+        {
+          columns: [
+            { text: "Invoice Payment - PDF", fontSize: 15, bold: true },
+            {
+              text: dateStr.toUpperCase(),
+              fontSize: 10,
+              alignment: "right",
+              width: "*",
+            },
+          ],
+          margin: [0, 0, 0, 10],
+        },
+        { canvas: [{ type: "line", x1: 0, y1: 0, x2: 762, y2: 0 }], margin: [0, 4, 0, 10] },
+        { text: vendorLine, alignment: "center", bold: true, fontSize: 12, margin: [0, 0, 0, 6] },
+        {
+          table: {
+            widths: [120, "*"],
+            body: [
+              [{ text: "Vendor ID", bold: true, fillColor: "#f5f5f5" }, v.vendor_id?.trim() || "—"],
+              [{ text: "Vendor name", bold: true, fillColor: "#f5f5f5" }, v.vendor_name?.trim() || "—"],
+              [{ text: "Date", bold: true, fillColor: "#f5f5f5" }, v.payment_terms?.trim() || dateStr],
+              [{ text: "Email", bold: true, fillColor: "#f5f5f5" }, v.contact_email?.trim() || "—"],
+              [{ text: "Currency", bold: true, fillColor: "#f5f5f5" }, v.currency?.trim() || "—"],
+            ],
+          },
+          layout: { hLineWidth: () => 0.2, vLineWidth: () => 0.2 },
+          margin: [0, 0, 0, 12],
+        },
+        { canvas: [{ type: "line", x1: 0, y1: 0, x2: 762, y2: 0 }], margin: [0, 0, 0, 12] },
+        {
+          table: {
+            headerRows: 1,
+            widths: [110, 95, 90, 95, "*", 100],
+            body: tableBody,
+          },
+          layout: { hLineWidth: () => 0.25, vLineWidth: () => 0.25 },
+          margin: [0, 0, 0, 14],
+        },
+        {
+          columns: [
+            {
+              width: "*",
+              stack: [
+                { text: "Amount in words", bold: true, fontSize: 9, margin: [0, 0, 0, 4] },
+                { text: inWords, fontSize: 10 },
+              ],
+              fillColor: "#f8f8f8",
+              margin: [0, 4, 8, 4],
+            },
+            {
+              width: 240,
+              table: {
+                widths: [130, "*"],
+                body: [
+                  [
+                    { text: "Sub Total (excl. tax)", fontSize: 9, fillColor: "#f5f5f5" },
+                    { text: subTotalStr, fontSize: 9, alignment: "right" as const, fillColor: "#f5f5f5" },
+                  ],
+                  [
+                    { text: "Total Tax", fontSize: 9, fillColor: "#f5f5f5" },
+                    { text: formatPdfNumber(totalTax), fontSize: 9, alignment: "right" as const, fillColor: "#f5f5f5" },
+                  ],
+                  [
+                    { text: "Advance Payment", fontSize: 9, fillColor: "#f5f5f5" },
+                    { text: "—", fontSize: 9, alignment: "right" as const, fillColor: "#f5f5f5" },
+                  ],
+                  [
+                    { text: "Amount to Pay", fontSize: 9, bold: true, fillColor: "#f5f5f5" },
+                    { text: totalStr, fontSize: 9, bold: true, alignment: "right" as const, fillColor: "#f5f5f5" },
+                  ],
+                ],
+              },
+              layout: { hLineWidth: () => 0.2, vLineWidth: () => 0.2 },
+            },
+          ],
+        },
+      ],
+      footer: (currentPage: number, pageCount: number) => ({
+        margin: [40, 10, 40, 0],
+        stack: [
+          { text: `PAGE ${currentPage} of ${pageCount}`, fontSize: 9, alignment: "center" as const },
+          {
+            text: "Finance Payables  ·  " +
+              new Date().toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }),
+            fontSize: 8,
+            alignment: "center" as const,
+            margin: [0, 2, 0, 0],
+          },
+        ],
+      }),
+    };
+
+    const filename = transRef
+      ? `Approved-Payable-${transRef.replace(/[/\\?%*:|"<>]/g, "-")}.pdf`
+      : "Approved-Payable.pdf";
+    pdfMake.createPdf(docDefinition).download(filename);
+    toast.success("PDF downloaded.");
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "PDF download failed.";
+    toast.error(msg);
+  } finally {
+    downloadingPdf.value = false;
   }
 }
 </script>
@@ -697,7 +1059,11 @@ async function onApprove() {
 .rejection-history {
   padding: 1.25rem 1.5rem;
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(251, 191, 36, 0.08) 0%, rgba(245, 158, 11, 0.04) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(251, 191, 36, 0.08) 0%,
+    rgba(245, 158, 11, 0.04) 100%
+  );
   border: 1px solid rgba(251, 191, 36, 0.35);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
 }
@@ -794,7 +1160,11 @@ async function onApprove() {
   top: 16px;
   bottom: 0;
   width: 2px;
-  background: linear-gradient(180deg, rgba(251, 191, 36, 0.5) 0%, transparent 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(251, 191, 36, 0.5) 0%,
+    transparent 100%
+  );
 }
 
 .rejection-history__dot {
@@ -876,7 +1246,11 @@ async function onApprove() {
   padding: 1rem 1.25rem;
   margin-bottom: 1rem;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0.08) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(239, 68, 68, 0.15) 0%,
+    rgba(239, 68, 68, 0.08) 100%
+  );
   border: 1px solid rgba(239, 68, 68, 0.35);
   box-shadow: 0 2px 12px rgba(239, 68, 68, 0.1);
 }

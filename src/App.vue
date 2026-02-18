@@ -31,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, provide } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppHeader from './components/AppHeader.vue'
 import AppSidebar from './components/AppSidebar.vue'
@@ -45,6 +45,10 @@ const router = useRouter()
 useFileMaker()
 const showConnectModal = ref(false)
 const routerReady = ref(false)
+
+provide('openConnectModal', () => {
+  showConnectModal.value = true
+})
 
 const showAppLayout = computed(() => route.meta?.layout !== 'login')
 

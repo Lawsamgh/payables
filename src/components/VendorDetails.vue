@@ -34,19 +34,48 @@
               >Vendor ID
               <span class="vendor-details__required">Required</span></span
             >
-            <input
-              :value="vendor.vendor_id"
-              type="text"
-              class="vendor-details__input"
-              placeholder="V-001"
-              :readonly="readOnly"
-              @input="
-                onVendorFieldChange(
-                  'vendor_id',
-                  ($event.target as HTMLInputElement).value,
-                )
-              "
-            />
+            <div ref="vendorDropdownRef" class="tax-modal__search-dropdown">
+              <div class="tax-modal__search-dropdown-input-wrap">
+                <input
+                  :value="vendor.vendor_id"
+                  type="text"
+                  class="tax-modal__search-dropdown-input"
+                  placeholder="Search or select vendor…"
+                  :readonly="readOnly"
+                  autocomplete="off"
+                  @focus="readOnly ? null : (vendorDropdownOpen = true)"
+                  @input="onVendorIdInput(($event.target as HTMLInputElement).value)"
+                />
+                <span class="tax-modal__search-dropdown-chevron" :class="{ 'tax-modal__search-dropdown-chevron--open': vendorDropdownOpen }" aria-hidden="true">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                </span>
+              </div>
+              <Transition name="search-dropdown">
+                <div v-if="vendorDropdownOpen && !readOnly" class="tax-modal__search-dropdown-list" role="listbox">
+                  <button
+                    v-for="(v, idx) in filteredVendorOptions"
+                    :key="v.recordId || idx"
+                    type="button"
+                    role="option"
+                    class="tax-modal__search-dropdown-item"
+                    :class="{ 'tax-modal__search-dropdown-item--highlight': isVendorSelected(v) }"
+                    @mousedown.prevent="onVendorSelect(v)"
+                  >
+                    <span class="font-semibold text-[var(--color-accent)]">{{ getVendorId(v) }}</span>
+                    <span v-if="getVendorName(v)" class="ml-2 text-[var(--color-text-muted)] text-[0.8125rem]">{{ getVendorName(v) }}</span>
+                  </button>
+                  <p v-if="vendorList.length > 0 && filteredVendorOptions.length === 0" class="px-4 py-3 text-[0.8125rem] text-[var(--color-text-muted)] m-0">
+                    No matching vendors
+                  </p>
+                  <p v-else-if="vendorList.length === 0 && !vendorListLoading" class="px-4 py-3 text-[0.8125rem] text-[var(--color-text-muted)] m-0">
+                    No vendors yet
+                  </p>
+                  <p v-else-if="vendorListLoading" class="px-4 py-3 text-[0.8125rem] text-[var(--color-text-muted)] m-0">
+                    Loading…
+                  </p>
+                </div>
+              </Transition>
+            </div>
           </label>
           <label class="vendor-details__field">
             <span class="vendor-details__label"
@@ -144,22 +173,106 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useVendorStore } from "../stores/vendorStore";
 import { usePayableStore } from "../stores/payableStore";
+import { useFileMaker } from "../composables/useFileMaker";
+import { LAYOUTS } from "../utils/filemakerApi";
 import type { Vendor } from "../types";
+import type { VendorTblFieldData } from "../utils/filemakerApi";
+import type { FindRecordWithId } from "../composables/useFileMaker";
 
 const vendorStore = useVendorStore();
 const payableStore = usePayableStore();
+const { findRecordsWithIds, isConnected } = useFileMaker();
 const vendor = computed(() => vendorStore.vendor);
 const collapsed = ref(false);
+const vendorDropdownRef = ref<HTMLElement | null>(null);
+const vendorDropdownOpen = ref(false);
+const vendorSearch = ref("");
 /** Editable except when Posted (Rejected entries stay editable). */
 const readOnly = computed(() => payableStore.mainPosted && payableStore.mainStatus !== "Rejected");
+
+const vendorList = ref<FindRecordWithId<VendorTblFieldData | Record<string, unknown>>[]>([]);
+const vendorListLoading = ref(false);
+
+function getVendorId(row: FindRecordWithId<VendorTblFieldData | Record<string, unknown>>): string {
+  const fd = row.fieldData as Record<string, unknown>;
+  return String(fd.Vendor_ID ?? fd["Vendor ID"] ?? "").trim();
+}
+
+function getVendorName(row: FindRecordWithId<VendorTblFieldData | Record<string, unknown>>): string {
+  const fd = row.fieldData as Record<string, unknown>;
+  return String(fd.Vendor_Name ?? fd["Vendor Name"] ?? "").trim();
+}
+
+function isVendorSelected(row: FindRecordWithId<VendorTblFieldData | Record<string, unknown>>): boolean {
+  const id = getVendorId(row);
+  return id !== "" && id === vendor.value.vendor_id;
+}
+
+const filteredVendorOptions = computed(() => {
+  const q = vendorSearch.value.toLowerCase();
+  if (!q) return vendorList.value;
+  return vendorList.value.filter((r) => {
+    const id = getVendorId(r).toLowerCase();
+    const name = getVendorName(r).toLowerCase();
+    return id.includes(q) || name.includes(q);
+  });
+});
+
+async function loadVendors() {
+  if (!isConnected.value) {
+    vendorList.value = [];
+    return;
+  }
+  vendorListLoading.value = true;
+  const { data, error } = await findRecordsWithIds<VendorTblFieldData | Record<string, unknown>>(
+    LAYOUTS.VENDOR_TBL,
+    { limit: 500 }
+  );
+  vendorListLoading.value = false;
+  vendorList.value = error ? [] : data;
+}
+
+function onVendorIdInput(value: string) {
+  vendorSearch.value = value;
+  vendorStore.setField("vendor_id", value);
+  if (!readOnly.value) payableStore.markDirty();
+  vendorDropdownOpen.value = true;
+}
+
+function onVendorSelect(row: FindRecordWithId<VendorTblFieldData | Record<string, unknown>>) {
+  const id = getVendorId(row);
+  const name = getVendorName(row);
+  vendorStore.setField("vendor_id", id);
+  vendorStore.setField("vendor_name", name);
+  vendorSearch.value = "";
+  vendorDropdownOpen.value = false;
+  if (!readOnly.value) payableStore.markDirty();
+}
 
 function onVendorFieldChange(field: keyof Vendor, value: string): void {
   vendorStore.setField(field, value);
   if (!readOnly.value) payableStore.markDirty();
 }
+
+function handleClickOutside(e: MouseEvent) {
+  if (vendorDropdownRef.value && !vendorDropdownRef.value.contains(e.target as Node)) {
+    vendorDropdownOpen.value = false;
+  }
+}
+
+onMounted(() => {
+  loadVendors();
+  document.addEventListener("click", handleClickOutside);
+});
+onUnmounted(() => {
+  document.removeEventListener("click", handleClickOutside);
+});
+watch(isConnected, (connected) => {
+  if (connected) loadVendors();
+});
 </script>
 
 <style scoped>
@@ -251,12 +364,13 @@ function onVendorFieldChange(field: keyof Vendor, value: string): void {
 
 .vendor-details__input {
   width: 100%;
-  padding: 0.625rem 0.875rem;
+  min-height: 2.75rem;
+  padding: 0.75rem 1rem;
   font-size: 0.9375rem;
   color: var(--color-text);
   background: rgba(15, 23, 42, 0.5);
   border: 1px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: 12px;
   outline: none;
   transition:
     border-color 0.2s var(--vd-ease),

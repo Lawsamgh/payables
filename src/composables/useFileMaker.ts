@@ -24,6 +24,23 @@ const connectionStatus = ref<ConnectionStatus>(
 )
 const lastError = ref<string | null>(null)
 
+/** Detect invalid/expired token errors and auto-logout. Returns user-friendly message. */
+function handleApiError(err: unknown): string {
+  const msg = parseFileMakerError(err)
+  const errObj = err as { response?: { status?: number } }
+  const isTokenError =
+    errObj.response?.status === 401 ||
+    (typeof msg === 'string' &&
+      msg.toLowerCase().includes('invalid') &&
+      msg.toLowerCase().includes('token'))
+  if (isTokenError) {
+    logout()
+    return 'Session expired. Please sign in again.'
+  }
+  lastError.value = msg
+  return msg
+}
+
 function createApi(token: string) {
   const headers = {
     'Content-Type': 'application/json',
@@ -148,14 +165,17 @@ export async function findRecords<T = FileMakerFieldData>(
     const data = list.map((r) => (r && typeof r === 'object' && 'fieldData' in r ? r.fieldData : r) as T)
     const msg = res.data?.messages?.[0]
     if (msg && msg.code !== undefined && String(msg.code) !== '0') {
-      lastError.value = (res.data as { messages?: Array<{ message?: string }> }).messages?.[0]?.message ?? `Error ${msg.code}`
+      const errMsg = (res.data as { messages?: Array<{ message?: string }> }).messages?.[0]?.message ?? `Error ${msg.code}`
+      if (typeof errMsg === 'string' && errMsg.toLowerCase().includes('invalid') && errMsg.toLowerCase().includes('token')) {
+        logout()
+        return { data: [], error: 'Session expired. Please sign in again.' }
+      }
+      lastError.value = errMsg
       return { data: [], error: lastError.value }
     }
     return { data, error: null }
   } catch (err) {
-    const msg = parseFileMakerError(err)
-    lastError.value = msg
-    return { data: [], error: msg }
+    return { data: [], error: handleApiError(err) }
   }
 }
 
@@ -182,7 +202,12 @@ export async function findRecordsWithIds<T = FileMakerFieldData>(
     const list = res.data?.response?.data ?? []
     const msg = res.data?.messages?.[0]
     if (msg && msg.code !== undefined && String(msg.code) !== '0') {
-      lastError.value = (res.data as { messages?: Array<{ message?: string }> }).messages?.[0]?.message ?? `Error ${msg.code}`
+      const errMsg = (res.data as { messages?: Array<{ message?: string }> }).messages?.[0]?.message ?? `Error ${msg.code}`
+      if (typeof errMsg === 'string' && errMsg.toLowerCase().includes('invalid') && errMsg.toLowerCase().includes('token')) {
+        logout()
+        return { data: [], error: 'Session expired. Please sign in again.' }
+      }
+      lastError.value = errMsg
       return { data: [], error: lastError.value }
     }
     return {
@@ -193,9 +218,7 @@ export async function findRecordsWithIds<T = FileMakerFieldData>(
       error: null,
     }
   } catch (err) {
-    const msg = parseFileMakerError(err)
-    lastError.value = msg
-    return { data: [], error: msg }
+    return { data: [], error: handleApiError(err) }
   }
 }
 
@@ -260,8 +283,7 @@ export async function findRecordsByQuery<T = FileMakerFieldData>(
     if (msg && (msg.toLowerCase().includes('no records match') || msg.includes('401'))) {
       return { data: [], error: null }
     }
-    lastError.value = msg
-    return { data: [], error: msg }
+    return { data: [], error: handleApiError(err) }
   }
 }
 
@@ -328,8 +350,7 @@ export async function findRecordsByQueryWithIds<T = FileMakerFieldData>(
     if (msg && (msg.toLowerCase().includes('no records match') || msg.includes('401'))) {
       return { data: [], error: null }
     }
-    lastError.value = msg
-    return { data: [], error: msg }
+    return { data: [], error: handleApiError(err) }
   }
 }
 
@@ -352,23 +373,41 @@ function sanitizeFieldData(
   return out
 }
 
+export interface CreateRecordScriptOptions {
+  script: string
+  scriptParam?: string
+}
+
 export async function createRecord(
   layout: string,
-  fieldData: FileMakerFieldData
+  fieldData: FileMakerFieldData,
+  scriptOptions?: CreateRecordScriptOptions
 ): Promise<{ id: string | null; error: string | null }> {
   const token = sessionToken.value
   if (!token) return { id: null, error: 'Not authenticated' }
   const api = createApi(token)
   const payload = sanitizeFieldData(fieldData)
+  const body: Record<string, unknown> = { fieldData: payload }
+  if (scriptOptions?.script) {
+    body.script = scriptOptions.script
+    if (scriptOptions.scriptParam != null && scriptOptions.scriptParam !== '') {
+      body['script.param'] = scriptOptions.scriptParam
+    }
+  }
   try {
-    const res = await api.post<{ response?: { recordId?: string } }>(
-      `/layouts/${layout}/records`,
-      { fieldData: payload }
-    )
+    const res = await api.post<{
+      response?: { recordId?: string; scriptError?: string }
+      messages?: Array<{ code?: string; message?: string }>
+    }>(`/layouts/${layout}/records`, body)
+    const scriptError = res.data?.response?.scriptError
+    if (scriptError && scriptError !== '0') {
+      const msg = (res.data as { messages?: Array<{ message?: string }> }).messages?.[0]?.message
+      return { id: null, error: msg ?? `Script error: ${scriptError}` }
+    }
     const id = res.data?.response?.recordId ?? null
     return { id, error: null }
   } catch (err) {
-    return { id: null, error: parseFileMakerError(err) }
+    return { id: null, error: handleApiError(err) }
   }
 }
 
@@ -387,7 +426,7 @@ export async function getRecord<T = FileMakerFieldData>(
     const fieldData = res.data?.response?.data?.[0]?.fieldData ?? null
     return { data: fieldData, error: null }
   } catch (err) {
-    return { data: null, error: parseFileMakerError(err) }
+    return { data: null, error: handleApiError(err) }
   }
 }
 
@@ -406,7 +445,7 @@ export async function updateRecord(
     await api.patch(`/layouts/${layout}/records/${recordId}`, { fieldData: payload })
     return { error: null }
   } catch (err) {
-    return { error: parseFileMakerError(err) }
+    return { error: handleApiError(err) }
   }
 }
 
@@ -421,7 +460,41 @@ export async function deleteRecord(
     await api.delete(`/layouts/${layout}/records/${recordId}`)
     return { error: null }
   } catch (err) {
-    return { error: parseFileMakerError(err) }
+    return { error: handleApiError(err) }
+  }
+}
+
+/** Run a FileMaker script via the Data API. */
+export async function runScript(
+  layout: string,
+  scriptName: string,
+  scriptParam?: string
+): Promise<{ error: string | null; scriptResult?: string | null; scriptError?: string; messageCode?: string }> {
+  const token = sessionToken.value
+  if (!token) return { error: 'Not authenticated', scriptResult: null, scriptError: undefined, messageCode: undefined }
+  const api = createApi(token)
+  try {
+    const path = `/layouts/${encodeURIComponent(layout)}/script/${encodeURIComponent(scriptName)}`
+    const url =
+      scriptParam != null && scriptParam !== ''
+        ? `${path}?script.param=${encodeURIComponent(scriptParam)}`
+        : path
+    const res = await api.get<{
+      response?: { scriptError?: string; scriptResult?: string }
+      messages?: Array<{ code?: string; message?: string }>
+    }>(url)
+    const scriptError = res.data?.response?.scriptError ?? '0'
+    const scriptResult = res.data?.response?.scriptResult ?? null
+    const msg = res.data?.messages?.[0]
+    const messageCode = msg?.code != null ? String(msg.code) : undefined
+    if (scriptError !== '0') {
+      const errMsg = msg?.message ?? `Script error: ${scriptError}`
+      lastError.value = errMsg
+      return { error: errMsg, scriptResult, scriptError, messageCode }
+    }
+    return { error: null, scriptResult, scriptError, messageCode }
+  } catch (err) {
+    return { error: handleApiError(err), scriptResult: null, scriptError: undefined, messageCode: undefined }
   }
 }
 
@@ -446,6 +519,7 @@ export function useFileMaker() {
     createRecord,
     updateRecord,
     deleteRecord,
+    runScript,
     getToken: () => sessionToken.value,
   }
 }

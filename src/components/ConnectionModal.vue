@@ -74,7 +74,10 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useFileMaker } from '../composables/useFileMaker'
+import { useToastStore } from '../stores/toastStore'
 import { setSessionBaseUrl } from '../utils/filemakerApi'
+
+const toast = useToastStore()
 
 const props = withDefaults(defineProps<{ visible?: boolean }>(), { visible: false })
 const emit = defineEmits<{ close: []; connected: [] }>()
@@ -102,11 +105,13 @@ watch(fmError, (e) => {
 async function submit() {
   const effectiveBaseUrl = hasBaseUrl.value ? null : baseUrlInput.value?.trim()
   if (!effectiveBaseUrl && !hasBaseUrl.value) {
-    error.value = 'Enter FileMaker base URL (e.g. https://host/fmi/data/v1/databases/PGH_Item_Distribution)'
+    toast.error('Enter FileMaker base URL (e.g. https://host/fmi/data/v1/databases/PGH_Item_Distribution)')
+    error.value = null
     return
   }
   if (!username.value.trim() || !password.value) {
-    error.value = 'Enter username and password'
+    toast.error('Enter username and password')
+    error.value = null
     return
   }
   if (effectiveBaseUrl) {
@@ -120,7 +125,8 @@ async function submit() {
     emit('connected')
     close()
   } else {
-    error.value = fmError.value || 'Login failed'
+    toast.error(fmError.value || 'Login failed')
+    error.value = null
   }
 }
 

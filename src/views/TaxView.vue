@@ -1,25 +1,49 @@
 <template>
-  <div class="content-area flex flex-col flex-1 min-h-0 w-full max-w-[1600px] mx-auto px-4 py-5 md:px-6 md:py-6">
+  <div
+    class="content-area flex flex-col flex-1 min-h-0 w-full max-w-[1600px] mx-auto px-4 py-5 md:px-6 md:py-6"
+  >
     <header class="flex flex-wrap items-center justify-between gap-4 mb-6">
       <div class="flex flex-wrap items-center gap-3">
         <router-link
           to="/"
           class="pill-btn glass-input inline-flex items-center gap-1.5 px-3 py-2 text-[var(--label-size)] text-[var(--color-text-muted)] no-underline hover:text-[var(--color-text)]"
         >
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          <svg
+            class="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M15 19l-7-7 7-7"
+            />
           </svg>
           Back
         </router-link>
-        <h1 class="text-xl font-bold tracking-tight text-[var(--color-text)]">Tax</h1>
+        <h1 class="text-xl font-bold tracking-tight text-[var(--color-text)]">
+          Tax
+        </h1>
       </div>
       <button
         type="button"
         class="pill-btn inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2.5 text-[var(--label-size)] font-semibold text-white shadow-md hover:bg-orange-600 transition-colors"
         @click="showAddModal = true"
       >
-        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        <svg
+          class="h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 4v16m8-8H4"
+          />
         </svg>
         Add Tax
       </button>
@@ -30,11 +54,26 @@
     </p>
 
     <!-- Search and filter -->
-    <div v-if="!loading && !loadError && taxList.length > 0" class="tax-search-bar">
+    <div
+      v-if="!loading && !loadError && taxList.length > 0"
+      class="tax-search-bar"
+    >
       <div class="tax-search-bar__row">
-        <div class="search-bar__wrap tax-search-bar__search" :class="{ 'search-bar__wrap--has-value': searchQuery }">
+        <div
+          class="search-bar__wrap tax-search-bar__search"
+          :class="{ 'search-bar__wrap--has-value': searchQuery }"
+        >
           <span class="search-bar__icon" aria-hidden="true">
-            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+            <svg
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              viewBox="0 0 24 24"
+            >
               <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </span>
@@ -53,14 +92,34 @@
             aria-label="Clear search"
             @click="searchQuery = ''"
           >
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            <svg
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
         <div class="tax-search-bar__filter-wrap">
           <span class="tax-search-bar__filter-icon" aria-hidden="true">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+            <svg
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              viewBox="0 0 24 24"
+            >
               <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
             </svg>
           </span>
@@ -70,17 +129,32 @@
             aria-label="Filter by status"
           >
             <option value="">All statuses</option>
-            <option v-for="s in uniqueStatuses" :key="s" :value="s">{{ s }}</option>
+            <option v-for="s in uniqueStatuses" :key="s" :value="s">
+              {{ s }}
+            </option>
           </select>
           <span class="tax-search-bar__filter-chevron" aria-hidden="true">
-            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6" />
+            <svg
+              width="12"
+              height="12"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M6 9l6 6 6-6"
+              />
             </svg>
           </span>
         </div>
       </div>
       <p v-if="searchQuery || statusFilter" class="tax-search-bar__hint">
-        {{ filteredTaxList.length }} result{{ filteredTaxList.length === 1 ? '' : 's' }}
+        {{ filteredTaxList.length }} result{{
+          filteredTaxList.length === 1 ? "" : "s"
+        }}
       </p>
     </div>
 
@@ -95,24 +169,64 @@
           <table class="tax-table">
             <thead>
               <tr>
-                <th><Skeleton width="5rem" height="0.875rem" class="rounded" /></th>
-                <th><Skeleton width="5rem" height="0.875rem" class="rounded" /></th>
-                <th><Skeleton width="3rem" height="0.875rem" class="rounded" /></th>
-                <th><Skeleton width="4.5rem" height="0.875rem" class="rounded" /></th>
-                <th><Skeleton width="4.5rem" height="0.875rem" class="rounded" /></th>
-                <th><Skeleton width="3.5rem" height="0.875rem" class="rounded" /></th>
-                <th class="tax-table__actions-th"><Skeleton width="2.5rem" height="0.875rem" class="rounded" /></th>
+                <th>
+                  <Skeleton width="5rem" height="0.875rem" class="rounded" />
+                </th>
+                <th>
+                  <Skeleton width="5rem" height="0.875rem" class="rounded" />
+                </th>
+                <th>
+                  <Skeleton width="3rem" height="0.875rem" class="rounded" />
+                </th>
+                <th>
+                  <Skeleton width="4.5rem" height="0.875rem" class="rounded" />
+                </th>
+                <th>
+                  <Skeleton width="4.5rem" height="0.875rem" class="rounded" />
+                </th>
+                <th>
+                  <Skeleton width="3.5rem" height="0.875rem" class="rounded" />
+                </th>
+                <th class="tax-table__actions-th">
+                  <Skeleton width="2.5rem" height="0.875rem" class="rounded" />
+                </th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="i in 6" :key="i" class="tax-table-skeleton__row">
-                <td><Skeleton width="4rem" height="0.875rem" class="rounded" /></td>
-                <td><Skeleton width="70%" height="0.875rem" class="rounded max-w-[8rem]" /></td>
-                <td><Skeleton width="2.5rem" height="0.875rem" class="rounded" /></td>
-                <td><Skeleton width="5rem" height="0.875rem" class="rounded" /></td>
-                <td><Skeleton width="5rem" height="0.875rem" class="rounded" /></td>
-                <td><Skeleton width="3.5rem" height="1.25rem" class="rounded-md" /></td>
-                <td class="tax-table__actions-td"><Skeleton width="3.5rem" height="1.75rem" class="rounded-lg" /></td>
+                <td>
+                  <Skeleton width="4rem" height="0.875rem" class="rounded" />
+                </td>
+                <td>
+                  <Skeleton
+                    width="70%"
+                    height="0.875rem"
+                    class="rounded max-w-[8rem]"
+                  />
+                </td>
+                <td>
+                  <Skeleton width="2.5rem" height="0.875rem" class="rounded" />
+                </td>
+                <td>
+                  <Skeleton width="5rem" height="0.875rem" class="rounded" />
+                </td>
+                <td>
+                  <Skeleton width="5rem" height="0.875rem" class="rounded" />
+                </td>
+                <td>
+                  <Skeleton
+                    width="3.5rem"
+                    height="1.25rem"
+                    class="rounded-md"
+                  />
+                </td>
+                <td class="tax-table__actions-td">
+                  <Skeleton
+                    width="3.5rem"
+                    height="1.75rem"
+                    class="rounded-lg"
+                  />
+                </td>
               </tr>
             </tbody>
           </table>
@@ -132,38 +246,55 @@
         </button>
       </div>
       <div v-else-if="filteredTaxList.length === 0" class="tax-table-empty">
-        <p>{{ searchQuery || statusFilter ? 'No matching tax codes.' : 'No tax codes yet.' }}</p>
+        <p>
+          {{
+            searchQuery || statusFilter
+              ? "No matching tax codes."
+              : "No tax codes yet."
+          }}
+        </p>
         <button
           v-if="searchQuery || statusFilter"
           type="button"
           class="pill-btn mt-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-          @click="searchQuery = ''; statusFilter = ''"
+          @click="
+            searchQuery = '';
+            statusFilter = '';
+          "
         >
           Clear filters
         </button>
       </div>
-      <div v-else class="tax-table-scroll">
-        <table class="tax-table">
-          <thead>
-            <tr>
-              <th>Tax Type</th>
-              <th>Tax Name</th>
-              <th>Rate</th>
-              <th>Start Date</th>
-              <th>End Date</th>
-              <th>Status</th>
-              <th class="tax-table__actions-th"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(row, index) in filteredTaxList" :key="row.recordId || index">
-              <td>{{ row.fieldData.Tax_Type ?? '—' }}</td>
-              <td>{{ row.fieldData.Tax_Name ?? '—' }}</td>
+      <div v-else>
+        <div class="tax-table-scroll">
+          <table class="tax-table">
+            <thead>
+              <tr>
+                <th>Tax Type</th>
+                <th>Tax Name</th>
+                <th>Rate</th>
+                <th>Start Date</th>
+                <th>End Date</th>
+                <th>Status</th>
+                <th class="tax-table__actions-th"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(row, index) in taxListToShow"
+                :key="row.recordId || index"
+              >
+              <td>{{ row.fieldData.Tax_Type ?? "—" }}</td>
+              <td>{{ row.fieldData.Tax_Name ?? "—" }}</td>
               <td>{{ formatRate(row.fieldData.Tax_Rate) }}</td>
               <td>{{ formatDate(row.fieldData.Start_Date) }}</td>
               <td>{{ formatDate(row.fieldData.End_Date) }}</td>
               <td :class="statusCellClass(row.fieldData.Status)">
-                <span v-if="row.fieldData.Status?.trim()" class="tax-table__status-badge">{{ row.fieldData.Status }}</span>
+                <span
+                  v-if="row.fieldData.Status?.trim()"
+                  class="tax-table__status-badge"
+                  >{{ row.fieldData.Status }}</span
+                >
                 <span v-else>—</span>
               </td>
               <td class="tax-table__actions-td">
@@ -173,8 +304,19 @@
                   aria-label="Edit"
                   @click="openEdit(row)"
                 >
-                  <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  <svg
+                    width="16"
+                    height="16"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
                   </svg>
                   Edit
                 </button>
@@ -182,29 +324,93 @@
             </tr>
           </tbody>
         </table>
+        </div>
+        <div v-if="totalPagesTax > 1" class="pagination">
+          <button
+            type="button"
+            class="pagination__btn"
+            :disabled="currentPageTax <= 1"
+            aria-label="Previous page"
+            @click="currentPageTax = Math.max(1, currentPageTax - 1)"
+          >
+            <svg class="pagination__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <span class="pagination__label">
+            Page {{ currentPageTax }} of {{ totalPagesTax }}
+          </span>
+          <button
+            type="button"
+            class="pagination__btn"
+            :disabled="currentPageTax >= totalPagesTax"
+            aria-label="Next page"
+            @click="currentPageTax = Math.min(totalPagesTax, currentPageTax + 1)"
+          >
+            <svg class="pagination__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- Add / Edit Tax modal: click-outside does not close -->
     <Teleport to="body">
       <div v-if="showAddModal" class="tax-modal-backdrop">
-        <div class="tax-modal" role="dialog" :aria-labelledby="editingRecordId ? 'edit-tax-title' : 'add-tax-title'" aria-modal="true">
+        <div
+          class="tax-modal"
+          role="dialog"
+          :aria-labelledby="
+            editingRecordId ? 'edit-tax-title' : 'add-tax-title'
+          "
+          aria-modal="true"
+        >
           <header class="tax-modal__header">
-            <h2 :id="editingRecordId ? 'edit-tax-title' : 'add-tax-title'" class="tax-modal__title">{{ editingRecordId ? 'Edit Tax' : 'Add Tax' }}</h2>
+            <h2
+              :id="editingRecordId ? 'edit-tax-title' : 'add-tax-title'"
+              class="tax-modal__title"
+            >
+              {{ editingRecordId ? "Edit Tax" : "Add Tax" }}
+            </h2>
             <button
               type="button"
               class="tax-modal__close"
               aria-label="Close"
-              @click="showAddModal = false; editingRecordId = null"
+              @click="
+                showAddModal = false;
+                editingRecordId = null;
+              "
             >
-              <svg class="tax-modal__close-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              <svg
+                class="tax-modal__close-icon"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </header>
           <div v-if="formError" class="tax-modal__error" role="alert">
-            <svg class="tax-modal__error-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            <svg
+              class="tax-modal__error-icon"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
             </svg>
             <span class="tax-modal__error-text">{{ formError }}</span>
           </div>
@@ -213,7 +419,10 @@
               <h3 class="tax-modal__section-title">Details</h3>
               <label class="tax-modal__label">
                 <span>Tax Type</span>
-                <div ref="taxTypeDropdownRef" class="tax-modal__search-dropdown">
+                <div
+                  ref="taxTypeDropdownRef"
+                  class="tax-modal__search-dropdown"
+                >
                   <div class="tax-modal__search-dropdown-input-wrap">
                     <input
                       v-model="taxTypeSearch"
@@ -229,18 +438,43 @@
                       @keydown.enter.prevent="applyTaxTypeHighlighted"
                       @keydown.escape="taxTypeDropdownOpen = false"
                     />
-                    <span class="tax-modal__search-dropdown-chevron" :class="{ 'tax-modal__search-dropdown-chevron--open': taxTypeDropdownOpen }" aria-hidden="true">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                    <span
+                      class="tax-modal__search-dropdown-chevron"
+                      :class="{
+                        'tax-modal__search-dropdown-chevron--open':
+                          taxTypeDropdownOpen,
+                      }"
+                      aria-hidden="true"
+                    >
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
                     </span>
                   </div>
                   <Transition name="search-dropdown">
-                    <div v-if="taxTypeDropdownOpen" class="tax-modal__search-dropdown-list" role="listbox">
+                    <div
+                      v-if="taxTypeDropdownOpen"
+                      class="tax-modal__search-dropdown-list"
+                      role="listbox"
+                    >
                       <button
                         v-for="(t, i) in filteredTaxTypes"
                         :key="t"
                         type="button"
                         class="tax-modal__search-dropdown-item"
-                        :class="{ 'tax-modal__search-dropdown-item--highlight': taxTypeHighlightIndex === i }"
+                        :class="{
+                          'tax-modal__search-dropdown-item--highlight':
+                            taxTypeHighlightIndex === i,
+                        }"
                         role="option"
                         :aria-selected="taxTypeHighlightIndex === i"
                         @mousedown.prevent="selectTaxType(t)"
@@ -250,9 +484,14 @@
                       <button
                         type="button"
                         class="tax-modal__search-dropdown-item tax-modal__search-dropdown-item--add"
-                        :class="{ 'tax-modal__search-dropdown-item--highlight': taxTypeHighlightIndex === filteredTaxTypes.length }"
+                        :class="{
+                          'tax-modal__search-dropdown-item--highlight':
+                            taxTypeHighlightIndex === filteredTaxTypes.length,
+                        }"
                         role="option"
-                        :aria-selected="taxTypeHighlightIndex === filteredTaxTypes.length"
+                        :aria-selected="
+                          taxTypeHighlightIndex === filteredTaxTypes.length
+                        "
                         @mousedown.prevent="selectNewTaxType"
                       >
                         — Add new type —
@@ -263,7 +502,13 @@
               </label>
               <label class="tax-modal__label">
                 <span>Tax Name</span>
-                <input v-model="form.Tax_Name" type="text" class="glass-input w-full px-3 py-2.5 rounded-lg" placeholder="Display name" required />
+                <input
+                  v-model="form.Tax_Name"
+                  type="text"
+                  class="glass-input w-full px-3 py-2.5 rounded-lg"
+                  placeholder="Display name"
+                  required
+                />
               </label>
               <label class="tax-modal__label">
                 <span>Tax Rate (%)</span>
@@ -284,16 +529,33 @@
               <div class="tax-modal__row">
                 <label class="tax-modal__label">
                   <span>Start Date</span>
-                  <input v-model="form.Start_Date" type="date" class="glass-input w-full px-3 py-2.5 rounded-lg" required />
+                  <input
+                    v-model="form.Start_Date"
+                    type="date"
+                    class="glass-input w-full px-3 py-2.5 rounded-lg"
+                    required
+                  />
                 </label>
                 <label class="tax-modal__label">
                   <span>End Date</span>
-                  <input v-model="form.End_Date" type="date" class="glass-input w-full px-3 py-2.5 rounded-lg" required />
+                  <input
+                    v-model="form.End_Date"
+                    type="date"
+                    class="glass-input w-full px-3 py-2.5 rounded-lg"
+                    required
+                  />
                 </label>
               </div>
             </section>
             <div class="tax-modal__actions">
-              <button type="button" class="tax-modal__btn-cancel" @click="showAddModal = false; editingRecordId = null">
+              <button
+                type="button"
+                class="tax-modal__btn-cancel"
+                @click="
+                  showAddModal = false;
+                  editingRecordId = null;
+                "
+              >
                 Cancel
               </button>
               <button
@@ -301,7 +563,7 @@
                 class="tax-modal__btn-submit"
                 :disabled="saving"
               >
-                {{ saving ? 'Saving…' : (editingRecordId ? 'Save' : 'Add Tax') }}
+                {{ saving ? "Saving…" : editingRecordId ? "Save" : "Add Tax" }}
               </button>
             </div>
           </form>
@@ -312,326 +574,381 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import Skeleton from '../components/Skeleton.vue'
-import { useFileMaker } from '../composables/useFileMaker'
-import { LAYOUTS } from '../utils/filemakerApi'
-import type { TaxValueFieldData } from '../utils/filemakerApi'
-import type { FindRecordWithId } from '../composables/useFileMaker'
-import { useToastStore } from '../stores/toastStore'
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import Skeleton from "../components/Skeleton.vue";
+import { useFileMaker } from "../composables/useFileMaker";
+import { LAYOUTS } from "../utils/filemakerApi";
+import type { TaxValueFieldData } from "../utils/filemakerApi";
+import type { FindRecordWithId } from "../composables/useFileMaker";
+import { useToastStore } from "../stores/toastStore";
+import { useTaxOverviewStore } from "../stores/taxOverviewStore";
 
-const { createRecord, updateRecord, findRecordsWithIds, isConnected } = useFileMaker()
-const toast = useToastStore()
+const { createRecord, updateRecord, findRecordsWithIds, isConnected } =
+  useFileMaker();
+const toast = useToastStore();
+const taxOverview = useTaxOverviewStore();
 
-const taxList = ref<FindRecordWithId<TaxValueFieldData>[]>([])
-const loading = ref(true)
-const loadError = ref<string | null>(null)
-const showAddModal = ref(false)
+const taxList = ref<FindRecordWithId<TaxValueFieldData>[]>([]);
+const loading = ref(true);
+const loadError = ref<string | null>(null);
+const showAddModal = ref(false);
 
-const searchQuery = ref('')
-const statusFilter = ref('')
+const searchQuery = ref("");
+const statusFilter = ref("");
 
 /** Unique Status values from the table for the filter dropdown. */
 const uniqueStatuses = computed(() => {
-  const set = new Set<string>()
+  const set = new Set<string>();
   for (const { fieldData } of taxList.value) {
-    const s = (fieldData.Status ?? '').trim()
-    if (s) set.add(s)
+    const s = (fieldData.Status ?? "").trim();
+    if (s) set.add(s);
   }
-  return Array.from(set).sort()
-})
+  return Array.from(set).sort();
+});
 
 /** Table rows filtered by search (Tax_Type, Tax_Name, Status, rate) and status filter. */
 const filteredTaxList = computed(() => {
-  let list = taxList.value
-  const q = searchQuery.value.toLowerCase()
-  const status = statusFilter.value.trim()
+  let list = taxList.value;
+  const q = searchQuery.value.toLowerCase();
+  const status = statusFilter.value.trim();
   if (status) {
-    list = list.filter((r) => (r.fieldData.Status ?? '').trim() === status)
+    list = list.filter((r) => (r.fieldData.Status ?? "").trim() === status);
   }
-  if (!q) return list
+  if (!q) return list;
   return list.filter((r) => {
-    const fd = r.fieldData
-    const type = (fd.Tax_Type ?? '').toLowerCase()
-    const name = (fd.Tax_Name ?? '').toLowerCase()
-    const st = (fd.Status ?? '').toLowerCase()
-    const rate = formatRate(fd.Tax_Rate).toLowerCase()
-    return type.includes(q) || name.includes(q) || st.includes(q) || rate.includes(q)
-  })
-})
+    const fd = r.fieldData;
+    const type = (fd.Tax_Type ?? "").toLowerCase();
+    const name = (fd.Tax_Name ?? "").toLowerCase();
+    const st = (fd.Status ?? "").toLowerCase();
+    const rate = formatRate(fd.Tax_Rate).toLowerCase();
+    return (
+      type.includes(q) || name.includes(q) || st.includes(q) || rate.includes(q)
+    );
+  });
+});
 
-const editingRecordId = ref<string | null>(null)
+const PAGE_SIZE = 10;
+const currentPageTax = ref(1);
+const totalPagesTax = computed(() =>
+  Math.max(1, Math.ceil(filteredTaxList.value.length / PAGE_SIZE)),
+);
+const taxListToShow = computed(() => {
+  const start = (currentPageTax.value - 1) * PAGE_SIZE;
+  return filteredTaxList.value.slice(start, start + PAGE_SIZE);
+});
+
+watch(
+  () => [searchQuery.value, statusFilter.value],
+  () => {
+    currentPageTax.value = 1;
+  },
+);
+watch(totalPagesTax, (total) => {
+  if (currentPageTax.value > total)
+    currentPageTax.value = Math.max(1, total);
+});
+
+const editingRecordId = ref<string | null>(null);
 
 const form = ref<TaxValueFieldData>({
-  Tax_Type: '',
-  Tax_Name: '',
+  Tax_Type: "",
+  Tax_Name: "",
   Tax_Rate: undefined,
-  Start_Date: '',
-  End_Date: '',
-})
-const customTaxType = ref('')
-const formError = ref<string | null>(null)
-const saving = ref(false)
+  Start_Date: "",
+  End_Date: "",
+});
+const customTaxType = ref("");
+const formError = ref<string | null>(null);
+const saving = ref(false);
 
-const taxTypeSearch = ref('')
-const taxTypeDropdownOpen = ref(false)
-const taxTypeHighlightIndex = ref(0)
-const taxTypeDropdownRef = ref<HTMLElement | null>(null)
+const taxTypeSearch = ref("");
+const taxTypeDropdownOpen = ref(false);
+const taxTypeHighlightIndex = ref(0);
+const taxTypeDropdownRef = ref<HTMLElement | null>(null);
 
 /** Unique Tax_Type values from the table, uppercase, sorted. */
 const uniqueTaxTypes = computed(() => {
-  const set = new Set<string>()
+  const set = new Set<string>();
   for (const { fieldData } of taxList.value) {
-    const t = (fieldData.Tax_Type ?? '').trim()
-    if (t) set.add(t.toUpperCase())
+    const t = (fieldData.Tax_Type ?? "").trim();
+    if (t) set.add(t.toUpperCase());
   }
-  return Array.from(set).sort()
-})
+  return Array.from(set).sort();
+});
 
 /** Filter types by search (case-insensitive). */
 const filteredTaxTypes = computed(() => {
-  const q = taxTypeSearch.value.trim().toLowerCase()
-  if (!q) return uniqueTaxTypes.value
-  return uniqueTaxTypes.value.filter((t) => t.toLowerCase().includes(q))
-})
+  const q = taxTypeSearch.value.trim().toLowerCase();
+  if (!q) return uniqueTaxTypes.value;
+  return uniqueTaxTypes.value.filter((t) => t.toLowerCase().includes(q));
+});
 
 function moveTaxTypeHighlight(delta: number) {
-  const n = filteredTaxTypes.value.length + 1
-  taxTypeHighlightIndex.value = (taxTypeHighlightIndex.value + delta + n) % n
+  const n = filteredTaxTypes.value.length + 1;
+  taxTypeHighlightIndex.value = (taxTypeHighlightIndex.value + delta + n) % n;
 }
 
 function applyTaxTypeHighlighted() {
-  const i = taxTypeHighlightIndex.value
-  const list = filteredTaxTypes.value
-  if (i < list.length) selectTaxType(list[i])
-  else selectNewTaxType()
+  const i = taxTypeHighlightIndex.value;
+  const list = filteredTaxTypes.value;
+  if (i < list.length) selectTaxType(list[i]);
+  else selectNewTaxType();
 }
 
 function selectTaxType(type: string) {
-  form.value.Tax_Type = type
-  taxTypeSearch.value = type
-  customTaxType.value = ''
-  taxTypeDropdownOpen.value = false
-  taxTypeHighlightIndex.value = 0
+  form.value.Tax_Type = type;
+  taxTypeSearch.value = type;
+  customTaxType.value = "";
+  taxTypeDropdownOpen.value = false;
+  taxTypeHighlightIndex.value = 0;
 }
 
 function selectNewTaxType() {
-  const raw = taxTypeSearch.value.trim()
-  form.value.Tax_Type = '__other__'
-  customTaxType.value = raw ? raw.toUpperCase() : ''
-  taxTypeSearch.value = customTaxType.value || '— Add new type —'
-  taxTypeDropdownOpen.value = false
-  taxTypeHighlightIndex.value = 0
+  const raw = taxTypeSearch.value.trim();
+  form.value.Tax_Type = "__other__";
+  customTaxType.value = raw ? raw.toUpperCase() : "";
+  taxTypeSearch.value = customTaxType.value || "— Add new type —";
+  taxTypeDropdownOpen.value = false;
+  taxTypeHighlightIndex.value = 0;
 }
 
 function onTaxTypeBlur() {
   setTimeout(() => {
-    if (!taxTypeDropdownOpen.value) return
-    taxTypeDropdownOpen.value = false
-    const raw = taxTypeSearch.value.trim()
+    if (!taxTypeDropdownOpen.value) return;
+    taxTypeDropdownOpen.value = false;
+    const raw = taxTypeSearch.value.trim();
     if (raw && !form.value.Tax_Type) {
-      form.value.Tax_Type = '__other__'
-      customTaxType.value = raw.toUpperCase()
-      taxTypeSearch.value = customTaxType.value
+      form.value.Tax_Type = "__other__";
+      customTaxType.value = raw.toUpperCase();
+      taxTypeSearch.value = customTaxType.value;
     }
-  }, 150)
+  }, 150);
 }
 
 function closeTaxTypeDropdownOnClickOutside(e: MouseEvent) {
-  if (taxTypeDropdownRef.value?.contains(e.target as Node)) return
-  taxTypeDropdownOpen.value = false
-  const raw = taxTypeSearch.value.trim()
+  if (taxTypeDropdownRef.value?.contains(e.target as Node)) return;
+  taxTypeDropdownOpen.value = false;
+  const raw = taxTypeSearch.value.trim();
   if (raw && !form.value.Tax_Type) {
-    form.value.Tax_Type = '__other__'
-    customTaxType.value = raw.toUpperCase()
-    taxTypeSearch.value = customTaxType.value
+    form.value.Tax_Type = "__other__";
+    customTaxType.value = raw.toUpperCase();
+    taxTypeSearch.value = customTaxType.value;
   }
 }
 
 async function loadTaxes() {
   if (!isConnected.value) {
-    taxList.value = []
-    loading.value = false
-    return
+    taxList.value = [];
+    loading.value = false;
+    return;
   }
-  loading.value = true
-  loadError.value = null
-  const { data, error } = await findRecordsWithIds<TaxValueFieldData>(LAYOUTS.TAX_VALUE, { limit: 500 })
-  loading.value = false
+  loading.value = true;
+  loadError.value = null;
+  const { data, error } = await findRecordsWithIds<TaxValueFieldData>(
+    LAYOUTS.TAX_VALUE,
+    { limit: 500 },
+  );
+  loading.value = false;
   if (error) {
-    loadError.value = error
-    taxList.value = []
+    toast.error(error);
+    loadError.value = null;
+    taxList.value = [];
+    taxOverview.setTaxCount(0);
   } else {
-    taxList.value = data
+    taxList.value = data;
+    taxOverview.setTaxCount(data.length);
   }
 }
 
 function formatRate(value: number | string | undefined): string {
-  if (value == null || value === '') return '—'
-  const n = Number(value)
-  if (Number.isNaN(n)) return '—'
-  return `${n}%`
+  if (value == null || value === "") return "—";
+  const n = Number(value);
+  if (Number.isNaN(n)) return "—";
+  return `${n}%`;
 }
 
 function formatDate(value: string | undefined): string {
-  if (!value?.trim()) return '—'
-  return value.trim()
+  if (!value?.trim()) return "—";
+  return value.trim();
 }
 
 /** Convert FileMaker date (MM/dd/yyyy) to HTML date input (yyyy-MM-dd). */
 function fileMakerDateToInput(value: string | undefined): string {
-  if (!value?.trim()) return ''
-  const raw = value.trim()
-  const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(raw)
+  if (!value?.trim()) return "";
+  const raw = value.trim();
+  const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(raw);
   if (us) {
-    const m = us[1].padStart(2, '0')
-    const d = us[2].padStart(2, '0')
-    return `${us[3]}-${m}-${d}`
+    const m = us[1].padStart(2, "0");
+    const d = us[2].padStart(2, "0");
+    return `${us[3]}-${m}-${d}`;
   }
-  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw)
-  if (iso) return raw
-  return ''
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (iso) return raw;
+  return "";
 }
 
 /** CSS class for status cell: valid=green, expired=red, other=yellow. Empty = no class. */
 function statusCellClass(status: string | undefined): string {
-  const s = (status ?? '').trim().toLowerCase()
-  if (!s) return ''
-  if (s === 'valid') return 'tax-table__status--valid'
-  if (s === 'expired') return 'tax-table__status--expired'
-  return 'tax-table__status--other'
+  const s = (status ?? "").trim().toLowerCase();
+  if (!s) return "";
+  if (s === "valid") return "tax-table__status--valid";
+  if (s === "expired") return "tax-table__status--expired";
+  return "tax-table__status--other";
 }
 
 function openEdit(row: FindRecordWithId<TaxValueFieldData>) {
-  const fd = row.fieldData
+  const fd = row.fieldData;
   form.value = {
-    Tax_Type: fd.Tax_Type ?? '',
-    Tax_Name: fd.Tax_Name ?? '',
+    Tax_Type: fd.Tax_Type ?? "",
+    Tax_Name: fd.Tax_Name ?? "",
     Tax_Rate: fd.Tax_Rate,
     Start_Date: fileMakerDateToInput(fd.Start_Date),
     End_Date: fileMakerDateToInput(fd.End_Date),
-  }
-  taxTypeSearch.value = (fd.Tax_Type ?? '').trim()
-  customTaxType.value = ''
-  editingRecordId.value = row.recordId
-  formError.value = null
-  showAddModal.value = true
+  };
+  taxTypeSearch.value = (fd.Tax_Type ?? "").trim();
+  customTaxType.value = "";
+  editingRecordId.value = row.recordId;
+  formError.value = null;
+  showAddModal.value = true;
 }
 
 /** Convert YYYY-MM-DD (HTML date input) to MM/dd/yyyy for FileMaker. */
 function toFileMakerDate(isoDate: string | undefined): string | undefined {
-  if (!isoDate?.trim()) return undefined
-  const s = isoDate.trim()
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s)
-  if (!match) return undefined
-  const [, y, m, d] = match
-  return `${m}/${d}/${y}`
+  if (!isoDate?.trim()) return undefined;
+  const s = isoDate.trim();
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!match) return undefined;
+  const [, y, m, d] = match;
+  return `${m}/${d}/${y}`;
 }
 
 function resetForm() {
-  editingRecordId.value = null
+  editingRecordId.value = null;
   form.value = {
-    Tax_Type: '',
-    Tax_Name: '',
+    Tax_Type: "",
+    Tax_Name: "",
     Tax_Rate: undefined,
-    Start_Date: '',
-    End_Date: '',
-  }
-  customTaxType.value = ''
-  taxTypeSearch.value = ''
-  taxTypeDropdownOpen.value = false
-  taxTypeHighlightIndex.value = 0
-  formError.value = null
+    Start_Date: "",
+    End_Date: "",
+  };
+  customTaxType.value = "";
+  taxTypeSearch.value = "";
+  taxTypeDropdownOpen.value = false;
+  taxTypeHighlightIndex.value = 0;
+  formError.value = null;
 }
 
 watch(showAddModal, (open) => {
   if (open) {
-    if (!editingRecordId.value) resetForm()
+    if (!editingRecordId.value) resetForm();
   } else {
-    taxTypeDropdownOpen.value = false
+    taxTypeDropdownOpen.value = false;
   }
-})
+});
 
 watch(taxTypeDropdownOpen, (open) => {
-  if (open) taxTypeHighlightIndex.value = 0
-})
+  if (open) taxTypeHighlightIndex.value = 0;
+});
 
 watch(filteredTaxTypes, () => {
-  taxTypeHighlightIndex.value = Math.min(taxTypeHighlightIndex.value, filteredTaxTypes.value.length)
-})
+  taxTypeHighlightIndex.value = Math.min(
+    taxTypeHighlightIndex.value,
+    filteredTaxTypes.value.length,
+  );
+});
 
 onMounted(() => {
-  document.addEventListener('click', closeTaxTypeDropdownOnClickOutside)
-})
+  document.addEventListener("click", closeTaxTypeDropdownOnClickOutside);
+});
 onUnmounted(() => {
-  document.removeEventListener('click', closeTaxTypeDropdownOnClickOutside)
-})
+  document.removeEventListener("click", closeTaxTypeDropdownOnClickOutside);
+});
 
 function validateForm(): string | null {
-  const { Tax_Type, Tax_Name, Tax_Rate, Start_Date, End_Date } = form.value
-  const missing: string[] = []
-  const typeValue = Tax_Type?.trim()
-  if (!typeValue) missing.push('Tax Type')
-  else if (typeValue === '__other__' && !customTaxType.value.trim()) missing.push('Tax Type (enter new type)')
-  if (!Tax_Name?.trim()) missing.push('Tax Name')
-  if (Tax_Rate == null || Tax_Rate === '' || (typeof Tax_Rate === 'number' && Number.isNaN(Tax_Rate))) missing.push('Tax Rate')
-  if (!Start_Date?.trim()) missing.push('Start Date')
-  if (!End_Date?.trim()) missing.push('End Date')
-  if (missing.length === 0) return null
-  if (missing.length === 1) return `${missing[0]} is required.`
-  return `Please fill in: ${missing.join(', ')}.`
+  const { Tax_Type, Tax_Name, Tax_Rate, Start_Date, End_Date } = form.value;
+  const missing: string[] = [];
+  const typeValue = Tax_Type?.trim();
+  if (!typeValue) missing.push("Tax Type");
+  else if (typeValue === "__other__" && !customTaxType.value.trim())
+    missing.push("Tax Type (enter new type)");
+  if (!Tax_Name?.trim()) missing.push("Tax Name");
+  if (
+    Tax_Rate == null ||
+    Tax_Rate === "" ||
+    (typeof Tax_Rate === "number" && Number.isNaN(Tax_Rate))
+  )
+    missing.push("Tax Rate");
+  if (!Start_Date?.trim()) missing.push("Start Date");
+  if (!End_Date?.trim()) missing.push("End Date");
+  if (missing.length === 0) return null;
+  if (missing.length === 1) return `${missing[0]} is required.`;
+  return `Please fill in: ${missing.join(", ")}.`;
 }
 
 async function submit() {
-  if (saving.value) return
+  if (saving.value) return;
   if (!isConnected.value) {
-    formError.value = 'Not connected to FileMaker.'
-    return
+    toast.error("Not connected to FileMaker.");
+    formError.value = null;
+    return;
   }
-  const validationError = validateForm()
+  const validationError = validateForm();
   if (validationError) {
-    formError.value = validationError
-    return
+    toast.error(validationError);
+    formError.value = null;
+    return;
   }
-  saving.value = true
-  formError.value = null
-  const idToUpdate = editingRecordId.value ? String(editingRecordId.value).trim() : null
+  saving.value = true;
+  formError.value = null;
+  const idToUpdate = editingRecordId.value
+    ? String(editingRecordId.value).trim()
+    : null;
   try {
-    const { Tax_Type, Tax_Name, Tax_Rate, Start_Date, End_Date } = form.value
-    const typeRaw = Tax_Type?.trim() === '__other__' ? customTaxType.value.trim() : (Tax_Type ?? '').trim()
-    const typeValue = typeRaw ? typeRaw.toUpperCase() : undefined
+    const { Tax_Type, Tax_Name, Tax_Rate, Start_Date, End_Date } = form.value;
+    const typeRaw =
+      Tax_Type?.trim() === "__other__"
+        ? customTaxType.value.trim()
+        : (Tax_Type ?? "").trim();
+    const typeValue = typeRaw ? typeRaw.toUpperCase() : undefined;
     const fieldData: TaxValueFieldData = {
       Tax_Type: typeValue,
       Tax_Name: Tax_Name?.trim() || undefined,
-      Tax_Rate: Tax_Rate != null && Tax_Rate !== '' ? Number(Tax_Rate) : undefined,
+      Tax_Rate:
+        Tax_Rate != null && Tax_Rate !== "" ? Number(Tax_Rate) : undefined,
       Start_Date: toFileMakerDate(Start_Date),
       End_Date: toFileMakerDate(End_Date),
-    }
+    };
     if (idToUpdate) {
-      const { error: err } = await updateRecord(LAYOUTS.TAX_VALUE, idToUpdate, fieldData)
+      const { error: err } = await updateRecord(
+        LAYOUTS.TAX_VALUE,
+        idToUpdate,
+        fieldData,
+      );
       if (err) {
-        formError.value = err
-        return
+        toast.error(err);
+        formError.value = null;
+        return;
       }
-      toast.success('Tax updated successfully.')
+      toast.success("Tax updated successfully.");
     } else {
-      const { error: err } = await createRecord(LAYOUTS.TAX_VALUE, fieldData)
+      const { error: err } = await createRecord(LAYOUTS.TAX_VALUE, fieldData);
       if (err) {
-        formError.value = err
-        return
+        toast.error(err);
+        formError.value = null;
+        return;
       }
-      toast.success('Tax added successfully.')
+      toast.success("Tax added successfully.");
     }
-    showAddModal.value = false
-    editingRecordId.value = null
-    await loadTaxes()
+    showAddModal.value = false;
+    editingRecordId.value = null;
+    await loadTaxes();
   } finally {
-    saving.value = false
+    saving.value = false;
   }
 }
 
-onMounted(loadTaxes)
+onMounted(loadTaxes);
 watch(isConnected, (connected) => {
-  if (connected) loadTaxes()
-})
+  if (connected) loadTaxes();
+});
 </script>

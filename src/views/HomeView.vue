@@ -97,7 +97,11 @@
     <template v-else-if="list.length === 0">
       <div class="glass rounded-2xl p-12 text-center">
         <p class="text-[var(--color-text-muted)] mb-3">
-          {{ isConnected ? 'No payables yet.' : 'Connect to FileMaker to load payables, or create a new entry.' }}
+          {{
+            isConnected
+              ? "No payables yet."
+              : "Connect to FileMaker to load payables, or create a new entry."
+          }}
         </p>
         <router-link
           v-if="isConnected"
@@ -105,7 +109,9 @@
           class="text-[var(--color-accent)] font-medium hover:underline"
           >Create one</router-link
         >
-        <span v-else class="text-[var(--color-text-muted)] text-sm">Click <strong>Connect</strong> in the status bar below.</span>
+        <span v-else class="text-[var(--color-text-muted)] text-sm"
+          >Click <strong>Connect</strong> in the status bar below.</span
+        >
       </div>
     </template>
     <div v-else class="flex flex-col gap-10">
@@ -1166,21 +1172,29 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue";
-import { useRouter } from "vue-router";
+import { useRouter, useRoute } from "vue-router";
 import Skeleton from "../components/Skeleton.vue";
 import DailyPostedChart from "../components/DailyPostedChart.vue";
 import { useFileMaker } from "../composables/useFileMaker";
 import { useListSummaryStore } from "../stores/listSummaryStore";
 import { useBookletStore } from "../stores/bookletStore";
+import { useToastStore } from "../stores/toastStore";
 import { LAYOUTS } from "../utils/filemakerApi";
 import type { PayablesMainFieldData } from "../utils/filemakerApi";
 import { formatNumberDisplay } from "../utils/formatNumber";
 import type { FindRecordWithId } from "../composables/useFileMaker";
 
 const router = useRouter();
+const route = useRoute();
+
+const VALID_TABS = ["draft", "posted", "rejected", "approved"] as const;
+function isValidTab(t: unknown): t is (typeof VALID_TABS)[number] {
+  return typeof t === "string" && VALID_TABS.includes(t as (typeof VALID_TABS)[number]);
+}
 const { findRecordsWithIds, isConnected } = useFileMaker();
 const listSummary = useListSummaryStore();
 const booklet = useBookletStore();
+const toast = useToastStore();
 
 /** Selected draft refs in list order (for Apple Books–style booklet). */
 const selectedDraftRefsInOrder = computed(() =>
@@ -1208,8 +1222,24 @@ const error = ref<string | null>(null);
 const PAGE_SIZE = 5;
 const searchQuery = ref("");
 const activeSegment = ref<"draft" | "posted" | "rejected" | "approved">(
-  "draft",
+  isValidTab(route.query.tab) ? route.query.tab : "draft",
 );
+
+/** Sync tab to URL on change; restore from URL on load/refresh. */
+watch(
+  () => route.query.tab,
+  (tab) => {
+    if (isValidTab(tab) && tab !== activeSegment.value) {
+      activeSegment.value = tab;
+    }
+  },
+);
+watch(activeSegment, (tab) => {
+  if (route.name !== "home") return;
+  const current = route.query.tab;
+  if (current === tab) return;
+  router.replace({ path: "/home", query: { ...route.query, tab } });
+});
 const currentPageDraft = ref(1);
 const currentPagePosted = ref(1);
 const currentPageRejected = ref(1);
@@ -1919,12 +1949,18 @@ async function load() {
       }),
     ]);
     if (mainRes.error) {
-      error.value = mainRes.error;
+      toast.error(mainRes.error);
+      error.value = null;
       list.value = [];
     } else {
       list.value = mainRes.data;
     }
-    vendorCount.value = vendorRes.error ? 0 : vendorRes.data.length;
+    if (vendorRes.error) {
+      toast.error(vendorRes.error);
+      vendorCount.value = 0;
+    } else {
+      vendorCount.value = vendorRes.data.length;
+    }
   } finally {
     loading.value = false;
   }

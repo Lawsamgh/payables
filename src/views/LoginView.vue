@@ -244,16 +244,16 @@ onUnmounted(() => {
 function proceed() {
   error.value = null
   if (!hasBaseUrlEnv.value && !baseUrl.value.trim()) {
-    error.value = 'Enter FileMaker base URL'
+    toast.error('Enter FileMaker base URL')
     return
   }
   if (!email.value.trim()) {
-    error.value = 'Enter your email'
+    toast.error('Enter your email')
     return
   }
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!emailRegex.test(email.value.trim())) {
-    error.value = 'Enter a valid email address'
+    toast.error('Enter a valid email address')
     return
   }
   step.value = 'password'
@@ -267,7 +267,7 @@ function goBack() {
 async function submit() {
   error.value = null
   if (!password.value) {
-    error.value = 'Enter your password'
+    toast.error('Enter your password')
     return
   }
 
