@@ -71,6 +71,8 @@ export const LAYOUTS = {
   PAYABLES_REJECTION_HISTORY: 'Payables_Rejection_History',
   VENDOR_TBL: 'Vendor_TBL',
   PAYABLES_USERS: 'Payables_Users',
+  PAYABLES_SETTINGS: 'Payables_Settings',
+  CHEQUE_COLLECTION: 'Cheque_Collection',
 } as const
 
 /**
@@ -95,6 +97,11 @@ export interface PayablesMainFieldData {
   Approved?: string
   Rejected?: string
   RejectReason?: string
+  /** Set when cheque is collected (e.g. "Yes") */
+  ChequeIssued?: string
+  ChequeIssuedDate?: string
+  BankName?: string
+  ChequeNo?: string
 }
 
 /**
@@ -140,7 +147,8 @@ export interface PayableInvoiceFieldData {
 /**
  * Vendor_TBL fields (from schema):
  * Vendor_ID, Vendor_Name, Vendor_Location, Vendor_Email, GRA_Expiry_Date,
- * Received_Date, Tin_Number, WHT_Expiry_Date, Received_WHT_Date
+ * Received_Date, Tin_Number, WHT_Expiry_Date, Received_WHT_Date,
+ * Expiry_Check, WHT_Expiry_Check (calculation fields)
  */
 export interface VendorTblFieldData {
   Vendor_ID?: string
@@ -152,6 +160,8 @@ export interface VendorTblFieldData {
   Tin_Number?: string
   WHT_Expiry_Date?: string
   Received_WHT_Date?: string
+  Expiry_Check?: string
+  WHT_Expiry_Check?: string
 }
 
 /**
@@ -163,5 +173,30 @@ export interface PayablesUsersFieldData {
   FullName?: string
   Role?: string
   Status?: string
+}
+
+/**
+ * Payables_Settings fields (from schema):
+ * DocOption: "Don't Show" | "Approved" | "Posted"
+ */
+export interface PayablesSettingsFieldData {
+  DocOption?: string
+}
+
+/**
+ * Cheque_Collection fields: logs when vendors collect cheques.
+ * Links to Payables_Main via TransRef.
+ */
+export interface ChequeCollectionFieldData {
+  TransRef?: string
+  BankName?: string
+  ChequeNo?: string
+  Amount?: number
+  ChequePayee?: string
+  ReceivedBy?: string
+  IDNo?: string
+  Contact?: string
+  TinNo?: string
+  CollectionDate?: string
 }
 

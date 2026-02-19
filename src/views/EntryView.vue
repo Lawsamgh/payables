@@ -14,7 +14,7 @@
     />
     <div class="flex flex-wrap items-center gap-2 mb-4">
       <router-link
-        to="/"
+        :to="backToListRoute"
         class="pill-btn glass-input inline-flex items-center gap-1.5 px-3 py-2 text-[var(--label-size)] text-[var(--color-text-muted)] no-underline hover:text-[var(--color-text)]"
       >
         <svg
@@ -109,7 +109,13 @@
         </template>
         <template
           v-if="
-            payableStore.mainPosted && payableStore.mainStatus === 'Approved'
+            documentSettings.invoiceDownloadWhen !== 'none' &&
+            payableStore.mainPosted &&
+            ((documentSettings.invoiceDownloadWhen === 'once_posted' &&
+              (payableStore.mainStatus === 'Posted' ||
+                payableStore.mainStatus === 'Approved')) ||
+              (documentSettings.invoiceDownloadWhen === 'approved_only' &&
+                payableStore.mainStatus === 'Approved'))
           "
         >
           <button
@@ -128,7 +134,7 @@
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
-                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
               />
             </svg>
             {{ downloadingPdf ? "Downloading…" : "Download PDF" }}
@@ -136,7 +142,13 @@
         </template>
       </div>
       <span
-        v-if="payableStore.currentTransRef"
+        v-if="payableStore.loading"
+        class="text-xl font-bold text-[var(--color-text)] tabular-nums tracking-tight"
+      >
+        <Skeleton width="8rem" height="1.5rem" />
+      </span>
+      <span
+        v-else-if="payableStore.currentTransRef"
         class="text-xl font-bold text-[var(--color-text)] tabular-nums tracking-tight"
       >
         {{ payableStore.currentTransRef }}
@@ -216,6 +228,103 @@
       </ul>
     </section>
 
+    <!-- Vendor expiry checks: show for new entry (vendor selected) or Draft/Posted, NOT for Approved/Posted -->
+    <div
+      v-if="showExpiryCheckBanner"
+      class="expiry-check-banner"
+      role="status"
+    >
+      <span class="expiry-check-banner__icon" aria-hidden="true">
+        <svg
+          width="28"
+          height="28"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
+      </span>
+      <div class="expiry-check-banner__content">
+        <div
+          v-if="displayExpiryCheckBanner"
+          class="expiry-check-banner__item"
+          :class="{
+            'expiry-check-banner__item--invalid': isExpiryCheckInvalid(payableStore.mainExpiryCheck, displayExpiryCheckBanner),
+            'expiry-check-banner__item--valid': isExpiryCheckValid(payableStore.mainExpiryCheck, displayExpiryCheckBanner),
+          }"
+        >
+          <span class="expiry-check-banner__item-icon" aria-hidden="true">
+            <svg
+              v-if="isExpiryCheckInvalid(payableStore.mainExpiryCheck, displayExpiryCheckBanner)"
+              class="expiry-check-banner__icon-svg"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              viewBox="0 0 24 24"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 9l-6 6M9 9l6 6" />
+            </svg>
+            <svg
+              v-else-if="isExpiryCheckValid(payableStore.mainExpiryCheck, displayExpiryCheckBanner)"
+              class="expiry-check-banner__icon-svg"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span v-else class="expiry-check-banner__icon-placeholder" />
+          </span>
+          <strong class="expiry-check-banner__label">GRA Expiry:</strong>
+          <span class="expiry-check-banner__text">{{ displayExpiryCheckBanner }}</span>
+        </div>
+        <div
+          v-if="displayWhtExpiryCheckBanner"
+          class="expiry-check-banner__item"
+          :class="{
+            'expiry-check-banner__item--invalid': isExpiryCheckInvalid(payableStore.mainWhtExpiryCheck, displayWhtExpiryCheckBanner),
+            'expiry-check-banner__item--valid': isExpiryCheckValid(payableStore.mainWhtExpiryCheck, displayWhtExpiryCheckBanner),
+          }"
+        >
+          <span class="expiry-check-banner__item-icon" aria-hidden="true">
+            <svg
+              v-if="isExpiryCheckInvalid(payableStore.mainWhtExpiryCheck, displayWhtExpiryCheckBanner)"
+              class="expiry-check-banner__icon-svg"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              viewBox="0 0 24 24"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 9l-6 6M9 9l6 6" />
+            </svg>
+            <svg
+              v-else-if="isExpiryCheckValid(payableStore.mainWhtExpiryCheck, displayWhtExpiryCheckBanner)"
+              class="expiry-check-banner__icon-svg"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span v-else class="expiry-check-banner__icon-placeholder" />
+          </span>
+          <strong class="expiry-check-banner__label">WHT Expiry:</strong>
+          <span class="expiry-check-banner__text">{{ displayWhtExpiryCheckBanner }}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Rejected reason: show on top when entry is Rejected -->
     <div
       v-if="
@@ -261,6 +370,32 @@
           class="entry-page flex flex-col flex-1 min-h-0"
         >
           <!-- Skeleton Loading State -->
+          <!-- Expiry banner skeleton: show when loading existing entry (transRef) -->
+          <div
+            v-if="route.query.transRef"
+            class="expiry-check-banner mb-4"
+          >
+            <span class="expiry-check-banner__icon opacity-60" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+            </span>
+            <div class="expiry-check-banner__content">
+              <div class="expiry-check-banner__item">
+                <Skeleton width="1.25rem" height="1.25rem" />
+                <Skeleton width="5.5rem" height="0.9rem" />
+                <Skeleton width="12rem" height="1.25rem" />
+              </div>
+              <div class="expiry-check-banner__item">
+                <Skeleton width="1.25rem" height="1.25rem" />
+                <Skeleton width="5.5rem" height="0.9rem" />
+                <Skeleton width="18rem" height="1.25rem" />
+              </div>
+            </div>
+          </div>
           <div class="vendor-details-row relative mb-4">
             <section
               class="glass overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)]"
@@ -490,6 +625,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, onMounted } from "vue";
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
+import { getHomeRoute } from "../utils/homeTab";
 import VendorDetails from "../components/VendorDetails.vue";
 import UnsavedChangesModal from "../components/UnsavedChangesModal.vue";
 import RejectReasonModal from "../components/RejectReasonModal.vue";
@@ -507,9 +643,18 @@ import {
   formatDateOnlyForFileMaker,
 } from "../utils/filemakerMappers";
 import { useToastStore } from "../stores/toastStore";
+import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
 
 const route = useRoute();
 const router = useRouter();
+
+/** Back to Invoices when arrived from Invoices thumbnails, else Home. */
+const backToListRoute = computed(() =>
+  route.query.from === "invoices"
+    ? { name: "invoices" as const }
+    : getHomeRoute(),
+);
+
 const spreadsheet = useSpreadsheet();
 const payableStore = usePayableStore();
 const vendorStore = useVendorStore();
@@ -517,10 +662,48 @@ const booklet = useBookletStore();
 const { isConnected, updateRecord, createRecord, findRecordsByQueryWithIds } =
   useFileMaker();
 const toast = useToastStore();
+const documentSettings = useDocumentSettingsStore();
 const rejecting = ref(false);
 const approving = ref(false);
 const downloadingPdf = ref(false);
 const canDeleteRow = computed(() => spreadsheet.rowCount.value > 1);
+
+/** Expiry check banner: for Rejected and Draft (always show when status is Draft/Rejected). */
+const showExpiryCheckBanner = computed(() => {
+  if (!payableStore.currentTransRef) return false;
+  const s = payableStore.mainStatus;
+  return s === "Draft" || s === "Rejected";
+});
+const displayExpiryCheckBanner = computed(() => {
+  return payableStore.mainExpiryCheckDis ?? "—";
+});
+const displayWhtExpiryCheckBanner = computed(() => {
+  return payableStore.mainWhtExpiryCheckDis ?? "—";
+});
+
+function isExpiryCheckInvalid(check: string | null, displayText?: string | null): boolean {
+  if (check) {
+    const s = check.toLowerCase().trim();
+    if (s === "invalid" || s === "expired" || s === "no") return true;
+    if (s === "valid" || s === "ok" || s === "yes" || s === "good") return false;
+  }
+  const text = displayText != null && displayText !== "—" ? String(displayText).toLowerCase() : "";
+  if (!text) return false;
+  if (text.includes("invalid") || text.includes("expired") || /\bno\b/.test(text)) return true;
+  return false;
+}
+function isExpiryCheckValid(check: string | null, displayText?: string | null): boolean {
+  if (check) {
+    const s = check.toLowerCase().trim();
+    if (s === "valid" || s === "ok" || s === "yes" || s === "good") return true;
+    if (s === "invalid" || s === "expired" || s === "no") return false;
+  }
+  const text = displayText != null && displayText !== "—" ? String(displayText).toLowerCase() : "";
+  if (!text) return false;
+  if (text.includes("invalid") || text.includes("expired") || /\bno\b/.test(text)) return false;
+  if (text.includes("valid") || text.includes("ok") || text.includes("yes") || text.includes("good")) return true;
+  return false;
+}
 
 /** Flip direction for transition: 'next' = slide left, 'prev' = slide right */
 const flipDirection = ref<"next" | "prev">("next");
@@ -572,12 +755,18 @@ function syncBookletToDraftsOnly() {
   else booklet.ensureCurrent(transRef);
 }
 
+function entryQuery(transRef: string) {
+  const q: { transRef: string; from?: string } = { transRef };
+  if (route.query.from === "invoices") q.from = "invoices";
+  return { name: "entry" as const, query: q };
+}
+
 function goPrev() {
   if (!booklet.hasPrev) return;
   flipDirection.value = "prev";
   booklet.goPrev();
   const ref = booklet.currentTransRef;
-  if (ref) router.push({ name: "entry", query: { transRef: ref } });
+  if (ref) router.push(entryQuery(ref));
 }
 
 function goNext() {
@@ -585,7 +774,7 @@ function goNext() {
   flipDirection.value = "next";
   booklet.goNext();
   const ref = booklet.currentTransRef;
-  if (ref) router.push({ name: "entry", query: { transRef: ref } });
+  if (ref) router.push(entryQuery(ref));
 }
 
 function goToPage(index: number) {
@@ -593,7 +782,7 @@ function goToPage(index: number) {
   flipDirection.value = index > booklet.currentOpenIndex ? "next" : "prev";
   booklet.setCurrentIndex(index);
   const ref = booklet.currentTransRef;
-  if (ref) router.push({ name: "entry", query: { transRef: ref } });
+  if (ref) router.push(entryQuery(ref));
 }
 
 onMounted(loadForRoute);
@@ -765,7 +954,7 @@ async function performReject(reason: string) {
     }
     toast.success("Entry rejected.");
     await payableStore.fetchDetailsByTransRef(transRef);
-    router.push({ name: "home" });
+    router.push(backToListRoute.value);
   } finally {
     rejecting.value = false;
   }
@@ -789,7 +978,7 @@ async function onApprove() {
     await payableStore.fetchDetailsByTransRef(
       payableStore.currentTransRef ?? "",
     );
-    router.push({ name: "home" });
+    router.push(backToListRoute.value);
   } finally {
     approving.value = false;
   }
@@ -797,26 +986,80 @@ async function onApprove() {
 
 /** Format number with thousand separators for PDF (e.g. 8295.4 -> "8,295.40"). */
 function formatPdfNumber(value: string | number): string {
-  const n = typeof value === "number" ? value : parseFloat(String(value).replace(/,/g, ""));
+  const n =
+    typeof value === "number"
+      ? value
+      : parseFloat(String(value).replace(/,/g, ""));
   if (Number.isNaN(n)) return String(value ?? "—");
-  return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return n.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 /** Convert amount to words for PDF. */
 function amountInWords(amount: number, currencyCode = ""): string {
   const whole = Math.floor(amount);
   const cents = Math.round((amount - whole) * 100);
-  const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"];
-  const teens = ["Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
-  const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+  const ones = [
+    "",
+    "One",
+    "Two",
+    "Three",
+    "Four",
+    "Five",
+    "Six",
+    "Seven",
+    "Eight",
+    "Nine",
+  ];
+  const teens = [
+    "Ten",
+    "Eleven",
+    "Twelve",
+    "Thirteen",
+    "Fourteen",
+    "Fifteen",
+    "Sixteen",
+    "Seventeen",
+    "Eighteen",
+    "Nineteen",
+  ];
+  const tens = [
+    "",
+    "",
+    "Twenty",
+    "Thirty",
+    "Forty",
+    "Fifty",
+    "Sixty",
+    "Seventy",
+    "Eighty",
+    "Ninety",
+  ];
   function toWords(n: number): string {
     if (n === 0) return "Zero";
     if (n < 10) return ones[n];
     if (n < 20) return teens[n - 10];
     if (n < 100) return (tens[Math.floor(n / 10)] + " " + ones[n % 10]).trim();
-    if (n < 1000) return (ones[Math.floor(n / 100)] + " Hundred " + toWords(n % 100)).trim();
-    if (n < 1e6) return (toWords(Math.floor(n / 1000)) + " Thousand " + toWords(n % 1000)).trim();
-    if (n < 1e9) return (toWords(Math.floor(n / 1e6)) + " Million " + toWords(n % 1e6)).trim();
+    if (n < 1000)
+      return (
+        ones[Math.floor(n / 100)] +
+        " Hundred " +
+        toWords(n % 100)
+      ).trim();
+    if (n < 1e6)
+      return (
+        toWords(Math.floor(n / 1000)) +
+        " Thousand " +
+        toWords(n % 1000)
+      ).trim();
+    if (n < 1e9)
+      return (
+        toWords(Math.floor(n / 1e6)) +
+        " Million " +
+        toWords(n % 1e6)
+      ).trim();
     return String(n);
   }
   const wholeStr = whole === 0 ? "Zero" : toWords(whole);
@@ -827,8 +1070,16 @@ function amountInWords(amount: number, currencyCode = ""): string {
 
 /** Build and download PDF with pdfmake (invoice-style layout, B&W friendly). */
 async function downloadApprovedPdf() {
-  if (!payableStore.mainPosted || payableStore.mainStatus !== "Approved")
-    return;
+  const status = payableStore.mainStatus;
+  const when = documentSettings.invoiceDownloadWhen;
+  const ok =
+    payableStore.mainPosted &&
+    (when === "approved_only"
+      ? status === "Approved"
+      : when === "once_posted"
+        ? status === "Posted" || status === "Approved"
+        : false);
+  if (!ok) return;
   downloadingPdf.value = true;
   try {
     const [pdfMakeModule, vfsModule] = await Promise.all([
@@ -836,8 +1087,18 @@ async function downloadApprovedPdf() {
       import("pdfmake/build/vfs_fonts"),
     ]);
     const pdfMake =
-      (pdfMakeModule as { default?: { createPdf: (def: unknown) => { download: (name: string) => void }; addVirtualFileSystem?: (v: unknown) => void } }).default ??
-      (pdfMakeModule as { createPdf: (def: unknown) => { download: (name: string) => void }; addVirtualFileSystem?: (v: unknown) => void });
+      (
+        pdfMakeModule as {
+          default?: {
+            createPdf: (def: unknown) => { download: (name: string) => void };
+            addVirtualFileSystem?: (v: unknown) => void;
+          };
+        }
+      ).default ??
+      (pdfMakeModule as {
+        createPdf: (def: unknown) => { download: (name: string) => void };
+        addVirtualFileSystem?: (v: unknown) => void;
+      });
     const vfs = (vfsModule as { default?: unknown }).default ?? vfsModule;
     if (pdfMake.addVirtualFileSystem && vfs) {
       pdfMake.addVirtualFileSystem(vfs);
@@ -855,9 +1116,9 @@ async function downloadApprovedPdf() {
       month: "long",
       day: "numeric",
     });
-    const vendorLine = [transRef, v.vendor_id, v.vendor_name]
-      .filter(Boolean)
-      .join("  ·  ") || "—";
+    const vendorLine =
+      [transRef, v.vendor_id, v.vendor_name].filter(Boolean).join("  ·  ") ||
+      "—";
     const inWords = amountInWords(totalAmount, v.currency || "");
 
     const rows = payableStore.rows.filter(
@@ -875,10 +1136,16 @@ async function downloadApprovedPdf() {
       const n = parseFloat(String(r.tax ?? "").replace(/,/g, ""));
       return acc + (Number.isNaN(n) ? 0 : n);
     }, 0);
-    const subTotalStr = (v.currency ? `${v.currency} ` : "") + formatPdfNumber(subTotal);
-    const totalTaxStr = (v.currency ? `${v.currency} ` : "") + formatPdfNumber(totalTax);
+    const subTotalStr =
+      (v.currency ? `${v.currency} ` : "") + formatPdfNumber(subTotal);
+    const totalTaxStr =
+      (v.currency ? `${v.currency} ` : "") + formatPdfNumber(totalTax);
 
-    const uniqueInvoices = [...new Set(rows.map((r) => (r.invoice_number ?? "").trim()).filter(Boolean))];
+    const uniqueInvoices = [
+      ...new Set(
+        rows.map((r) => (r.invoice_number ?? "").trim()).filter(Boolean),
+      ),
+    ];
     const payableInvoiceByInv = new Map<string, PayableInvoiceFieldData[]>();
     if (isConnected.value && uniqueInvoices.length > 0) {
       const results = await Promise.all(
@@ -886,14 +1153,17 @@ async function downloadApprovedPdf() {
           findRecordsByQueryWithIds<PayableInvoiceFieldData>(
             LAYOUTS.PAYABLE_INVOICE,
             { invoiceNumber: inv },
-            100
-          )
-        )
+            100,
+          ),
+        ),
       );
       results.forEach((res, i) => {
         const inv = uniqueInvoices[i];
         if (inv && res.data?.length) {
-          payableInvoiceByInv.set(inv, res.data.map((r) => r.fieldData).filter(Boolean));
+          payableInvoiceByInv.set(
+            inv,
+            res.data.map((r) => r.fieldData).filter(Boolean),
+          );
         }
       });
     }
@@ -914,11 +1184,31 @@ async function downloadApprovedPdf() {
 
     const tableHeaderRow = [
       { text: "Invoice No.", fillColor: "#ebebeb", bold: true },
-      { text: "Amount", fillColor: "#ebebeb", bold: true, alignment: "right" as const },
-      { text: "Tax", fillColor: "#ebebeb", bold: true, alignment: "right" as const },
-      { text: "Tax Amount", fillColor: "#ebebeb", bold: true, alignment: "right" as const },
+      {
+        text: "Amount",
+        fillColor: "#ebebeb",
+        bold: true,
+        alignment: "right" as const,
+      },
+      {
+        text: "Tax",
+        fillColor: "#ebebeb",
+        bold: true,
+        alignment: "right" as const,
+      },
+      {
+        text: "Tax Amount",
+        fillColor: "#ebebeb",
+        bold: true,
+        alignment: "right" as const,
+      },
       { text: "Tax breakdown", fillColor: "#ebebeb", bold: true, fontSize: 9 },
-      { text: "Total", fillColor: "#ebebeb", bold: true, alignment: "right" as const },
+      {
+        text: "Total",
+        fillColor: "#ebebeb",
+        bold: true,
+        alignment: "right" as const,
+      },
     ];
     const tableBody = [
       tableHeaderRow,
@@ -926,7 +1216,10 @@ async function downloadApprovedPdf() {
         const taxAmount = (r.reference ?? "").trim() || (r.tax ?? "");
         return [
           (r.invoice_number ?? "").trim() || "—",
-          { text: formatPdfNumber(r.amount ?? ""), alignment: "right" as const },
+          {
+            text: formatPdfNumber(r.amount ?? ""),
+            alignment: "right" as const,
+          },
           { text: formatPdfNumber(r.tax ?? ""), alignment: "right" as const },
           { text: formatPdfNumber(taxAmount), alignment: "right" as const },
           { text: buildTaxBreakdownText(r), fontSize: 9 },
@@ -961,23 +1254,50 @@ async function downloadApprovedPdf() {
           ],
           margin: [0, 0, 0, 10],
         },
-        { canvas: [{ type: "line", x1: 0, y1: 0, x2: 762, y2: 0 }], margin: [0, 4, 0, 10] },
-        { text: vendorLine, alignment: "center", bold: true, fontSize: 12, margin: [0, 0, 0, 6] },
+        {
+          canvas: [{ type: "line", x1: 0, y1: 0, x2: 762, y2: 0 }],
+          margin: [0, 4, 0, 10],
+        },
+        {
+          text: vendorLine,
+          alignment: "center",
+          bold: true,
+          fontSize: 12,
+          margin: [0, 0, 0, 6],
+        },
         {
           table: {
             widths: [120, "*"],
             body: [
-              [{ text: "Vendor ID", bold: true, fillColor: "#f5f5f5" }, v.vendor_id?.trim() || "—"],
-              [{ text: "Vendor name", bold: true, fillColor: "#f5f5f5" }, v.vendor_name?.trim() || "—"],
-              [{ text: "Date", bold: true, fillColor: "#f5f5f5" }, v.payment_terms?.trim() || dateStr],
-              [{ text: "Email", bold: true, fillColor: "#f5f5f5" }, v.contact_email?.trim() || "—"],
-              [{ text: "Currency", bold: true, fillColor: "#f5f5f5" }, v.currency?.trim() || "—"],
+              [
+                { text: "Vendor ID", bold: true, fillColor: "#f5f5f5" },
+                v.vendor_id?.trim() || "—",
+              ],
+              [
+                { text: "Vendor name", bold: true, fillColor: "#f5f5f5" },
+                v.vendor_name?.trim() || "—",
+              ],
+              [
+                { text: "Date", bold: true, fillColor: "#f5f5f5" },
+                v.payment_terms?.trim() || dateStr,
+              ],
+              [
+                { text: "Email", bold: true, fillColor: "#f5f5f5" },
+                v.contact_email?.trim() || "—",
+              ],
+              [
+                { text: "Currency", bold: true, fillColor: "#f5f5f5" },
+                v.currency?.trim() || "—",
+              ],
             ],
           },
           layout: { hLineWidth: () => 0.2, vLineWidth: () => 0.2 },
           margin: [0, 0, 0, 12],
         },
-        { canvas: [{ type: "line", x1: 0, y1: 0, x2: 762, y2: 0 }], margin: [0, 0, 0, 12] },
+        {
+          canvas: [{ type: "line", x1: 0, y1: 0, x2: 762, y2: 0 }],
+          margin: [0, 0, 0, 12],
+        },
         {
           table: {
             headerRows: 1,
@@ -992,7 +1312,12 @@ async function downloadApprovedPdf() {
             {
               width: "*",
               stack: [
-                { text: "Amount in words", bold: true, fontSize: 9, margin: [0, 0, 0, 4] },
+                {
+                  text: "Amount in words",
+                  bold: true,
+                  fontSize: 9,
+                  margin: [0, 0, 0, 4],
+                },
                 { text: inWords, fontSize: 10 },
               ],
               fillColor: "#f8f8f8",
@@ -1004,20 +1329,54 @@ async function downloadApprovedPdf() {
                 widths: [130, "*"],
                 body: [
                   [
-                    { text: "Sub Total (excl. tax)", fontSize: 9, fillColor: "#f5f5f5" },
-                    { text: subTotalStr, fontSize: 9, alignment: "right" as const, fillColor: "#f5f5f5" },
+                    {
+                      text: "Sub Total (excl. tax)",
+                      fontSize: 9,
+                      fillColor: "#f5f5f5",
+                    },
+                    {
+                      text: subTotalStr,
+                      fontSize: 9,
+                      alignment: "right" as const,
+                      fillColor: "#f5f5f5",
+                    },
                   ],
                   [
                     { text: "Total Tax", fontSize: 9, fillColor: "#f5f5f5" },
-                    { text: formatPdfNumber(totalTax), fontSize: 9, alignment: "right" as const, fillColor: "#f5f5f5" },
+                    {
+                      text: formatPdfNumber(totalTax),
+                      fontSize: 9,
+                      alignment: "right" as const,
+                      fillColor: "#f5f5f5",
+                    },
                   ],
                   [
-                    { text: "Advance Payment", fontSize: 9, fillColor: "#f5f5f5" },
-                    { text: "—", fontSize: 9, alignment: "right" as const, fillColor: "#f5f5f5" },
+                    {
+                      text: "Advance Payment",
+                      fontSize: 9,
+                      fillColor: "#f5f5f5",
+                    },
+                    {
+                      text: "—",
+                      fontSize: 9,
+                      alignment: "right" as const,
+                      fillColor: "#f5f5f5",
+                    },
                   ],
                   [
-                    { text: "Amount to Pay", fontSize: 9, bold: true, fillColor: "#f5f5f5" },
-                    { text: totalStr, fontSize: 9, bold: true, alignment: "right" as const, fillColor: "#f5f5f5" },
+                    {
+                      text: "Amount to Pay",
+                      fontSize: 9,
+                      bold: true,
+                      fillColor: "#f5f5f5",
+                    },
+                    {
+                      text: totalStr,
+                      fontSize: 9,
+                      bold: true,
+                      alignment: "right" as const,
+                      fillColor: "#f5f5f5",
+                    },
                   ],
                 ],
               },
@@ -1029,10 +1388,18 @@ async function downloadApprovedPdf() {
       footer: (currentPage: number, pageCount: number) => ({
         margin: [40, 10, 40, 0],
         stack: [
-          { text: `PAGE ${currentPage} of ${pageCount}`, fontSize: 9, alignment: "center" as const },
           {
-            text: "Finance Payables  ·  " +
-              new Date().toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }),
+            text: `PAGE ${currentPage} of ${pageCount}`,
+            fontSize: 9,
+            alignment: "center" as const,
+          },
+          {
+            text:
+              "Finance Payables  ·  " +
+              new Date().toLocaleString(undefined, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              }),
             fontSize: 8,
             alignment: "center" as const,
             margin: [0, 2, 0, 0],
@@ -1283,6 +1650,88 @@ async function downloadApprovedPdf() {
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* Vendor expiry checks: very visible banner */
+.expiry-check-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+  border-radius: 12px;
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.2) 0%,
+    rgba(59, 130, 246, 0.08) 100%
+  );
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  box-shadow: 0 2px 12px rgba(59, 130, 246, 0.12);
+}
+.expiry-check-banner__icon {
+  flex-shrink: 0;
+  color: rgb(96, 165, 250);
+}
+.expiry-check-banner__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.expiry-check-banner__item {
+  display: grid;
+  grid-template-columns: 1.25rem 5.5rem 1fr;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 1.5rem;
+}
+.expiry-check-banner__item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.expiry-check-banner__icon-svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.expiry-check-banner__icon-placeholder {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.expiry-check-banner__label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 5.5rem;
+}
+.expiry-check-banner__item--invalid {
+  color: rgb(252, 165, 165);
+}
+.expiry-check-banner__item--invalid .expiry-check-banner__text {
+  color: rgb(252, 165, 165);
+}
+.expiry-check-banner__item--valid {
+  color: rgb(134, 239, 172);
+}
+.expiry-check-banner__item--valid .expiry-check-banner__text {
+  color: rgb(134, 239, 172);
+}
+.expiry-check-banner__item:not(.expiry-check-banner__item--invalid):not(.expiry-check-banner__item--valid) .expiry-check-banner__label {
+  color: rgb(191, 219, 254);
+}
+.expiry-check-banner__item:not(.expiry-check-banner__item--invalid):not(.expiry-check-banner__item--valid) .expiry-check-banner__text {
+  color: var(--color-text);
+}
+.expiry-check-banner__text {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
 }
 
 .booklet-flip-view {

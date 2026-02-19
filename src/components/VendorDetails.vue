@@ -28,6 +28,82 @@
 
     <Transition name="vendor-details-body">
       <div v-show="!collapsed" class="vendor-details__body">
+        <div
+          v-if="showExpiryCheck"
+          class="vendor-details__expiry-alert"
+          role="status"
+        >
+          <div
+            v-if="displayExpiryCheck"
+            class="vendor-details__expiry-item"
+            :class="{
+              'vendor-details__expiry-item--invalid': isExpiryCheckInvalid(displayExpiryCheckStatus),
+              'vendor-details__expiry-item--valid': displayExpiryCheckStatus && !isExpiryCheckInvalid(displayExpiryCheckStatus),
+            }"
+          >
+            <span class="vendor-details__expiry-icon" aria-hidden="true">
+              <svg
+                v-if="displayExpiryCheckStatus && isExpiryCheckInvalid(displayExpiryCheckStatus)"
+                class="vendor-details__expiry-icon-svg"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                viewBox="0 0 24 24"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 9l-6 6M9 9l6 6" />
+              </svg>
+              <svg
+                v-else-if="displayExpiryCheckStatus"
+                class="vendor-details__expiry-icon-svg"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span v-else class="vendor-details__expiry-icon-placeholder" />
+            </span>
+            <strong class="vendor-details__expiry-label">GRA Expiry:</strong>
+            <span class="vendor-details__expiry-value">{{ displayExpiryCheck }}</span>
+          </div>
+          <div
+            v-if="displayWhtExpiryCheck"
+            class="vendor-details__expiry-item"
+            :class="{
+              'vendor-details__expiry-item--invalid': isExpiryCheckInvalid(displayWhtExpiryCheckStatus),
+              'vendor-details__expiry-item--valid': displayWhtExpiryCheckStatus && !isExpiryCheckInvalid(displayWhtExpiryCheckStatus),
+            }"
+          >
+            <span class="vendor-details__expiry-icon" aria-hidden="true">
+              <svg
+                v-if="displayWhtExpiryCheckStatus && isExpiryCheckInvalid(displayWhtExpiryCheckStatus)"
+                class="vendor-details__expiry-icon-svg"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                viewBox="0 0 24 24"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 9l-6 6M9 9l6 6" />
+              </svg>
+              <svg
+                v-else-if="displayWhtExpiryCheckStatus"
+                class="vendor-details__expiry-icon-svg"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span v-else class="vendor-details__expiry-icon-placeholder" />
+            </span>
+            <strong class="vendor-details__expiry-label">WHT Expiry:</strong>
+            <span class="vendor-details__expiry-value">{{ displayWhtExpiryCheck }}</span>
+          </div>
+        </div>
         <div class="vendor-details__grid">
           <label class="vendor-details__field">
             <span class="vendor-details__label"
@@ -44,33 +120,78 @@
                   :readonly="readOnly"
                   autocomplete="off"
                   @focus="readOnly ? null : (vendorDropdownOpen = true)"
-                  @input="onVendorIdInput(($event.target as HTMLInputElement).value)"
+                  @input="
+                    onVendorIdInput(($event.target as HTMLInputElement).value)
+                  "
                 />
-                <span class="tax-modal__search-dropdown-chevron" :class="{ 'tax-modal__search-dropdown-chevron--open': vendorDropdownOpen }" aria-hidden="true">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                <span
+                  class="tax-modal__search-dropdown-chevron"
+                  :class="{
+                    'tax-modal__search-dropdown-chevron--open':
+                      vendorDropdownOpen,
+                  }"
+                  aria-hidden="true"
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
                 </span>
               </div>
               <Transition name="search-dropdown">
-                <div v-if="vendorDropdownOpen && !readOnly" class="tax-modal__search-dropdown-list" role="listbox">
+                <div
+                  v-if="vendorDropdownOpen && !readOnly"
+                  class="tax-modal__search-dropdown-list"
+                  role="listbox"
+                >
                   <button
                     v-for="(v, idx) in filteredVendorOptions"
                     :key="v.recordId || idx"
                     type="button"
                     role="option"
                     class="tax-modal__search-dropdown-item"
-                    :class="{ 'tax-modal__search-dropdown-item--highlight': isVendorSelected(v) }"
+                    :class="{
+                      'tax-modal__search-dropdown-item--highlight':
+                        isVendorSelected(v),
+                    }"
                     @mousedown.prevent="onVendorSelect(v)"
                   >
-                    <span class="font-semibold text-[var(--color-accent)]">{{ getVendorId(v) }}</span>
-                    <span v-if="getVendorName(v)" class="ml-2 text-[var(--color-text-muted)] text-[0.8125rem]">{{ getVendorName(v) }}</span>
+                    <span class="font-semibold text-[var(--color-accent)]">{{
+                      getVendorId(v)
+                    }}</span>
+                    <span
+                      v-if="getVendorName(v)"
+                      class="ml-2 text-[var(--color-text-muted)] text-[0.8125rem]"
+                      >{{ getVendorName(v) }}</span
+                    >
                   </button>
-                  <p v-if="vendorList.length > 0 && filteredVendorOptions.length === 0" class="px-4 py-3 text-[0.8125rem] text-[var(--color-text-muted)] m-0">
+                  <p
+                    v-if="
+                      vendorList.length > 0 &&
+                      filteredVendorOptions.length === 0
+                    "
+                    class="px-4 py-3 text-[0.8125rem] text-[var(--color-text-muted)] m-0"
+                  >
                     No matching vendors
                   </p>
-                  <p v-else-if="vendorList.length === 0 && !vendorListLoading" class="px-4 py-3 text-[0.8125rem] text-[var(--color-text-muted)] m-0">
+                  <p
+                    v-else-if="vendorList.length === 0 && !vendorListLoading"
+                    class="px-4 py-3 text-[0.8125rem] text-[var(--color-text-muted)] m-0"
+                  >
                     No vendors yet
                   </p>
-                  <p v-else-if="vendorListLoading" class="px-4 py-3 text-[0.8125rem] text-[var(--color-text-muted)] m-0">
+                  <p
+                    v-else-if="vendorListLoading"
+                    class="px-4 py-3 text-[0.8125rem] text-[var(--color-text-muted)] m-0"
+                  >
                     Loading…
                   </p>
                 </div>
@@ -191,22 +312,62 @@ const vendorDropdownRef = ref<HTMLElement | null>(null);
 const vendorDropdownOpen = ref(false);
 const vendorSearch = ref("");
 /** Editable except when Posted (Rejected entries stay editable). */
-const readOnly = computed(() => payableStore.mainPosted && payableStore.mainStatus !== "Rejected");
+const readOnly = computed(
+  () => payableStore.mainPosted && payableStore.mainStatus !== "Rejected",
+);
 
-const vendorList = ref<FindRecordWithId<VendorTblFieldData | Record<string, unknown>>[]>([]);
+/** Don't show expiry for Approved/Posted. New entry: VendorDetails. Existing Draft/Rejected: EntryView banner. */
+const displayExpiryCheck = computed(() => {
+  if (payableStore.mainStatus === "Approved" || payableStore.mainStatus === "Posted") return null;
+  if (payableStore.currentTransRef) return null;
+  return vendorStore.selectedVendorExpiryCheckDis;
+});
+const displayWhtExpiryCheck = computed(() => {
+  if (payableStore.mainStatus === "Approved" || payableStore.mainStatus === "Posted") return null;
+  if (payableStore.currentTransRef) return null;
+  return vendorStore.selectedVendorWhtExpiryCheckDis;
+});
+const showExpiryCheck = computed(
+  () => (displayExpiryCheck.value || displayWhtExpiryCheck.value) != null,
+);
+
+function isExpiryCheckInvalid(check: string | null): boolean {
+  if (!check) return false;
+  const s = check.toLowerCase().trim();
+  return s === "invalid" || s === "expired" || s === "no";
+}
+
+const displayExpiryCheckStatus = computed(() => {
+  if (!payableStore.currentTransRef) return vendorStore.selectedVendorExpiryCheck;
+  return payableStore.mainExpiryCheck;
+});
+const displayWhtExpiryCheckStatus = computed(() => {
+  if (!payableStore.currentTransRef) return vendorStore.selectedVendorWhtExpiryCheck;
+  return payableStore.mainWhtExpiryCheck;
+});
+
+const vendorList = ref<
+  FindRecordWithId<VendorTblFieldData | Record<string, unknown>>[]
+>([]);
 const vendorListLoading = ref(false);
 
-function getVendorId(row: FindRecordWithId<VendorTblFieldData | Record<string, unknown>>): string {
+function getVendorId(
+  row: FindRecordWithId<VendorTblFieldData | Record<string, unknown>>,
+): string {
   const fd = row.fieldData as Record<string, unknown>;
   return String(fd.Vendor_ID ?? fd["Vendor ID"] ?? "").trim();
 }
 
-function getVendorName(row: FindRecordWithId<VendorTblFieldData | Record<string, unknown>>): string {
+function getVendorName(
+  row: FindRecordWithId<VendorTblFieldData | Record<string, unknown>>,
+): string {
   const fd = row.fieldData as Record<string, unknown>;
   return String(fd.Vendor_Name ?? fd["Vendor Name"] ?? "").trim();
 }
 
-function isVendorSelected(row: FindRecordWithId<VendorTblFieldData | Record<string, unknown>>): boolean {
+function isVendorSelected(
+  row: FindRecordWithId<VendorTblFieldData | Record<string, unknown>>,
+): boolean {
   const id = getVendorId(row);
   return id !== "" && id === vendor.value.vendor_id;
 }
@@ -227,10 +388,9 @@ async function loadVendors() {
     return;
   }
   vendorListLoading.value = true;
-  const { data, error } = await findRecordsWithIds<VendorTblFieldData | Record<string, unknown>>(
-    LAYOUTS.VENDOR_TBL,
-    { limit: 500 }
-  );
+  const { data, error } = await findRecordsWithIds<
+    VendorTblFieldData | Record<string, unknown>
+  >(LAYOUTS.VENDOR_TBL, { limit: 500 });
   vendorListLoading.value = false;
   vendorList.value = error ? [] : data;
 }
@@ -238,15 +398,19 @@ async function loadVendors() {
 function onVendorIdInput(value: string) {
   vendorSearch.value = value;
   vendorStore.setField("vendor_id", value);
+  if (!value?.trim()) vendorStore.setExpiryFromVendorRecord(undefined);
   if (!readOnly.value) payableStore.markDirty();
   vendorDropdownOpen.value = true;
 }
 
-function onVendorSelect(row: FindRecordWithId<VendorTblFieldData | Record<string, unknown>>) {
+function onVendorSelect(
+  row: FindRecordWithId<VendorTblFieldData | Record<string, unknown>>,
+) {
   const id = getVendorId(row);
   const name = getVendorName(row);
   vendorStore.setField("vendor_id", id);
   vendorStore.setField("vendor_name", name);
+  vendorStore.setExpiryFromVendorRecord(row.fieldData as Record<string, unknown>);
   vendorSearch.value = "";
   vendorDropdownOpen.value = false;
   if (!readOnly.value) payableStore.markDirty();
@@ -258,7 +422,10 @@ function onVendorFieldChange(field: keyof Vendor, value: string): void {
 }
 
 function handleClickOutside(e: MouseEvent) {
-  if (vendorDropdownRef.value && !vendorDropdownRef.value.contains(e.target as Node)) {
+  if (
+    vendorDropdownRef.value &&
+    !vendorDropdownRef.value.contains(e.target as Node)
+  ) {
     vendorDropdownOpen.value = false;
   }
 }
@@ -319,6 +486,66 @@ watch(isConnected, (connected) => {
 .vendor-details__body {
   border-top: 1px solid var(--color-border);
   padding: 1.25rem 1.25rem 1.5rem;
+}
+
+.vendor-details__expiry-alert {
+  margin-bottom: 1.25rem;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.08) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+.vendor-details__expiry-item {
+  display: grid;
+  grid-template-columns: 1.25rem 5.5rem 1fr;
+  align-items: center;
+  gap: 0.625rem;
+  margin-bottom: 0.375rem;
+  min-height: 1.5rem;
+}
+.vendor-details__expiry-item:last-child {
+  margin-bottom: 0;
+}
+.vendor-details__expiry-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.vendor-details__expiry-icon-svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.vendor-details__expiry-icon-placeholder {
+  display: block;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+.vendor-details__expiry-label {
+  min-width: 5.5rem;
+  color: var(--color-text-muted);
+}
+.vendor-details__expiry-item strong {
+  font-size: 0.9375rem;
+  white-space: nowrap;
+}
+.vendor-details__expiry-item--invalid {
+  color: rgb(252, 165, 165);
+}
+.vendor-details__expiry-item--valid {
+  color: rgb(134, 239, 172);
+}
+.vendor-details__expiry-item:not(.vendor-details__expiry-item--invalid):not(.vendor-details__expiry-item--valid) .vendor-details__expiry-label {
+  color: rgb(191, 219, 254);
+}
+.vendor-details__expiry-item:not(.vendor-details__expiry-item--invalid):not(.vendor-details__expiry-item--valid) .vendor-details__expiry-value {
+  color: var(--color-text);
+}
+.vendor-details__expiry-value {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 .vendor-details__grid {

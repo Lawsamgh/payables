@@ -10,6 +10,12 @@
       class="w-full max-w-[1600px] mx-auto h-full min-h-[var(--app-header-height)] px-4 py-3 md:px-6 md:py-3 flex flex-wrap items-center justify-end gap-3"
     >
       <span
+        v-if="route.name === 'entry' && vendorStore.vendor?.vendor_name"
+        class="header-vendor-name mr-auto text-xl md:text-3xl text-[var(--color-text)] font-normal"
+      >
+        {{ vendorStore.vendor.vendor_name }}
+      </span>
+      <span
         v-if="route.name === 'entry' && payableStore.isDirty"
         class="text-[var(--label-size)] text-amber-400/90 font-medium"
         aria-live="polite"
@@ -17,7 +23,13 @@
         Unsaved changes
       </span>
       <div
-        v-if="route.name === 'entry' && (!route.query.transRef || (payableStore.mainStatus != null && (!payableStore.mainPosted || payableStore.mainStatus === 'Rejected')))"
+        v-if="
+          route.name === 'entry' &&
+          (!route.query.transRef ||
+            (payableStore.mainStatus != null &&
+              (!payableStore.mainPosted ||
+                payableStore.mainStatus === 'Rejected')))
+        "
         class="flex flex-wrap items-center gap-2"
       >
         <button
@@ -86,6 +98,31 @@
           {{ payableStore.syncing ? "Saving…" : "Save and Post" }}
         </button>
       </div>
+      <span
+        v-if="isConnected && loggedInEmail"
+        class="user-email-badge inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[var(--label-size)] text-[var(--color-text)] bg-white/5 border border-[var(--color-border)] hover:bg-white/[0.08] transition-colors"
+        :title="loggedInEmail"
+      >
+        <span
+          class="user-email-badge__icon flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
+          aria-hidden="true"
+        >
+          <svg
+            class="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+            />
+          </svg>
+        </span>
+        <span class="font-medium">{{ loggedInEmail }}</span>
+      </span>
     </div>
   </header>
 </template>
@@ -93,7 +130,9 @@
 <script setup lang="ts">
 import { nextTick } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { getHomeRoute } from "../utils/homeTab";
 import { usePayableStore } from "../stores/payableStore";
+import { useVendorStore } from "../stores/vendorStore";
 import { useToastStore } from "../stores/toastStore";
 import { useBookletStore } from "../stores/bookletStore";
 import { useFileMaker } from "../composables/useFileMaker";
@@ -102,9 +141,10 @@ const route = useRoute();
 const router = useRouter();
 
 const payableStore = usePayableStore();
+const vendorStore = useVendorStore();
 const toast = useToastStore();
 const booklet = useBookletStore();
-const { isConnected, hasBaseUrl } = useFileMaker();
+const { isConnected, hasBaseUrl, loggedInEmail } = useFileMaker();
 
 async function onSave() {
   if (!hasBaseUrl.value) {
@@ -167,9 +207,9 @@ async function onPost() {
       booklet.removeCurrent();
       const nextRef = booklet.currentTransRef;
       if (nextRef) router.push({ name: "entry", query: { transRef: nextRef } });
-      else router.push("/home");
+      else router.push(getHomeRoute());
     } else {
-      router.push("/home");
+      router.push(getHomeRoute());
     }
   } else if (markedPosted) {
     toast.success("Marked as posted.");
@@ -177,9 +217,9 @@ async function onPost() {
       booklet.removeCurrent();
       const nextRef = booklet.currentTransRef;
       if (nextRef) router.push({ name: "entry", query: { transRef: nextRef } });
-      else router.push("/home");
+      else router.push(getHomeRoute());
     } else {
-      router.push("/home");
+      router.push(getHomeRoute());
     }
   } else {
     toast.info("No changes to post. Add or edit rows and try again.");
@@ -201,7 +241,10 @@ async function onRepost() {
   }
   (document.activeElement as HTMLElement | null)?.blur();
   await nextTick();
-  const result = await payableStore.syncToFileMaker({ markPosted: true, clearRejected: true });
+  const result = await payableStore.syncToFileMaker({
+    markPosted: true,
+    clearRejected: true,
+  });
   const { posted, updated, deleted, error: err, markedPosted } = result;
   if (err) {
     toast.error("Repost failed: " + err);
@@ -215,9 +258,9 @@ async function onRepost() {
       booklet.removeCurrent();
       const nextRef = booklet.currentTransRef;
       if (nextRef) router.push({ name: "entry", query: { transRef: nextRef } });
-      else router.push("/home");
+      else router.push(getHomeRoute());
     } else {
-      router.push("/home");
+      router.push(getHomeRoute());
     }
   } else if (markedPosted) {
     toast.success("Saved and reposted.");
@@ -225,9 +268,9 @@ async function onRepost() {
       booklet.removeCurrent();
       const nextRef = booklet.currentTransRef;
       if (nextRef) router.push({ name: "entry", query: { transRef: nextRef } });
-      else router.push("/home");
+      else router.push(getHomeRoute());
     } else {
-      router.push("/home");
+      router.push(getHomeRoute());
     }
   } else {
     toast.info("No changes to save. Edit and try again.");

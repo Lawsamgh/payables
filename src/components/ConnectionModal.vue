@@ -14,17 +14,28 @@
         <h2 id="connection-title" class="mb-4 text-lg font-semibold text-[var(--color-text)]">
           FileMaker connection
         </h2>
-        <p class="mb-3 text-[var(--label-size)] text-[var(--color-text-muted)]">
-          Connect to the FileMaker database (not your app sign-in). Use your FileMaker account.
-        </p>
-        <p v-if="!hasBaseUrl" class="mb-3 text-[var(--label-size)] text-[var(--color-text-muted)]">
-          No base URL in .env — enter it below (or set <code class="rounded bg-white/10 px-1">VITE_FILEMAKER_BASE_URL</code> and restart dev server).
-        </p>
-        <p v-if="error" class="mb-3 min-h-[2.5rem] break-words text-sm text-red-400">{{ error }}</p>
-        <p v-if="error && hasBaseUrl" class="mb-3 text-xs text-[var(--color-text-muted)]">
-          If the request is blocked, use the Vite proxy: in .env set <code class="rounded bg-white/10 px-1">VITE_FILEMAKER_BASE_URL</code> to <code class="rounded bg-white/10 px-1">http://localhost:5173/fmi/data/v1/databases/PGH_Item_Distribution</code> and <code class="rounded bg-white/10 px-1">VITE_FILEMAKER_PROXY_TARGET</code> to your FileMaker host, then restart the dev server.
-        </p>
-        <form class="flex flex-col gap-3" @submit.prevent="submit">
+        <template v-if="isConnected">
+          <p class="mb-4 text-[var(--label-size)] text-[var(--color-text-muted)]">
+            You are already connected. Disconnect first if you need to use a different account.
+          </p>
+          <div class="flex justify-end">
+            <button type="button" class="pill-btn bg-[var(--color-accent)] px-4 py-2 text-white hover:opacity-90" @click="close">
+              Close
+            </button>
+          </div>
+        </template>
+        <template v-else>
+          <p class="mb-3 text-[var(--label-size)] text-[var(--color-text-muted)]">
+            Connect to the FileMaker database (not your app sign-in). Use your FileMaker account.
+          </p>
+          <p v-if="!hasBaseUrl" class="mb-3 text-[var(--label-size)] text-[var(--color-text-muted)]">
+            No base URL in .env — enter it below (or set <code class="rounded bg-white/10 px-1">VITE_FILEMAKER_BASE_URL</code> and restart dev server).
+          </p>
+          <p v-if="error" class="mb-3 min-h-[2.5rem] break-words text-sm text-red-400">{{ error }}</p>
+          <p v-if="error && hasBaseUrl" class="mb-3 text-xs text-[var(--color-text-muted)]">
+            If the request is blocked, use the Vite proxy: in .env set <code class="rounded bg-white/10 px-1">VITE_FILEMAKER_BASE_URL</code> to <code class="rounded bg-white/10 px-1">http://localhost:5173/fmi/data/v1/databases/PGH_Item_Distribution</code> and <code class="rounded bg-white/10 px-1">VITE_FILEMAKER_PROXY_TARGET</code> to your FileMaker host, then restart the dev server.
+          </p>
+          <form class="flex flex-col gap-3" @submit.prevent="submit">
           <label v-if="!hasBaseUrl" class="block">
             <span class="mb-1 block text-[var(--label-size)] text-[var(--color-text-muted)]">FileMaker base URL <span class="text-red-400">*</span></span>
             <input
@@ -66,6 +77,7 @@
             </button>
           </div>
         </form>
+        </template>
       </div>
     </div>
   </Teleport>
@@ -82,7 +94,7 @@ const toast = useToastStore()
 const props = withDefaults(defineProps<{ visible?: boolean }>(), { visible: false })
 const emit = defineEmits<{ close: []; connected: [] }>()
 
-const { login, error: fmError, hasBaseUrl } = useFileMaker()
+const { login, error: fmError, hasBaseUrl, isConnected } = useFileMaker()
 const baseUrlInput = ref('')
 const username = ref((import.meta.env?.VITE_FILEMAKER_USER as string) || '')
 const password = ref((import.meta.env?.VITE_FILEMAKER_PASSWORD as string) || '')

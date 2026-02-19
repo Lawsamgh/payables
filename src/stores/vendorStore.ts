@@ -22,6 +22,12 @@ export const useVendorStore = defineStore('vendor', () => {
   const vendor = ref<Vendor>({ ...DEFAULT_VENDOR })
   const loading = ref(false)
   const error = ref<string | null>(null)
+  /** Expiry check display from selected vendor (for new entry). */
+  const selectedVendorExpiryCheckDis = ref<string | null>(null)
+  const selectedVendorWhtExpiryCheckDis = ref<string | null>(null)
+  /** Expiry check status (Valid/Invalid) for coloring. */
+  const selectedVendorExpiryCheck = ref<string | null>(null)
+  const selectedVendorWhtExpiryCheck = ref<string | null>(null)
 
   const isEmpty = computed(() => {
     const v = vendor.value
@@ -31,6 +37,46 @@ export const useVendorStore = defineStore('vendor', () => {
   function reset(): void {
     vendor.value = { ...DEFAULT_VENDOR }
     error.value = null
+    selectedVendorExpiryCheckDis.value = null
+    selectedVendorWhtExpiryCheckDis.value = null
+  }
+
+  /** Set expiry check display from vendor record (when user selects vendor in new entry). */
+  function setExpiryFromVendorRecord(fd: Record<string, unknown> | undefined): void {
+    if (!fd) {
+      selectedVendorExpiryCheckDis.value = null
+      selectedVendorWhtExpiryCheckDis.value = null
+      selectedVendorExpiryCheck.value = null
+      selectedVendorWhtExpiryCheck.value = null
+      return
+    }
+    const get = (...keys: string[]) => {
+      for (const k of keys) {
+        const v = fd[k]
+        if (v != null && String(v).trim() !== '') return String(v).trim()
+      }
+      return null
+    }
+    selectedVendorExpiryCheckDis.value = get(
+      'Expiry_Check_Dis',
+      'Expiry Check Dis',
+      'Vendor_TBL::Expiry_Check_Dis',
+    )
+    selectedVendorWhtExpiryCheckDis.value = get(
+      'WHT_Expiry_Check_Dis',
+      'WHT Expiry Check Dis',
+      'Vendor_TBL::WHT_Expiry_Check_Dis',
+    )
+    selectedVendorExpiryCheck.value = get(
+      'Expiry_Check',
+      'Expiry Check',
+      'Vendor_TBL::Expiry_Check',
+    )
+    selectedVendorWhtExpiryCheck.value = get(
+      'WHT_Expiry_Check',
+      'WHT Expiry Check',
+      'Vendor_TBL::WHT_Expiry_Check',
+    )
   }
 
   function setField(field: keyof Vendor, value: string): void {
@@ -52,7 +98,7 @@ export const useVendorStore = defineStore('vendor', () => {
     return s
   }
 
-  /** Populate vendor from a Payables_Main record (VendorID, VendorName, VendorEmail, Date, Currency). */
+  /** Populate vendor from a Payables_Main record. Clears selected expiry (existing entry uses payableStore). */
   function setFromMain(mainData: {
     VendorID?: string
     VendorName?: string
@@ -64,6 +110,10 @@ export const useVendorStore = defineStore('vendor', () => {
       reset()
       return
     }
+    selectedVendorExpiryCheckDis.value = null
+    selectedVendorWhtExpiryCheckDis.value = null
+    selectedVendorExpiryCheck.value = null
+    selectedVendorWhtExpiryCheck.value = null
     vendor.value = {
       ...vendor.value,
       vendor_id: String(mainData.VendorID ?? '').trim(),
@@ -143,9 +193,14 @@ export const useVendorStore = defineStore('vendor', () => {
     loading,
     error,
     isEmpty,
+    selectedVendorExpiryCheckDis: computed(() => selectedVendorExpiryCheckDis.value),
+    selectedVendorWhtExpiryCheckDis: computed(() => selectedVendorWhtExpiryCheckDis.value),
+    selectedVendorExpiryCheck: computed(() => selectedVendorExpiryCheck.value),
+    selectedVendorWhtExpiryCheck: computed(() => selectedVendorWhtExpiryCheck.value),
     reset,
     setField,
     setFromMain,
+    setExpiryFromVendorRecord,
     loadById,
     save,
   }

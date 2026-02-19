@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { isAuthenticated } from '../composables/useFileMaker'
+import { getHomeRoute } from '../utils/homeTab'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -39,6 +40,18 @@ const router = createRouter({
       meta: { title: 'Vendors', requiresAuth: true },
     },
     {
+      path: '/invoices',
+      name: 'invoices',
+      component: () => import('../views/InvoicesView.vue'),
+      meta: { title: 'Invoices', requiresAuth: true },
+    },
+    {
+      path: '/cheque-collection',
+      name: 'cheque-collection',
+      component: () => import('../views/ChequeCollectionView.vue'),
+      meta: { title: 'Cheque collection', requiresAuth: true },
+    },
+    {
       path: '/settings',
       name: 'settings',
       component: () => import('../views/SettingsView.vue'),
@@ -50,6 +63,12 @@ const router = createRouter({
       component: () => import('../views/SettingsUsersView.vue'),
       meta: { title: 'Manage Users', requiresAuth: true },
     },
+    {
+      path: '/settings/documents',
+      name: 'settings-documents',
+      component: () => import('../views/SettingsDocumentsView.vue'),
+      meta: { title: 'Documents', requiresAuth: true },
+    },
   ],
 })
 
@@ -58,7 +77,7 @@ router.beforeEach((to) => {
     return { path: '/', replace: true }
   }
   if (to.path === '/' && isAuthenticated()) {
-    return { path: '/home', replace: true }
+    return { ...getHomeRoute(), replace: true }
   }
 })
 

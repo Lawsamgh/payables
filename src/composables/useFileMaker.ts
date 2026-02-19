@@ -8,6 +8,7 @@ import type { ConnectionStatus, FileMakerCredentials, FindOptions } from '../typ
 import { getBaseUrl, getAuthHeaders, parseFileMakerError } from '../utils/filemakerApi'
 
 const STORAGE_KEY_TOKEN = 'fm_session_token'
+const STORAGE_KEY_EMAIL = 'fm_logged_in_email'
 
 function loadStoredToken(): string | null {
   try {
@@ -17,12 +18,22 @@ function loadStoredToken(): string | null {
   }
 }
 
+function loadStoredEmail(): string | null {
+  try {
+    return localStorage.getItem(STORAGE_KEY_EMAIL)
+  } catch {
+    return null
+  }
+}
+
 const storedToken = loadStoredToken()
+const storedEmail = loadStoredEmail()
 const sessionToken = ref<string | null>(storedToken)
 const connectionStatus = ref<ConnectionStatus>(
   storedToken && getBaseUrl()?.trim() ? 'connected' : 'idle'
 )
 const lastError = ref<string | null>(null)
+const loggedInEmail = ref<string | null>(storedEmail)
 
 /** Detect invalid/expired token errors and auto-logout. Returns user-friendly message. */
 function handleApiError(err: unknown): string {
@@ -92,8 +103,10 @@ export async function login(credentials: FileMakerCredentials): Promise<boolean>
     if (token) {
       sessionToken.value = token
       connectionStatus.value = 'connected'
+      loggedInEmail.value = credentials.username
       try {
         localStorage.setItem(STORAGE_KEY_TOKEN, token)
+        localStorage.setItem(STORAGE_KEY_EMAIL, credentials.username)
       } catch {
         /* ignore */
       }
@@ -114,8 +127,10 @@ export function logout(): void {
   sessionToken.value = null
   connectionStatus.value = 'idle'
   lastError.value = null
+  loggedInEmail.value = null
   try {
     localStorage.removeItem(STORAGE_KEY_TOKEN)
+    localStorage.removeItem(STORAGE_KEY_EMAIL)
   } catch {
     /* ignore */
   }
@@ -509,6 +524,7 @@ export function useFileMaker() {
     error,
     isConnected,
     hasBaseUrl,
+    loggedInEmail: computed(() => loggedInEmail.value),
     login,
     logout,
     findRecords,

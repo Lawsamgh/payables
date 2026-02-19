@@ -138,6 +138,12 @@
                 <th>
                   <Skeleton width="4.5rem" height="0.875rem" class="rounded" />
                 </th>
+                <th>
+                  <Skeleton width="4rem" height="0.875rem" class="rounded" />
+                </th>
+                <th>
+                  <Skeleton width="4rem" height="0.875rem" class="rounded" />
+                </th>
                 <th class="tax-table__actions-th">
                   <Skeleton width="2.5rem" height="0.875rem" class="rounded" />
                 </th>
@@ -160,6 +166,12 @@
                 </td>
                 <td>
                   <Skeleton width="4rem" height="0.875rem" class="rounded" />
+                </td>
+                <td>
+                  <Skeleton width="3rem" height="0.875rem" class="rounded" />
+                </td>
+                <td>
+                  <Skeleton width="3rem" height="0.875rem" class="rounded" />
                 </td>
                 <td class="tax-table__actions-td">
                   <Skeleton
@@ -208,7 +220,9 @@
                 <th>Email</th>
                 <th>Tin Number</th>
                 <th>GRA Expiry</th>
+                <th>Expiry Check</th>
                 <th>WHT Expiry</th>
+                <th>WHT Expiry Check</th>
                 <th class="tax-table__actions-th"></th>
               </tr>
             </thead>
@@ -223,7 +237,73 @@
               <td>{{ getField(row, "Vendor_Email") }}</td>
               <td>{{ getField(row, "Tin_Number") }}</td>
               <td>{{ formatDate(getField(row, "GRA_Expiry_Date")) }}</td>
+              <td>
+                <span
+                  class="tax-table__status tax-table__status--with-icon"
+                  :class="expiryCheckStatusClass(getField(row, 'Expiry_Check'))"
+                >
+                  <svg
+                    v-if="expiryCheckStatusClass(getField(row, 'Expiry_Check')) === 'tax-table__status--valid'"
+                    class="tax-table__status-icon"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <svg
+                    v-else-if="expiryCheckStatusClass(getField(row, 'Expiry_Check')) === 'tax-table__status--expired'"
+                    class="tax-table__status-icon"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 9l-6 6M9 9l6 6" />
+                  </svg>
+                  <span class="tax-table__status-badge">{{
+                    getField(row, "Expiry_Check")
+                  }}</span>
+                </span>
+              </td>
               <td>{{ formatDate(getField(row, "WHT_Expiry_Date")) }}</td>
+              <td>
+                <span
+                  class="tax-table__status tax-table__status--with-icon"
+                  :class="expiryCheckStatusClass(getField(row, 'WHT_Expiry_Check'))"
+                >
+                  <svg
+                    v-if="expiryCheckStatusClass(getField(row, 'WHT_Expiry_Check')) === 'tax-table__status--valid'"
+                    class="tax-table__status-icon"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <svg
+                    v-else-if="expiryCheckStatusClass(getField(row, 'WHT_Expiry_Check')) === 'tax-table__status--expired'"
+                    class="tax-table__status-icon"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 9l-6 6M9 9l6 6" />
+                  </svg>
+                  <span class="tax-table__status-badge">{{
+                    getField(row, "WHT_Expiry_Check")
+                  }}</span>
+                </span>
+              </td>
               <td class="tax-table__actions-td">
                 <button
                   type="button"
@@ -500,6 +580,16 @@ function getField(
   return String(v).trim();
 }
 
+function expiryCheckStatusClass(value: string): string {
+  if (!value || value === "—") return "tax-table__status--other";
+  const s = value.toLowerCase().trim();
+  if (s === "valid" || s === "ok" || s === "yes" || s === "good")
+    return "tax-table__status--valid";
+  if (s === "expired" || s === "no" || s === "invalid")
+    return "tax-table__status--expired";
+  return "tax-table__status--other";
+}
+
 const filteredVendorList = computed(() => {
   const q = searchQuery.value.toLowerCase();
   if (!q) return vendorList.value;
@@ -714,6 +804,6 @@ watch(isConnected, (connected) => {
 
 <style scoped>
 .vendor-modal {
-  max-width: 540px;
+  max-width: 720px;
 }
 </style>

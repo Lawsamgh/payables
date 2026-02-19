@@ -6,7 +6,7 @@
 
       <div class="flex flex-1 flex-col min-h-0 min-w-0">
         <AppHeader />
-        <main class="flex-1 flex flex-col min-h-0 min-w-0 overflow-auto">
+        <main class="app-main flex-1 flex flex-col min-h-0 min-w-0 overflow-auto">
           <RouterView />
         </main>
         <StatusBar @open-connect="showConnectModal = true" />
@@ -42,12 +42,12 @@ import Toast from './components/Toast.vue'
 import { useFileMaker } from './composables/useFileMaker'
 const route = useRoute()
 const router = useRouter()
-useFileMaker()
+const { isConnected } = useFileMaker()
 const showConnectModal = ref(false)
 const routerReady = ref(false)
 
 provide('openConnectModal', () => {
-  showConnectModal.value = true
+  if (!isConnected.value) showConnectModal.value = true
 })
 
 const showAppLayout = computed(() => route.meta?.layout !== 'login')

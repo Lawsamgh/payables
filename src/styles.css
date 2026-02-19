@@ -28,6 +28,20 @@
   box-sizing: border-box;
 }
 
+html {
+  background: #0f172a;
+  min-height: 100%;
+}
+
+#app {
+  background: #0f172a;
+  min-height: 100vh;
+}
+
+.app-main {
+  background: #0f172a;
+}
+
 body {
   font-family: var(--font-ui);
   background: linear-gradient(
@@ -209,8 +223,10 @@ button:focus-visible {
 
 .segment-control__segment--active {
   color: var(--color-text);
-  background: var(--color-bg-card);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
 .segment-control__badge {
@@ -257,12 +273,15 @@ button:focus-visible {
 }
 
 .stats-dashboard__greeting {
-  font-size: 1.125rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 300;
+  letter-spacing: -0.03em;
+  line-height: 1.25;
   color: var(--color-text);
   margin: 0;
   grid-column: 1 / -1;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
 }
 
 @keyframes statsDashboardEnter {
@@ -1147,6 +1166,16 @@ button:focus-visible {
 }
 
 /* Status cell: valid=green, expired=red, other=yellow */
+.tax-table__status--with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.tax-table__status-icon {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+}
 .tax-table__status-badge {
   display: inline-block;
   padding: 0.25rem 0.5rem;
@@ -1745,7 +1774,9 @@ button:focus-visible {
   overflow: hidden;
   margin-top: 0.25rem;
   border-radius: 12px;
-  background: var(--color-bg-card);
+  background: rgb(30, 41, 59);
+  backdrop-filter: blur(var(--blur-glass));
+  -webkit-backdrop-filter: blur(var(--blur-glass));
   border: 1px solid var(--color-border);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
@@ -1815,8 +1846,8 @@ button:focus-visible {
 .data-grid-row-actions__list {
   border-radius: 10px;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgb(15, 23, 42);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .data-grid-row-actions__option {

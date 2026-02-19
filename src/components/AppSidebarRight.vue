@@ -67,8 +67,9 @@
             >
             <span
               class="overview-badge overview-badge--draft rounded-full min-w-[2.25rem] px-3.5 py-1.5 text-[16px] font-bold tabular-nums text-center"
+              :title="String(listSummary.draftCount)"
             >
-              {{ listSummary.draftCount }}
+              {{ formatCompactCount(listSummary.draftCount) }}
             </span>
           </div>
           <div class="overview-totals">
@@ -102,8 +103,9 @@
             >
             <span
               class="overview-badge overview-badge--posted rounded-full min-w-[2.25rem] px-3.5 py-1.5 text-[16px] font-bold tabular-nums text-center"
+              :title="String(listSummary.postedCount)"
             >
-              {{ listSummary.postedCount }}
+              {{ formatCompactCount(listSummary.postedCount) }}
             </span>
           </div>
           <div class="overview-totals">
@@ -162,8 +164,9 @@
               >
               <span
                 class="overview-badge overview-badge--rejected rounded-full min-w-[2.25rem] px-3.5 py-1.5 text-[16px] font-bold tabular-nums text-center"
+                :title="String(listSummary.rejectedCount)"
               >
-                {{ listSummary.rejectedCount }}
+                {{ formatCompactCount(listSummary.rejectedCount) }}
               </span>
             </div>
             <div class="overview-totals">
@@ -203,8 +206,9 @@
             >
             <span
               class="overview-badge overview-badge--approved rounded-full min-w-[2.25rem] px-3.5 py-1.5 text-[16px] font-bold tabular-nums text-center"
+              :title="String(listSummary.approvedCount)"
             >
-              {{ listSummary.approvedCount }}
+              {{ formatCompactCount(listSummary.approvedCount) }}
             </span>
           </div>
           <div class="overview-totals">
@@ -315,6 +319,104 @@
             {{ payableStore.filledRowCount }}
           </p>
         </div>
+        <!-- Cheque issued: show when Approved/Posted and cheque has been collected -->
+        <div
+          v-if="
+            payableStore.mainChequeIssued === 'Yes' &&
+            (payableStore.mainStatus === 'Approved' ||
+              payableStore.mainStatus === 'Posted')
+          "
+          class="overview-card rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3"
+        >
+          <p
+            class="text-[11px] font-medium text-[var(--color-text-muted)] mb-1.5"
+          >
+            Cheque issued
+          </p>
+          <p
+            class="text-2xl font-semibold tabular-nums text-[var(--color-text)] tracking-tight leading-snug"
+          >
+            {{ payableStore.mainBankName || "—" }}
+            {{ payableStore.mainChequeNo ? `#${payableStore.mainChequeNo}` : "" }}
+          </p>
+          <p
+            v-if="payableStore.mainChequeIssuedDate"
+            class="text-[var(--label-size)] text-[var(--color-text-muted)] mt-1"
+          >
+            {{ payableStore.mainChequeIssuedDate }}
+          </p>
+        </div>
+      </div>
+
+      <!-- Invoices: total count + breakdown by status -->
+      <div
+        v-else-if="route.name === 'invoices'"
+        class="overview-cards space-y-3"
+      >
+        <p
+          class="text-[var(--label-size)] leading-relaxed text-[var(--color-text-muted)]"
+        >
+          All payable entries as PDF-style thumbnails. Search, filter by status, and open any to view or edit.
+        </p>
+        <div
+          class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
+        >
+          <p
+            class="text-[11px] font-medium text-[var(--color-text-muted)] mb-1"
+          >
+            Total invoices
+          </p>
+          <p
+            class="text-[17px] font-semibold tabular-nums text-[var(--color-text)] tracking-tight leading-snug"
+            :title="String(listSummary.totalCount)"
+          >
+            {{ formatCompactCount(listSummary.totalCount) }}
+          </p>
+        </div>
+        <div class="overview-card overview-card--draft rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-2.5 flex items-center justify-between">
+          <span class="text-[var(--label-size)] text-[var(--color-text-muted)]">Draft</span>
+          <span class="overview-badge overview-badge--draft rounded-full min-w-[2rem] px-2.5 py-1 text-[14px] font-bold tabular-nums" :title="String(listSummary.draftCount)">{{ formatCompactCount(listSummary.draftCount) }}</span>
+        </div>
+        <div class="overview-card overview-card--posted rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-2.5 flex items-center justify-between">
+          <span class="text-[var(--label-size)] text-[var(--color-text-muted)]">Posted</span>
+          <span class="overview-badge overview-badge--posted rounded-full min-w-[2rem] px-2.5 py-1 text-[14px] font-bold tabular-nums" :title="String(listSummary.postedCount)">{{ formatCompactCount(listSummary.postedCount) }}</span>
+        </div>
+        <div class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-2.5 flex items-center justify-between">
+          <span class="text-[var(--label-size)] text-[var(--color-text-muted)]">Rejected</span>
+          <span class="rounded-full min-w-[2rem] px-2.5 py-1 text-[14px] font-bold tabular-nums text-center bg-red-500/20 text-red-400" :title="String(listSummary.rejectedCount)">{{ formatCompactCount(listSummary.rejectedCount) }}</span>
+        </div>
+        <div class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-2.5 flex items-center justify-between">
+          <span class="text-[var(--label-size)] text-[var(--color-text-muted)]">Approved</span>
+          <span class="rounded-full min-w-[2rem] px-2.5 py-1 text-[14px] font-bold tabular-nums text-center bg-emerald-500/20 text-emerald-400" :title="String(listSummary.approvedCount)">{{ formatCompactCount(listSummary.approvedCount) }}</span>
+        </div>
+      </div>
+
+      <!-- Cheque collection: total count + short description -->
+      <div
+        v-else-if="route.name === 'cheque-collection'"
+        class="overview-cards space-y-3"
+      >
+        <p
+          class="text-[var(--label-size)] leading-relaxed text-[var(--color-text-muted)]"
+        >
+          Log when vendors collect cheques. Each record links to a payable via
+          TransRef for traceability.
+        </p>
+        <div
+          class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
+        >
+          <p
+            class="text-[11px] font-medium text-[var(--color-text-muted)] mb-1"
+          >
+            Collection records
+          </p>
+          <p
+            class="text-[17px] font-semibold tabular-nums text-[var(--color-text)] tracking-tight leading-snug"
+            :title="String(chequeOverview.collectionCount)"
+          >
+            {{ formatCompactCount(chequeOverview.collectionCount) }}
+          </p>
+        </div>
       </div>
 
       <!-- Vendors: total count + short description -->
@@ -337,8 +439,9 @@
           </p>
           <p
             class="text-[17px] font-semibold tabular-nums text-[var(--color-text)] tracking-tight leading-snug"
+            :title="String(vendorOverview.vendorCount)"
           >
-            {{ vendorOverview.vendorCount }}
+            {{ formatCompactCount(vendorOverview.vendorCount) }}
           </p>
         </div>
       </div>
@@ -361,15 +464,16 @@
           </p>
           <p
             class="text-[17px] font-semibold tabular-nums text-[var(--color-text)] tracking-tight leading-snug"
+            :title="String(taxOverview.taxCount)"
           >
-            {{ taxOverview.taxCount }}
+            {{ formatCompactCount(taxOverview.taxCount) }}
           </p>
         </div>
       </div>
 
-      <!-- Settings (and Manage Users): short description -->
+      <!-- Settings (and Manage Users, Documents): short description -->
       <div
-        v-else-if="route.name === 'settings' || route.name === 'settings-users'"
+        v-else-if="route.name === 'settings' || route.name === 'settings-users' || route.name === 'settings-documents'"
         class="overview-cards space-y-3"
       >
         <p
@@ -387,7 +491,7 @@
             Sections
           </p>
           <p class="text-[13px] text-[var(--color-text)] leading-relaxed">
-            Account · General · Data
+            Account · Documents · General
           </p>
         </div>
       </div>
@@ -409,8 +513,9 @@ import { useListSummaryStore } from "../stores/listSummaryStore";
 import { usePayableStore } from "../stores/payableStore";
 import { useVendorStore } from "../stores/vendorStore";
 import { useVendorOverviewStore } from "../stores/vendorOverviewStore";
+import { useChequeOverviewStore } from "../stores/chequeOverviewStore";
 import { useTaxOverviewStore } from "../stores/taxOverviewStore";
-import { formatNumberDisplay } from "../utils/formatNumber";
+import { formatNumberDisplay, formatCompactCount } from "../utils/formatNumber";
 
 const route = useRoute();
 const router = useRouter();
@@ -452,6 +557,7 @@ const entryTotalTax = computed(() =>
 );
 const vendorStore = useVendorStore();
 const vendorOverview = useVendorOverviewStore();
+const chequeOverview = useChequeOverviewStore();
 const taxOverview = useTaxOverviewStore();
 
 /** One line per currency for a cleaner list (currency label + amount). */

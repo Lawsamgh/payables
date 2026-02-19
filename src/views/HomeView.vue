@@ -117,7 +117,7 @@
     <div v-else class="flex flex-col gap-10">
       <!-- Greeting + Stats dashboard: KPIs + Vendors -->
       <div class="stats-dashboard">
-        <p class="stats-dashboard__greeting">{{ greeting }}</p>
+        <p class="stats-dashboard__greeting" aria-live="polite">{{ greeting }}</p>
         <div class="stats-dashboard__kpis">
           <div class="stat-card stat-card--draft">
             <span class="stat-card__label">Draft</span>
@@ -1173,6 +1173,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
+import { setHomeTab, getHomeTab, isValidHomeTab } from "../utils/homeTab";
 import Skeleton from "../components/Skeleton.vue";
 import DailyPostedChart from "../components/DailyPostedChart.vue";
 import { useFileMaker } from "../composables/useFileMaker";
@@ -1180,18 +1181,17 @@ import { useListSummaryStore } from "../stores/listSummaryStore";
 import { useBookletStore } from "../stores/bookletStore";
 import { useToastStore } from "../stores/toastStore";
 import { LAYOUTS } from "../utils/filemakerApi";
-import type { PayablesMainFieldData } from "../utils/filemakerApi";
+import type { PayablesMainFieldData, PayablesUsersFieldData } from "../utils/filemakerApi";
 import { formatNumberDisplay } from "../utils/formatNumber";
 import type { FindRecordWithId } from "../composables/useFileMaker";
 
 const router = useRouter();
 const route = useRoute();
 
-const VALID_TABS = ["draft", "posted", "rejected", "approved"] as const;
-function isValidTab(t: unknown): t is (typeof VALID_TABS)[number] {
-  return typeof t === "string" && VALID_TABS.includes(t as (typeof VALID_TABS)[number]);
+function isValidTab(t: unknown): t is "draft" | "posted" | "rejected" | "approved" {
+  return isValidHomeTab(t);
 }
-const { findRecordsWithIds, isConnected } = useFileMaker();
+const { findRecordsWithIds, isConnected, loggedInEmail, findRecordsByQueryWithIds } = useFileMaker();
 const listSummary = useListSummaryStore();
 const booklet = useBookletStore();
 const toast = useToastStore();
@@ -1222,10 +1222,14 @@ const error = ref<string | null>(null);
 const PAGE_SIZE = 5;
 const searchQuery = ref("");
 const activeSegment = ref<"draft" | "posted" | "rejected" | "approved">(
-  isValidTab(route.query.tab) ? route.query.tab : "draft",
+  isValidTab(route.query.tab)
+    ? route.query.tab
+    : isValidTab(getHomeTab())
+      ? (getHomeTab() as "draft" | "posted" | "rejected" | "approved")
+      : "draft",
 );
 
-/** Sync tab to URL on change; restore from URL on load/refresh. */
+/** Sync tab to URL on change; persist for when returning from EntryView. */
 watch(
   () => route.query.tab,
   (tab) => {
@@ -1235,6 +1239,7 @@ watch(
   },
 );
 watch(activeSegment, (tab) => {
+  setHomeTab(tab);
   if (route.name !== "home") return;
   const current = route.query.tab;
   if (current === tab) return;
@@ -1245,9 +1250,67 @@ const currentPagePosted = ref(1);
 const currentPageRejected = ref(1);
 const currentPageApproved = ref(1);
 
-/** Greeting with dummy name (time-based). */
+const userFullName = ref<string | null>(null);
+
+/** Resolve a field from layout fieldData (handles FullName / Full Name / fullName etc.). */
+function getFieldValue(fd: Record<string, unknown> | undefined, key: string): string {
+  if (!fd) return "";
+  const v =
+    fd[key] ??
+    fd[key.replace(/([A-Z])/g, " $1").trim()] ?? // "FullName" -> " Full Name" then trim
+    fd[key.charAt(0).toLowerCase() + key.slice(1)];
+  if (v == null || v === "") return "";
+  return String(v).trim();
+}
+
+async function loadUserFullName(): Promise<void> {
+  const email = loggedInEmail.value;
+  if (!email || !isConnected.value) {
+    userFullName.value = null;
+    return;
+  }
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const { data } = await findRecordsByQueryWithIds<PayablesUsersFieldData>(
+    LAYOUTS.PAYABLES_USERS,
+    { Email: email },
+    1
+  );
+  if (data?.length) {
+    const fd = data[0]?.fieldData as Record<string, unknown> | undefined;
+    const fullName =
+      getFieldValue(fd, "FullName") ||
+      (fd ? String(fd["Full Name"] ?? "").trim() : "");
+    userFullName.value = fullName || null;
+  } else {
+    // Fallback: if exact `_find` didn't match, fetch a list and match client-side.
+    // This avoids issues like trailing spaces / collation / strict exact-match behavior.
+    const { data: users } = await findRecordsWithIds<
+      PayablesUsersFieldData | Record<string, unknown>
+    >(LAYOUTS.PAYABLES_USERS, { limit: 500 });
+    const match = users.find((r) => {
+      const fd = r?.fieldData as Record<string, unknown> | undefined;
+      const rowEmail = getFieldValue(fd, "Email");
+      return rowEmail.trim().toLowerCase() === normalizedEmail;
+    });
+    const fd = match?.fieldData as Record<string, unknown> | undefined;
+    const fullName =
+      getFieldValue(fd, "FullName") ||
+      (fd ? String(fd["Full Name"] ?? "").trim() : "");
+    userFullName.value = fullName || null;
+  }
+}
+
+watch([isConnected, loggedInEmail], () => {
+  if (isConnected.value && loggedInEmail.value) {
+    loadUserFullName();
+  } else {
+    userFullName.value = null;
+  }
+}, { immediate: true });
+
+/** Greeting with user's FullName from Payables_Users (time-based). Falls back to email local part if no record. */
 const greeting = computed(() => {
-  const name = "Alex";
+  const name = userFullName.value || "there";
   const h = new Date().getHours();
   const timeGreeting =
     h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";

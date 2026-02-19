@@ -73,7 +73,7 @@
 
       <div class="login__slide-track">
         <form class="login__form" @submit.prevent="step === 'email' ? proceed() : submit()">
-        <Transition name="login-step" mode="out-in">
+        <Transition name="login-step" mode="out-in" @after-enter="focusPasswordInput">
           <div v-if="step === 'email'" key="email" class="login__step">
             <label v-if="!hasBaseUrl" class="login__field">
               <span class="login__label">FileMaker base URL</span>
@@ -123,6 +123,7 @@
             <label class="login__field">
               <span class="login__label">Password</span>
               <input
+                ref="passwordInputRef"
                 v-model="password"
                 type="password"
                 class="login__input"
@@ -173,6 +174,7 @@ const password = ref('')
 const loading = ref(false)
 const error = ref<string | null>(null)
 const step = ref<'email' | 'password'>('email')
+const passwordInputRef = ref<HTMLInputElement | null>(null)
 
 const hasBaseUrlEnv = computed(() => !!getBaseUrl()?.trim())
 
@@ -241,7 +243,7 @@ onUnmounted(() => {
   cancelAnimationFrame(rafId)
 })
 
-function proceed() {
+async function proceed() {
   error.value = null
   if (!hasBaseUrlEnv.value && !baseUrl.value.trim()) {
     toast.error('Enter FileMaker base URL')
@@ -257,6 +259,12 @@ function proceed() {
     return
   }
   step.value = 'password'
+}
+
+function focusPasswordInput() {
+  if (step.value === 'password') {
+    passwordInputRef.value?.focus()
+  }
 }
 
 function goBack() {

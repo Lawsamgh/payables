@@ -86,6 +86,44 @@
         </div>
       </section>
 
+      <!-- Documents -->
+      <section class="settings-section">
+        <h2 class="settings-section__title">Documents</h2>
+        <div class="settings-list">
+          <router-link to="/settings/documents" class="settings-item no-underline">
+            <div class="settings-item__icon">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+            </div>
+            <div class="settings-item__content">
+              <span class="settings-item__title">Documents</span>
+              <span class="settings-item__desc"
+                >View and manage documents</span
+              >
+            </div>
+            <svg
+              class="settings-item__chevron"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </router-link>
+        </div>
+      </section>
+
       <!-- General -->
       <section class="settings-section">
         <h2 class="settings-section__title">General</h2>

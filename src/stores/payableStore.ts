@@ -92,6 +92,17 @@ export const usePayableStore = defineStore("payable", () => {
   const mainRejectReason = ref<string | null>(null);
   /** Total from Payables_Main (calculation) when loaded; null when not loaded or cleared. */
   const mainTotalFromMain = ref<string | number | null>(null);
+  /** Cheque issued state from Payables_Main (when cheque collected). */
+  const mainChequeIssued = ref<string | null>(null);
+  const mainChequeIssuedDate = ref<string | null>(null);
+  const mainBankName = ref<string | null>(null);
+  const mainChequeNo = ref<string | null>(null);
+  /** Vendor expiry check display text (from Vendor_TBL). */
+  const mainExpiryCheckDis = ref<string | null>(null);
+  const mainWhtExpiryCheckDis = ref<string | null>(null);
+  /** Vendor expiry check status (Valid/Invalid) for coloring. */
+  const mainExpiryCheck = ref<string | null>(null);
+  const mainWhtExpiryCheck = ref<string | null>(null);
   /** True when any cell has been edited or a row added/removed since last load or save. */
   const isDirty = ref(false);
   /** FileMaker recordIds to delete on next save (rows user removed that existed in FileMaker). */
@@ -279,6 +290,14 @@ export const usePayableStore = defineStore("payable", () => {
       currentTransRef.value = null;
       currentMainRecordId.value = null;
       mainPosted.value = false;
+      mainChequeIssued.value = null;
+      mainChequeIssuedDate.value = null;
+      mainBankName.value = null;
+      mainChequeNo.value = null;
+      mainExpiryCheckDis.value = null;
+      mainWhtExpiryCheckDis.value = null;
+      mainExpiryCheck.value = null;
+      mainWhtExpiryCheck.value = null;
       vendorStore.setFromMain(null);
       return;
     }
@@ -287,17 +306,22 @@ export const usePayableStore = defineStore("payable", () => {
     loading.value = true;
     error.value = null;
     setRows([emptyRow()]);
+    // Fetch by TransRef so we get the exact entry (not limited to first 500)
     const [detailsWithIdsRes, mainWithIdsRes] = await Promise.all([
-      findRecordsWithIds<Record<string, unknown>>(LAYOUTS.PAYABLES_DETAILS, {
-        limit: 500,
-      }),
-      findRecordsWithIds<Record<string, unknown>>(LAYOUTS.PAYABLES_MAIN, {
-        limit: 500,
-      }),
+      findRecordsByQueryWithIds<Record<string, unknown>>(
+        LAYOUTS.PAYABLES_DETAILS,
+        { TransRef: ref },
+        500,
+      ),
+      findRecordsByQueryWithIds<Record<string, unknown>>(
+        LAYOUTS.PAYABLES_MAIN,
+        { TransRef: ref },
+        10,
+      ),
     ]);
     loading.value = false;
-    if (detailsWithIdsRes.error) {
-      error.value = detailsWithIdsRes.error;
+    if (detailsWithIdsRes.error || mainWithIdsRes.error) {
+      error.value = detailsWithIdsRes.error ?? mainWithIdsRes.error ?? null;
       setRows([emptyRow()]);
       return;
     }
@@ -376,12 +400,149 @@ export const usePayableStore = defineStore("payable", () => {
       } else {
         mainTotalFromMain.value = null;
       }
+      const chequeIssued = mainFieldData?.ChequeIssued ?? mainFieldData?.["Cheque Issued"];
+      mainChequeIssued.value =
+        chequeIssued != null && String(chequeIssued).trim() !== ""
+          ? String(chequeIssued).trim()
+          : null;
+      const chequeDate = mainFieldData?.ChequeIssuedDate ?? mainFieldData?.["Cheque Issued Date"];
+      mainChequeIssuedDate.value =
+        chequeDate != null && String(chequeDate).trim() !== ""
+          ? String(chequeDate).trim()
+          : null;
+      const bankName = mainFieldData?.BankName ?? mainFieldData?.["Bank Name"];
+      mainBankName.value =
+        bankName != null && String(bankName).trim() !== ""
+          ? String(bankName).trim()
+          : null;
+      const chequeNo = mainFieldData?.ChequeNo ?? mainFieldData?.["Cheque No"];
+      mainChequeNo.value =
+        chequeNo != null && String(chequeNo).trim() !== ""
+          ? String(chequeNo).trim()
+          : null;
+      // Expiry_Check_Dis and WHT_Expiry_Check_Dis: from Vendor_TBL via relationship (Vendor ID)
+      // 1) Try Payables_Main layout first – related fields may be returned
+      // 2) Otherwise fetch Vendor_TBL by Vendor_ID
+      function getFieldStr(obj: Record<string, unknown> | undefined, ...keys: string[]): string | null {
+        if (!obj) return null;
+        for (const k of keys) {
+          const v = obj[k];
+          if (v != null && String(v).trim() !== "") return String(v).trim();
+        }
+        return null;
+      }
+      const md = mainFieldData as Record<string, unknown> | undefined;
+      let expiryDis = getFieldStr(
+        md,
+        "Expiry_Check_Dis",
+        "Expiry Check Dis",
+        "ExpiryCheckDis",
+        "Vendor_TBL::Expiry_Check_Dis",
+      );
+      let whtDis = getFieldStr(
+        md,
+        "WHT_Expiry_Check_Dis",
+        "WHT Expiry Check Dis",
+        "WHTExpiryCheckDis",
+        "Vendor_TBL::WHT_Expiry_Check_Dis",
+      );
+      if (!expiryDis) {
+        expiryDis = getFieldStr(md, "Vendor_TBL::Expiry_Check_Dis");
+      }
+      let vendorFd: Record<string, unknown> | undefined = undefined;
+      if (!expiryDis || !whtDis) {
+        const vendorId = String(fd?.VendorID ?? fd?.["Vendor ID"] ?? "").trim();
+        if (vendorId) {
+          const { findRecordsByQueryWithIds, findRecordsWithIds } = useFileMaker();
+          let vendorRecords: { fieldData: Record<string, unknown> }[] = [];
+          const byId = await findRecordsByQueryWithIds<Record<string, unknown>>(
+            LAYOUTS.VENDOR_TBL,
+            { "Vendor ID": vendorId },
+            1,
+          );
+          if (byId.data?.length) {
+            vendorRecords = byId.data as { fieldData: Record<string, unknown> }[];
+          } else {
+            const byUnderscore = await findRecordsByQueryWithIds<Record<string, unknown>>(
+              LAYOUTS.VENDOR_TBL,
+              { Vendor_ID: vendorId },
+              1,
+            );
+            if (byUnderscore.data?.length) {
+              vendorRecords = byUnderscore.data as { fieldData: Record<string, unknown> }[];
+            } else {
+              const allRes = await findRecordsWithIds<Record<string, unknown>>(
+                LAYOUTS.VENDOR_TBL,
+                { limit: 500 },
+              );
+              const match = allRes.data?.find((r) => {
+                const vid = String(
+                  (r.fieldData as Record<string, unknown>)?.Vendor_ID ??
+                    (r.fieldData as Record<string, unknown>)?.["Vendor ID"] ??
+                    "",
+                ).trim();
+                return vid === vendorId;
+              });
+              if (match) {
+                vendorRecords = [{ fieldData: match.fieldData as Record<string, unknown> }];
+              }
+            }
+          }
+          vendorFd = vendorRecords[0]?.fieldData;
+          if (vendorFd) {
+            expiryDis =
+              expiryDis ??
+              getFieldStr(vendorFd, "Expiry_Check_Dis", "Expiry Check Dis", "ExpiryCheckDis", "Vendor_TBL::Expiry_Check_Dis");
+            whtDis =
+              whtDis ??
+              getFieldStr(vendorFd, "WHT_Expiry_Check_Dis", "WHT Expiry Check Dis", "WHTExpiryCheckDis", "Vendor_TBL::WHT_Expiry_Check_Dis");
+          }
+        } else {
+          vendorFd = undefined;
+        }
+      } else {
+        vendorFd = undefined;
+      }
+      mainExpiryCheckDis.value = expiryDis;
+      mainWhtExpiryCheckDis.value = whtDis;
+      let expiryCheck = getFieldStr(
+        md,
+        "Expiry_Check",
+        "Expiry Check",
+        "ExpiryCheck",
+        "Vendor_TBL::Expiry_Check",
+      );
+      let whtCheck = getFieldStr(
+        md,
+        "WHT_Expiry_Check",
+        "WHT Expiry Check",
+        "WHTExpiryCheck",
+        "Vendor_TBL::WHT_Expiry_Check",
+      );
+      if ((!expiryCheck || !whtCheck) && vendorFd) {
+        expiryCheck =
+          expiryCheck ??
+          getFieldStr(vendorFd, "Expiry_Check", "Expiry Check", "ExpiryCheck", "Vendor_TBL::Expiry_Check");
+        whtCheck =
+          whtCheck ??
+          getFieldStr(vendorFd, "WHT_Expiry_Check", "WHT Expiry Check", "WHTExpiryCheck", "Vendor_TBL::WHT_Expiry_Check");
+      }
+      mainExpiryCheck.value = expiryCheck;
+      mainWhtExpiryCheck.value = whtCheck;
     } else {
       currentMainRecordId.value = null;
       mainPosted.value = false;
       mainStatus.value = null;
       mainRejectReason.value = null;
       mainTotalFromMain.value = null;
+      mainChequeIssued.value = null;
+      mainChequeIssuedDate.value = null;
+      mainBankName.value = null;
+      mainChequeNo.value = null;
+      mainExpiryCheckDis.value = null;
+      mainWhtExpiryCheckDis.value = null;
+      mainExpiryCheck.value = null;
+      mainWhtExpiryCheck.value = null;
       vendorStore.setFromMain(null);
     }
   }
@@ -811,6 +972,14 @@ export const usePayableStore = defineStore("payable", () => {
     mainPosted: computed(() => mainPosted.value),
     mainStatus: computed(() => mainStatus.value),
     mainRejectReason: computed(() => mainRejectReason.value),
+    mainChequeIssued: computed(() => mainChequeIssued.value),
+    mainChequeIssuedDate: computed(() => mainChequeIssuedDate.value),
+    mainBankName: computed(() => mainBankName.value),
+    mainChequeNo: computed(() => mainChequeNo.value),
+    mainExpiryCheckDis: computed(() => mainExpiryCheckDis.value),
+    mainWhtExpiryCheckDis: computed(() => mainWhtExpiryCheckDis.value),
+    mainExpiryCheck: computed(() => mainExpiryCheck.value),
+    mainWhtExpiryCheck: computed(() => mainWhtExpiryCheck.value),
     entryTotal,
     STATUS_OPTIONS,
     addRow,

@@ -42,7 +42,7 @@
       <!-- Nav -->
       <nav class="flex flex-col gap-0.5 flex-1 p-4 pt-4">
         <router-link
-          to="/home"
+          :to="getHomeRoute()"
           class="sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--label-size)] font-medium no-underline transition-colors"
           :class="
             route.name === 'home'
@@ -112,6 +112,54 @@
             />
           </svg>
           <span>New entry</span>
+        </router-link>
+        <router-link
+          to="/invoices"
+          class="sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--label-size)] font-medium no-underline transition-colors"
+          :class="
+            route.name === 'invoices'
+              ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
+              : 'text-[var(--color-text-muted)] hover:bg-white/5 hover:text-[var(--color-text)]'
+          "
+        >
+          <svg
+            class="h-5 w-5 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
+          </svg>
+          <span>Invoices</span>
+        </router-link>
+        <router-link
+          to="/cheque-collection"
+          class="sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--label-size)] font-medium no-underline transition-colors"
+          :class="
+            route.name === 'cheque-collection'
+              ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
+              : 'text-[var(--color-text-muted)] hover:bg-white/5 hover:text-[var(--color-text)]'
+          "
+        >
+          <svg
+            class="h-5 w-5 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+            />
+          </svg>
+          <span>Cheque collection</span>
         </router-link>
         <router-link
           to="/vendors"
@@ -199,6 +247,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useRoute } from "vue-router";
+import { getHomeRoute } from "../utils/homeTab";
 import { usePayableStore } from "../stores/payableStore";
 import { useVendorStore } from "../stores/vendorStore";
 
