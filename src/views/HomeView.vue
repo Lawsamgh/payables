@@ -115,10 +115,39 @@
       </div>
     </template>
     <div v-else class="flex flex-col gap-10">
-      <!-- Greeting + Stats dashboard: KPIs + Vendors -->
-      <div class="stats-dashboard">
+      <!-- Overview skeleton: when role not yet loaded -->
+      <div v-if="!roleLoaded" class="stats-dashboard" aria-busy="true">
         <div class="stats-dashboard__greeting-row">
-          <p class="stats-dashboard__greeting" aria-live="polite">{{ greeting }}</p>
+          <Skeleton width="14rem" height="1.75rem" class="rounded" />
+        </div>
+        <div class="stats-dashboard__kpis">
+          <div
+            v-for="i in 4"
+            :key="i"
+            class="stat-card rounded-2xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
+          >
+            <Skeleton width="3.5rem" height="0.875rem" class="rounded mb-2" />
+            <Skeleton width="2.5rem" height="1.5rem" class="rounded" />
+            <Skeleton width="2rem" height="0.75rem" class="rounded mt-1" />
+          </div>
+        </div>
+        <div class="stats-dashboard__charts">
+          <div
+            class="stat-card stat-card--vendors rounded-2xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
+          >
+            <Skeleton width="4rem" height="0.875rem" class="rounded mb-2" />
+            <Skeleton width="2.5rem" height="1.5rem" class="rounded" />
+            <Skeleton width="2.5rem" height="0.75rem" class="rounded mt-1" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Greeting + Stats dashboard: KPIs + Vendors (when role loaded) -->
+      <div v-else class="stats-dashboard">
+        <div class="stats-dashboard__greeting-row">
+          <p class="stats-dashboard__greeting" aria-live="polite">
+            {{ greeting }}
+          </p>
           <span v-if="userRole" class="stats-dashboard__role">{{ userRole }}</span>
         </div>
         <div class="stats-dashboard__kpis">
@@ -228,8 +257,60 @@
         </div>
       </div>
 
+      <!-- Calendar + chart skeleton (when role loading) -->
+      <section
+        v-if="!roleLoaded"
+        class="daily-chart-section daily-chart-section--with-calendar"
+        aria-busy="true"
+      >
+        <div class="chart-calendar">
+          <div class="chart-calendar__header flex items-center justify-between gap-2">
+            <Skeleton width="2rem" height="2rem" class="rounded shrink-0" />
+            <Skeleton width="10rem" height="1.25rem" class="rounded" />
+            <Skeleton width="2rem" height="2rem" class="rounded shrink-0" />
+          </div>
+          <div class="chart-calendar__weekdays flex gap-1 mt-3">
+            <Skeleton
+              v-for="w in 7"
+              :key="w"
+              width="2.5rem"
+              height="0.875rem"
+              class="rounded"
+            />
+          </div>
+          <div class="grid grid-cols-7 gap-1 mt-2">
+            <Skeleton
+              v-for="i in 35"
+              :key="i"
+              width="2rem"
+              height="2rem"
+              class="rounded"
+            />
+          </div>
+          <Skeleton width="4.5rem" height="1.75rem" class="rounded mt-3" />
+        </div>
+        <div class="chart-calendar__chart">
+          <div class="daily-chart-section__toggle flex gap-2 mb-4">
+            <Skeleton width="5rem" height="2.25rem" class="rounded" />
+            <Skeleton width="5.5rem" height="2.25rem" class="rounded" />
+          </div>
+          <div class="h-[220px] flex items-end justify-around gap-3 px-2">
+            <Skeleton
+              v-for="i in 6"
+              :key="i"
+              width="2.5rem"
+              :height="`${Math.max(40, 100 - i * 12)}%`"
+              class="rounded-t shrink-0"
+            />
+          </div>
+        </div>
+      </section>
+
       <!-- Calendar + Posted/Approved by vendor chart (select date to update chart) -->
-      <section class="daily-chart-section daily-chart-section--with-calendar">
+      <section
+        v-else
+        class="daily-chart-section daily-chart-section--with-calendar"
+      >
         <div class="chart-calendar">
           <div class="chart-calendar__header">
             <button
@@ -346,8 +427,35 @@
         </div>
       </section>
 
+      <!-- Search + tabs + list skeleton (when role loading) -->
+      <div v-if="!roleLoaded" class="home-lists" aria-busy="true">
+        <div class="search-and-tabs space-y-3">
+          <Skeleton width="100%" height="2.75rem" class="rounded-xl" />
+          <div class="flex gap-2">
+            <Skeleton width="5rem" height="2.5rem" class="rounded-full" />
+            <Skeleton width="5.5rem" height="2.5rem" class="rounded-full" />
+            <Skeleton width="6rem" height="2.5rem" class="rounded-full" />
+            <Skeleton width="6.5rem" height="2.5rem" class="rounded-full" />
+          </div>
+        </div>
+        <ul class="list-none p-0 m-0 flex flex-col gap-2 mt-4">
+          <li
+            v-for="i in 4"
+            :key="i"
+            class="list-row rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-card)] px-4 py-3.5 flex items-center gap-3"
+          >
+            <Skeleton width="1.5rem" height="1.5rem" circle />
+            <Skeleton width="35%" height="0.875rem" class="max-w-[8rem]" />
+            <Skeleton width="4rem" height="0.75rem" />
+            <Skeleton width="4rem" height="0.75rem" />
+            <Skeleton width="4rem" height="0.75rem" />
+            <Skeleton width="4rem" height="2rem" class="rounded-full ml-auto" />
+          </li>
+        </ul>
+      </div>
+
       <!-- Search + tab control + list (tight gap between tabs and list) -->
-      <div class="home-lists">
+      <div v-else class="home-lists">
         <div class="search-and-tabs">
           <div class="search-bar search-bar--compact">
             <div
@@ -1259,6 +1367,7 @@ const currentPageApproved = ref(1);
 
 const userFullName = ref<string | null>(null);
 const userRole = ref<string | null>(null);
+const roleLoaded = ref(false);
 
 /** Resolve a field from layout fieldData (handles FullName / Full Name / fullName etc.). */
 function getFieldValue(fd: Record<string, unknown> | undefined, key: string): string {
@@ -1276,6 +1385,7 @@ async function loadUserFullName(): Promise<void> {
   if (!email || !isConnected.value) {
     userFullName.value = null;
     userRole.value = null;
+    roleLoaded.value = true;
     return;
   }
   const normalizedEmail = String(email).trim().toLowerCase();
@@ -1311,14 +1421,17 @@ async function loadUserFullName(): Promise<void> {
     const role = getFieldValue(fd, "Role");
     userRole.value = role || null;
   }
+  roleLoaded.value = true;
 }
 
 watch([isConnected, loggedInEmail], () => {
   if (isConnected.value && loggedInEmail.value) {
+    roleLoaded.value = false;
     loadUserFullName();
   } else {
     userFullName.value = null;
     userRole.value = null;
+    roleLoaded.value = false;
   }
 }, { immediate: true });
 
@@ -1331,17 +1444,20 @@ const greeting = computed(() => {
   return `${timeGreeting}, ${name}`;
 });
 
-/** Tab visibility by role: Officer hides Posted; Manager hides Draft and Rejected. */
+/** Tab visibility by role: Officer hides Posted; Manager hides Draft and Rejected. Requires roleLoaded to avoid flash on refresh. */
 const roleLower = computed(() => (userRole.value ?? "").trim().toLowerCase());
 const showDraftTab = computed(() => {
+  if (!roleLoaded.value) return false;
   if (!roleLower.value) return true;
   return roleLower.value !== "manager";
 });
 const showPostedTab = computed(() => {
+  if (!roleLoaded.value) return false;
   if (!roleLower.value) return true;
   return roleLower.value !== "officer";
 });
 const showRejectedTab = computed(() => {
+  if (!roleLoaded.value) return false;
   if (!roleLower.value) return true;
   return roleLower.value !== "manager";
 });

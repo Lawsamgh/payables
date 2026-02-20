@@ -55,10 +55,34 @@
         </button>
       </div>
 
-      <!-- Home: Draft & Posted with counts + totals (all currencies when vendors use different currencies) -->
-      <div v-if="route.name === 'home'" class="overview-cards space-y-3">
+      <!-- Home: skeleton while role loading -->
+      <div
+        v-if="route.name === 'home' && !roleLoaded"
+        class="overview-cards space-y-3"
+      >
         <div
-          v-if="!isManager"
+          v-for="i in 4"
+          :key="i"
+          class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
+        >
+          <div class="flex items-center justify-between mb-1.5">
+            <Skeleton width="3rem" height="0.875rem" class="rounded" />
+            <Skeleton width="2.25rem" height="1.5rem" class="rounded-full" />
+          </div>
+          <div class="space-y-2 mt-2">
+            <Skeleton width="100%" height="0.875rem" class="rounded" />
+            <Skeleton width="70%" height="0.875rem" class="rounded" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Home: Draft & Posted with counts + totals (all currencies when vendors use different currencies) -->
+      <div
+        v-else-if="route.name === 'home'"
+        class="overview-cards space-y-3"
+      >
+        <div
+          v-if="roleLoaded && !isManager"
           class="overview-card overview-card--draft rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3 transition-colors hover:bg-white/[0.06]"
         >
           <div class="flex items-center justify-between mb-1.5">
@@ -132,7 +156,7 @@
           </div>
         </div>
         <div
-          v-if="!isManager"
+          v-if="roleLoaded && !isManager"
           class="overview-card-wrap overview-card-wrap--rejected"
           :class="{
             'overview-card-wrap--has-rejected': listSummary.rejectedCount > 0,
@@ -237,8 +261,27 @@
         </div>
       </div>
 
+      <!-- Entry: skeleton while loading -->
+      <div
+        v-else-if="route.name === 'entry' && payableStore.loading"
+        class="overview-cards space-y-3"
+      >
+        <Skeleton width="100%" height="1rem" class="rounded mb-2" />
+        <div
+          v-for="i in 6"
+          :key="i"
+          class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
+        >
+          <Skeleton width="4rem" height="0.75rem" class="rounded mb-2" />
+          <Skeleton width="70%" height="1.25rem" class="rounded" />
+        </div>
+      </div>
+
       <!-- Entry: status + entry total + line count -->
-      <div v-else-if="route.name === 'entry'" class="overview-cards space-y-3">
+      <div
+        v-else-if="route.name === 'entry'"
+        class="overview-cards space-y-3"
+      >
         <p
           class="text-[var(--label-size)] leading-relaxed text-[var(--color-text-muted)]"
         >
@@ -261,6 +304,25 @@
             class="text-[17px] font-medium text-[var(--color-text)] tracking-tight leading-snug"
           >
             {{ payableStore.mainCreatorFullName }}
+          </p>
+        </div>
+        <div
+          v-if="
+            payableStore.mainPostedName &&
+            (payableStore.mainStatus === 'Approved' ||
+              payableStore.mainStatus === 'Posted')
+          "
+          class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
+        >
+          <p
+            class="text-[11px] font-medium text-[var(--color-text-muted)] mb-1"
+          >
+            Posted by
+          </p>
+          <p
+            class="text-[17px] font-medium text-[var(--color-text)] tracking-tight leading-snug"
+          >
+            {{ payableStore.mainPostedName }}
           </p>
         </div>
         <div
@@ -525,6 +587,7 @@
 import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import LogoutConfirmModal from "./LogoutConfirmModal.vue";
+import Skeleton from "./Skeleton.vue";
 import { useFileMaker } from "../composables/useFileMaker";
 import { useUserRole } from "../composables/useUserRole";
 import { useListSummaryStore } from "../stores/listSummaryStore";
@@ -538,7 +601,7 @@ import { formatNumberDisplay, formatCompactCount } from "../utils/formatNumber";
 const route = useRoute();
 const router = useRouter();
 const { logout } = useFileMaker();
-const { isManager } = useUserRole();
+const { isManager, roleLoaded } = useUserRole();
 const showLogoutModal = ref(false);
 
 function onLogout() {

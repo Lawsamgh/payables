@@ -105,6 +105,8 @@ export const usePayableStore = defineStore("payable", () => {
   const mainWhtExpiryCheck = ref<string | null>(null);
   /** FullName of the officer who created the entry (from Payables_Main or related Payables_Users). */
   const mainCreatorFullName = ref<string | null>(null);
+  /** FullName of the officer who posted the entry (PostedName field in Payables_Main). */
+  const mainPostedName = ref<string | null>(null);
   /** True when any cell has been edited or a row added/removed since last load or save. */
   const isDirty = ref(false);
   /** FileMaker recordIds to delete on next save (rows user removed that existed in FileMaker). */
@@ -235,6 +237,7 @@ export const usePayableStore = defineStore("payable", () => {
     mainRejectReason.value = null;
     mainTotalFromMain.value = null;
     mainCreatorFullName.value = null;
+    mainPostedName.value = null;
   }
 
   async function fetchFromFileMaker(): Promise<void> {
@@ -302,6 +305,7 @@ export const usePayableStore = defineStore("payable", () => {
       mainExpiryCheck.value = null;
       mainWhtExpiryCheck.value = null;
       mainCreatorFullName.value = null;
+      mainPostedName.value = null;
       vendorStore.setFromMain(null);
       return;
     }
@@ -545,6 +549,13 @@ export const usePayableStore = defineStore("payable", () => {
         "OfficerFullName",
       );
       mainCreatorFullName.value = creatorFullName;
+      const postedName = getFieldStr(
+        md,
+        "PostedName",
+        "Posted Name",
+        "postedName",
+      );
+      mainPostedName.value = postedName;
     } else {
       currentMainRecordId.value = null;
       mainPosted.value = false;
@@ -560,6 +571,7 @@ export const usePayableStore = defineStore("payable", () => {
       mainExpiryCheck.value = null;
       mainWhtExpiryCheck.value = null;
       mainCreatorFullName.value = null;
+      mainPostedName.value = null;
       vendorStore.setFromMain(null);
     }
   }
@@ -585,8 +597,47 @@ export const usePayableStore = defineStore("payable", () => {
       deleteRecord,
       findRecordsByQuery,
       findRecordsByQueryWithIds,
+      findRecordsWithIds,
       isConnected,
+      loggedInEmail,
     } = useFileMaker();
+
+    /** Resolve officer FullName from Payables_Users for PostedName field. */
+    async function resolvePostedName(): Promise<string> {
+      const email = loggedInEmail.value?.trim();
+      if (!email) return "";
+      const { data } = await findRecordsByQueryWithIds<Record<string, unknown>>(
+        LAYOUTS.PAYABLES_USERS,
+        { Email: email },
+        1,
+      );
+      let fd = data?.[0]?.fieldData as Record<string, unknown> | undefined;
+      if (!data?.length) {
+        const { data: byEmail } = await findRecordsByQueryWithIds<Record<string, unknown>>(
+          LAYOUTS.PAYABLES_USERS,
+          { email },
+          1,
+        );
+        fd = byEmail?.[0]?.fieldData as Record<string, unknown> | undefined;
+      }
+      if (!fd) {
+        const { data: users } = await findRecordsWithIds<Record<string, unknown>>(
+          LAYOUTS.PAYABLES_USERS,
+          { limit: 500 },
+        );
+        const normalizedEmail = email.toLowerCase();
+        const match = users?.find((r) => {
+          const rowFd = r?.fieldData as Record<string, unknown> | undefined;
+          const rowEmail = (rowFd?.Email ?? rowFd?.email ?? "").toString().trim().toLowerCase();
+          return rowEmail === normalizedEmail;
+        });
+        fd = match?.fieldData as Record<string, unknown> | undefined;
+      }
+      const fullName =
+        fd?.FullName ?? fd?.["Full Name"] ?? fd?.fullName ?? fd?.fullname;
+      const nameStr = fullName != null ? String(fullName).trim() : "";
+      return nameStr && !nameStr.includes("@") ? nameStr : "";
+    }
     if (!isConnected.value) {
       error.value = "Not connected to FileMaker";
       return {
@@ -670,6 +721,8 @@ export const usePayableStore = defineStore("payable", () => {
         const todayIso = new Date().toISOString().slice(0, 10);
         const postedDate = formatDateForFileMaker(todayIso) ?? todayIso;
         const mainPayload: FileMakerFieldData = { Posted: "Yes", PostedDate: postedDate };
+        const postedName = await resolvePostedName();
+        if (postedName) mainPayload.PostedName = postedName;
         if (clearRejected) {
           mainPayload.Rejected = "";
           mainPayload.RejectReason = "";
@@ -685,6 +738,7 @@ export const usePayableStore = defineStore("payable", () => {
           return { posted: 0, updated: 0, deleted: 0, error: updateErr };
         }
         mainPosted.value = true;
+        if (postedName) mainPostedName.value = postedName;
         if (clearRejected) {
           mainStatus.value = null;
           mainRejectReason.value = null;
@@ -854,10 +908,13 @@ export const usePayableStore = defineStore("payable", () => {
         if (currencyVal !== "") mainPayload.Currency = currencyVal;
         const fmDate = formatDateForFileMaker(v.payment_terms || undefined);
         if (fmDate) mainPayload.Date = fmDate;
+        let postedNameVal = "";
         if (markPosted) {
           const todayIso = new Date().toISOString().slice(0, 10);
           mainPayload.Posted = "Yes";
           mainPayload.PostedDate = formatDateForFileMaker(todayIso) ?? todayIso;
+          postedNameVal = await resolvePostedName();
+          if (postedNameVal) mainPayload.PostedName = postedNameVal;
           if (clearRejected) {
             mainPayload.Rejected = "";
             mainPayload.RejectReason = "";
@@ -876,6 +933,7 @@ export const usePayableStore = defineStore("payable", () => {
         mainUpdated = true;
         if (markPosted) {
           mainPosted.value = true;
+          if (postedNameVal) mainPostedName.value = postedNameVal;
           if (clearRejected) {
             mainStatus.value = null;
             mainRejectReason.value = null;
@@ -944,6 +1002,8 @@ export const usePayableStore = defineStore("payable", () => {
         const todayIso = new Date().toISOString().slice(0, 10);
         const postedDate = formatDateForFileMaker(todayIso) ?? todayIso;
         const mainPayload: FileMakerFieldData = { Posted: "Yes", PostedDate: postedDate };
+        const postedName = await resolvePostedName();
+        if (postedName) mainPayload.PostedName = postedName;
         if (clearRejected) {
           mainPayload.Rejected = "";
           mainPayload.RejectReason = "";
@@ -956,6 +1016,7 @@ export const usePayableStore = defineStore("payable", () => {
         );
         if (!updateErr) {
           mainPosted.value = true;
+          if (postedName) mainPostedName.value = postedName;
           if (clearRejected) {
             mainStatus.value = null;
             mainRejectReason.value = null;
@@ -998,6 +1059,7 @@ export const usePayableStore = defineStore("payable", () => {
     mainExpiryCheck: computed(() => mainExpiryCheck.value),
     mainWhtExpiryCheck: computed(() => mainWhtExpiryCheck.value),
     mainCreatorFullName: computed(() => mainCreatorFullName.value),
+    mainPostedName: computed(() => mainPostedName.value),
     entryTotal,
     STATUS_OPTIONS,
     addRow,

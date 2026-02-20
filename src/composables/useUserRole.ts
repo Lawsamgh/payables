@@ -115,5 +115,5 @@ export function useUserRole() {
     }
   })
 
-  return { userRole, roleLower, isManager, isOfficer, showForManager, loadUserRole }
+  return { userRole, roleLower, isManager, isOfficer, showForManager, roleLoaded, loadUserRole }
 }

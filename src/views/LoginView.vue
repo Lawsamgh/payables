@@ -1,5 +1,10 @@
 <template>
-  <div class="login" @mousemove="onMouseMove" @mouseenter="onMouseEnter" @mouseleave="onMouseLeave">
+  <div
+    class="login"
+    @mousemove="onMouseMove"
+    @mouseenter="onMouseEnter"
+    @mouseleave="onMouseLeave"
+  >
     <div class="login__bg" aria-hidden="true" />
     <div class="login__bg-glow" aria-hidden="true" />
     <div class="login__bg-shapes" aria-hidden="true">
@@ -56,277 +61,296 @@
 
     <div class="login__card">
       <div class="login__card-content">
-      <div class="login__brand">
-        <div class="login__logo">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-        </div>
-        <h1 class="login__title">Finance Payables</h1>
-        <p class="login__subtitle">Sign in to continue</p>
-        <div class="login__steps" aria-hidden="true">
-          <span class="login__step-dot" :class="{ 'login__step-dot--active': step === 'email' }" />
-          <span class="login__step-line" :class="{ 'login__step-line--filled': step === 'password' }" />
-          <span class="login__step-dot" :class="{ 'login__step-dot--active': step === 'password' }" />
-        </div>
-      </div>
-
-      <div class="login__slide-track">
-        <form class="login__form" @submit.prevent="step === 'email' ? proceed() : submit()">
-        <Transition name="login-step" mode="out-in" @after-enter="focusPasswordInput">
-          <div v-if="step === 'email'" key="email" class="login__step">
-            <label v-if="!hasBaseUrl" class="login__field">
-              <span class="login__label">FileMaker base URL</span>
-              <input
-                v-model="baseUrl"
-                type="url"
-                class="login__input"
-                placeholder="https://host/fmi/data/v1/databases/YourDB"
-                required
-                autocomplete="url"
+        <div class="login__brand">
+          <div class="login__logo">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.5"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
               />
-            </label>
-            <label class="login__field">
-              <span class="login__label">Email</span>
-              <input
-                v-model="email"
-                type="email"
-                class="login__input"
-                :class="{ 'login__input--error': emailFieldError }"
-                placeholder="name@example.com"
-                required
-                autocomplete="email"
-                @input="emailFieldError = false"
-              />
-            </label>
-            <button
-              type="submit"
-              class="login__btn"
-              :disabled="loading"
-            >
-              {{ loading ? 'Checking…' : 'Proceed' }}
-            </button>
+            </svg>
           </div>
-          <div v-else key="password" class="login__step">
-            <div class="login__email-display">
-              <span class="login__label">Signing in as</span>
-              <span class="login__email-value">{{ email }}</span>
-              <button
-                type="button"
-                class="login__back"
-                @click="goBack"
-              >
-                Change
-              </button>
-            </div>
-            <label class="login__field">
-              <span class="login__label">Password</span>
-              <input
-                ref="passwordInputRef"
-                v-model="password"
-                type="password"
-                class="login__input"
-                placeholder="Enter your password"
-                required
-                autocomplete="current-password"
-              />
-            </label>
-            <Transition name="login-error">
-              <p v-if="error" class="login__error">{{ error }}</p>
+          <h1 class="login__title">Finance Payables</h1>
+          <p class="login__subtitle">Sign in to continue</p>
+          <div class="login__steps" aria-hidden="true">
+            <span
+              class="login__step-dot"
+              :class="{ 'login__step-dot--active': step === 'email' }"
+            />
+            <span
+              class="login__step-line"
+              :class="{ 'login__step-line--filled': step === 'password' }"
+            />
+            <span
+              class="login__step-dot"
+              :class="{ 'login__step-dot--active': step === 'password' }"
+            />
+          </div>
+        </div>
+
+        <div class="login__slide-track">
+          <form
+            class="login__form"
+            @submit.prevent="step === 'email' ? proceed() : submit()"
+          >
+            <Transition
+              name="login-step"
+              mode="out-in"
+              @after-enter="focusPasswordInput"
+            >
+              <div v-if="step === 'email'" key="email" class="login__step">
+                <label v-if="!hasBaseUrl" class="login__field">
+                  <span class="login__label">FileMaker base URL</span>
+                  <input
+                    v-model="baseUrl"
+                    type="url"
+                    class="login__input"
+                    placeholder="https://host/fmi/data/v1/databases/YourDB"
+                    required
+                    autocomplete="url"
+                  />
+                </label>
+                <label class="login__field">
+                  <span class="login__label">Email</span>
+                  <input
+                    v-model="email"
+                    type="email"
+                    class="login__input"
+                    :class="{ 'login__input--error': emailFieldError }"
+                    placeholder="name@example.com"
+                    required
+                    autocomplete="email"
+                    @input="emailFieldError = false"
+                  />
+                </label>
+                <button type="submit" class="login__btn" :disabled="loading">
+                  {{ loading ? "Checking…" : "Proceed" }}
+                </button>
+              </div>
+              <div v-else key="password" class="login__step">
+                <div class="login__email-display">
+                  <span class="login__label">Signing in as</span>
+                  <span class="login__email-value">{{ email }}</span>
+                  <button type="button" class="login__back" @click="goBack">
+                    Change
+                  </button>
+                </div>
+                <label class="login__field">
+                  <span class="login__label">Password</span>
+                  <input
+                    ref="passwordInputRef"
+                    v-model="password"
+                    type="password"
+                    class="login__input"
+                    placeholder="Enter your password"
+                    required
+                    autocomplete="current-password"
+                  />
+                </label>
+                <Transition name="login-error">
+                  <p v-if="error" class="login__error">{{ error }}</p>
+                </Transition>
+                <button type="submit" class="login__btn" :disabled="loading">
+                  <span v-if="loading" class="login__btn-content">
+                    <span class="login__spinner" />
+                    Signing in…
+                  </span>
+                  <span v-else class="login__btn-content">Sign in</span>
+                </button>
+              </div>
             </Transition>
-            <button
-              type="submit"
-              class="login__btn"
-              :disabled="loading"
-            >
-              <span v-if="loading" class="login__btn-content">
-                <span class="login__spinner" />
-                Signing in…
-              </span>
-              <span v-else class="login__btn-content">Sign in</span>
-            </button>
-          </div>
-        </Transition>
-      </form>
-      </div>
+          </form>
+        </div>
 
-      <p class="login__hint">Use your FileMaker account credentials</p>
+        <p class="login__hint">Use your FileMaker account credentials</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { useFileMaker } from '../composables/useFileMaker'
-import { getBaseUrl, setSessionBaseUrl, checkEmailExistsInPayablesUsers } from '../utils/filemakerApi'
-import { useToastStore } from '../stores/toastStore'
+import { ref, computed, onMounted, onUnmounted } from "vue";
+import { useRouter, useRoute } from "vue-router";
+import { useFileMaker } from "../composables/useFileMaker";
+import {
+  getBaseUrl,
+  setSessionBaseUrl,
+  checkEmailExistsInPayablesUsers,
+} from "../utils/filemakerApi";
+import { useToastStore } from "../stores/toastStore";
 
-const router = useRouter()
-const route = useRoute()
-const toast = useToastStore()
-const { login: fmLogin, hasBaseUrl, error: fmError } = useFileMaker()
+const router = useRouter();
+const route = useRoute();
+const toast = useToastStore();
+const { login: fmLogin, hasBaseUrl, error: fmError } = useFileMaker();
 
-const baseUrl = ref('')
-const email = ref('')
-const password = ref('')
-const loading = ref(false)
-const error = ref<string | null>(null)
-const emailFieldError = ref(false)
-const step = ref<'email' | 'password'>('email')
-const passwordInputRef = ref<HTMLInputElement | null>(null)
+const baseUrl = ref("");
+const email = ref("");
+const password = ref("");
+const loading = ref(false);
+const error = ref<string | null>(null);
+const emailFieldError = ref(false);
+const step = ref<"email" | "password">("email");
+const passwordInputRef = ref<HTMLInputElement | null>(null);
 
-const hasBaseUrlEnv = computed(() => !!getBaseUrl()?.trim())
+const hasBaseUrlEnv = computed(() => !!getBaseUrl()?.trim());
 
 // Thin line cursor flame – trail with delay
-const TRAIL_LEN = 24
-const trail = ref<{ x: number; y: number }[]>([])
-const mouseX = ref(0)
-const mouseY = ref(0)
-let rafId = 0
-let isPointerOver = false
+const TRAIL_LEN = 24;
+const trail = ref<{ x: number; y: number }[]>([]);
+const mouseX = ref(0);
+const mouseY = ref(0);
+let rafId = 0;
+let isPointerOver = false;
 
 const cursorFlameStyle = computed(() => ({
   opacity: isPointerOver ? 1 : 0,
-}))
+}));
 
 const flamePath = computed(() => {
-  const pts = trail.value
-  if (pts.length < 2) return ''
-  return pts.map((p) => `${p.x},${p.y}`).join(' ')
-})
+  const pts = trail.value;
+  if (pts.length < 2) return "";
+  return pts.map((p) => `${p.x},${p.y}`).join(" ");
+});
 
 function onMouseMove(e: MouseEvent) {
-  mouseX.value = e.clientX
-  mouseY.value = e.clientY
+  mouseX.value = e.clientX;
+  mouseY.value = e.clientY;
 }
 
 function onMouseEnter(e: MouseEvent) {
-  isPointerOver = true
-  const x = e.clientX
-  const y = e.clientY
-  mouseX.value = x
-  mouseY.value = y
-  trail.value = Array.from({ length: TRAIL_LEN }, () => ({ x, y }))
+  isPointerOver = true;
+  const x = e.clientX;
+  const y = e.clientY;
+  mouseX.value = x;
+  mouseY.value = y;
+  trail.value = Array.from({ length: TRAIL_LEN }, () => ({ x, y }));
 }
 
 function onMouseLeave() {
-  isPointerOver = false
+  isPointerOver = false;
 }
 
 function lerp(a: number, b: number, t: number) {
-  return a + (b - a) * t
+  return a + (b - a) * t;
 }
 
 function tick() {
-  let px = mouseX.value
-  let py = mouseY.value
-  const next: { x: number; y: number }[] = []
-  const factor = 0.18
+  let px = mouseX.value;
+  let py = mouseY.value;
+  const next: { x: number; y: number }[] = [];
+  const factor = 0.18;
   for (let i = 0; i < TRAIL_LEN; i++) {
-    const pt = trail.value[i] ?? { x: px, y: py }
-    const nx = lerp(pt.x, px, factor)
-    const ny = lerp(pt.y, py, factor)
-    next.push({ x: nx, y: ny })
-    px = nx
-    py = ny
+    const pt = trail.value[i] ?? { x: px, y: py };
+    const nx = lerp(pt.x, px, factor);
+    const ny = lerp(pt.y, py, factor);
+    next.push({ x: nx, y: ny });
+    px = nx;
+    py = ny;
   }
-  trail.value = next
-  rafId = requestAnimationFrame(tick)
+  trail.value = next;
+  rafId = requestAnimationFrame(tick);
 }
 
 onMounted(() => {
-  rafId = requestAnimationFrame(tick)
-})
+  rafId = requestAnimationFrame(tick);
+});
 
 onUnmounted(() => {
-  cancelAnimationFrame(rafId)
-})
+  cancelAnimationFrame(rafId);
+});
 
 async function proceed() {
-  error.value = null
-  emailFieldError.value = false
+  error.value = null;
+  emailFieldError.value = false;
   if (!hasBaseUrlEnv.value && !baseUrl.value.trim()) {
-    toast.error('Enter FileMaker base URL')
-    return
+    toast.error("Enter FileMaker base URL");
+    return;
   }
   if (!email.value.trim()) {
-    toast.error('Enter your email')
-    emailFieldError.value = true
-    return
+    toast.error("Enter your email");
+    emailFieldError.value = true;
+    return;
   }
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email.value.trim())) {
-    toast.error('Enter a valid email address')
-    emailFieldError.value = true
-    return
+    toast.error("Enter a valid email address");
+    emailFieldError.value = true;
+    return;
   }
-  loading.value = true
+  loading.value = true;
   try {
     if (!hasBaseUrlEnv.value && baseUrl.value.trim()) {
-      setSessionBaseUrl(baseUrl.value.trim())
+      setSessionBaseUrl(baseUrl.value.trim());
     }
-    const { exists, error: checkErr } = await checkEmailExistsInPayablesUsers(email.value.trim())
+    const { exists, error: checkErr } = await checkEmailExistsInPayablesUsers(
+      email.value.trim(),
+    );
     if (checkErr) {
-      toast.error(checkErr)
-      emailFieldError.value = true
-      return
+      toast.error(checkErr);
+      emailFieldError.value = true;
+      return;
     }
     if (!exists) {
-      toast.error('This email is not registered. Contact your administrator.')
-      emailFieldError.value = true
-      return
+      toast.error("This email is not registered. Contact your administrator.");
+      emailFieldError.value = true;
+      return;
     }
-    step.value = 'password'
+    step.value = "password";
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 function focusPasswordInput() {
-  if (step.value === 'password') {
-    passwordInputRef.value?.focus()
+  if (step.value === "password") {
+    passwordInputRef.value?.focus();
   }
 }
 
 function goBack() {
-  error.value = null
-  emailFieldError.value = false
-  step.value = 'email'
+  error.value = null;
+  emailFieldError.value = false;
+  step.value = "email";
 }
 
 async function submit() {
-  error.value = null
+  error.value = null;
   if (!password.value) {
-    toast.error('Enter your password')
-    return
+    toast.error("Enter your password");
+    return;
   }
 
-  loading.value = true
+  loading.value = true;
   try {
     if (!hasBaseUrlEnv.value && baseUrl.value.trim()) {
-      setSessionBaseUrl(baseUrl.value.trim())
+      setSessionBaseUrl(baseUrl.value.trim());
     }
     const ok = await fmLogin({
       username: email.value.trim(),
       password: password.value.trim(),
-    })
+    });
     if (ok) {
-      loading.value = false
-      const redirect = route.query?.redirect
-      const target = typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//') && !redirect.includes(':')
-        ? redirect
-        : '/home'
-      router.replace(target)
+      loading.value = false;
+      const redirect = route.query?.redirect;
+      const target =
+        typeof redirect === "string" &&
+        redirect.startsWith("/") &&
+        !redirect.startsWith("//") &&
+        !redirect.includes(":")
+          ? redirect
+          : "/home";
+      router.replace(target);
     } else {
-      error.value = null
-      password.value = ''
-      const msg = fmError.value || 'Invalid credentials. Please try again.'
-      toast.error(msg)
+      error.value = null;
+      password.value = "";
+      const msg = fmError.value || "Invalid credentials. Please try again.";
+      toast.error(msg);
     }
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 </script>
@@ -349,8 +373,16 @@ async function submit() {
   inset: 0;
   z-index: -5;
   background:
-    radial-gradient(ellipse 120% 80% at 50% -30%, rgba(30, 58, 138, 0.2) 0%, transparent 55%),
-    radial-gradient(ellipse 80% 50% at 50% 120%, rgba(88, 28, 135, 0.12) 0%, transparent 55%),
+    radial-gradient(
+      ellipse 120% 80% at 50% -30%,
+      rgba(30, 58, 138, 0.2) 0%,
+      transparent 55%
+    ),
+    radial-gradient(
+      ellipse 80% 50% at 50% 120%,
+      rgba(88, 28, 135, 0.12) 0%,
+      transparent 55%
+    ),
     linear-gradient(180deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
 }
 
@@ -384,7 +416,11 @@ async function submit() {
   height: 640px;
   top: -25%;
   right: -15%;
-  background: radial-gradient(circle, rgba(59, 130, 246, 0.35) 0%, transparent 65%);
+  background: radial-gradient(
+    circle,
+    rgba(59, 130, 246, 0.35) 0%,
+    transparent 65%
+  );
   animation: login-float 18s ease-in-out infinite;
 }
 
@@ -393,7 +429,11 @@ async function submit() {
   height: 500px;
   bottom: -20%;
   left: -12%;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.28) 0%, transparent 65%);
+  background: radial-gradient(
+    circle,
+    rgba(99, 102, 241, 0.28) 0%,
+    transparent 65%
+  );
   animation: login-float 22s ease-in-out infinite reverse;
   animation-delay: -4s;
 }
@@ -403,7 +443,11 @@ async function submit() {
   height: 360px;
   top: 55%;
   left: 10%;
-  background: radial-gradient(circle, rgba(14, 165, 233, 0.2) 0%, transparent 65%);
+  background: radial-gradient(
+    circle,
+    rgba(14, 165, 233, 0.2) 0%,
+    transparent 65%
+  );
   animation: login-float 20s ease-in-out infinite;
   animation-delay: -8s;
 }
@@ -413,7 +457,11 @@ async function submit() {
   height: 320px;
   top: 15%;
   right: 20%;
-  background: radial-gradient(circle, rgba(168, 85, 247, 0.18) 0%, transparent 65%);
+  background: radial-gradient(
+    circle,
+    rgba(168, 85, 247, 0.18) 0%,
+    transparent 65%
+  );
   animation: login-float 25s ease-in-out infinite reverse;
   animation-delay: -2s;
 }
@@ -423,7 +471,11 @@ async function submit() {
   height: 280px;
   top: 40%;
   right: 5%;
-  background: radial-gradient(circle, rgba(34, 197, 94, 0.12) 0%, transparent 65%);
+  background: radial-gradient(
+    circle,
+    rgba(34, 197, 94, 0.12) 0%,
+    transparent 65%
+  );
   animation: login-float 24s ease-in-out infinite;
   animation-delay: -12s;
 }
@@ -569,24 +621,51 @@ async function submit() {
 }
 
 @keyframes login-drop-float {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  20% { transform: translate(40px, -35px) scale(1.08); }
-  40% { transform: translate(-30px, 25px) scale(0.92); }
-  60% { transform: translate(35px, 30px) scale(1.05); }
-  80% { transform: translate(-25px, -20px) scale(0.97); }
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  20% {
+    transform: translate(40px, -35px) scale(1.08);
+  }
+  40% {
+    transform: translate(-30px, 25px) scale(0.92);
+  }
+  60% {
+    transform: translate(35px, 30px) scale(1.05);
+  }
+  80% {
+    transform: translate(-25px, -20px) scale(0.97);
+  }
 }
 
 @keyframes login-drop-drift {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(-45px, 40px) scale(1.06); }
-  66% { transform: translate(50px, -30px) scale(0.94); }
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(-45px, 40px) scale(1.06);
+  }
+  66% {
+    transform: translate(50px, -30px) scale(0.94);
+  }
 }
 
 @keyframes login-drop-wander {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  25% { transform: translate(60px, 0) scale(1.04); }
-  50% { transform: translate(30px, -50px) scale(0.96); }
-  75% { transform: translate(-40px, -25px) scale(1.03); }
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(60px, 0) scale(1.04);
+  }
+  50% {
+    transform: translate(30px, -50px) scale(0.96);
+  }
+  75% {
+    transform: translate(-40px, -25px) scale(1.03);
+  }
 }
 
 .login__bg-grid {
@@ -597,18 +676,37 @@ async function submit() {
     linear-gradient(rgba(148, 163, 184, 0.04) 1px, transparent 1px),
     linear-gradient(90deg, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
   background-size: 80px 80px;
-  mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black 20%, transparent 70%);
-  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black 20%, transparent 70%);
+  mask-image: radial-gradient(
+    ellipse 80% 60% at 50% 50%,
+    black 20%,
+    transparent 70%
+  );
+  -webkit-mask-image: radial-gradient(
+    ellipse 80% 60% at 50% 50%,
+    black 20%,
+    transparent 70%
+  );
 }
 
 .login__bg-dots {
   position: fixed;
   inset: 0;
   z-index: -2;
-  background-image: radial-gradient(rgba(148, 163, 184, 0.15) 1px, transparent 1px);
+  background-image: radial-gradient(
+    rgba(148, 163, 184, 0.15) 1px,
+    transparent 1px
+  );
   background-size: 24px 24px;
-  mask-image: radial-gradient(ellipse 100% 100% at 50% 50%, black 0%, transparent 70%);
-  -webkit-mask-image: radial-gradient(ellipse 100% 100% at 50% 50%, black 0%, transparent 70%);
+  mask-image: radial-gradient(
+    ellipse 100% 100% at 50% 50%,
+    black 0%,
+    transparent 70%
+  );
+  -webkit-mask-image: radial-gradient(
+    ellipse 100% 100% at 50% 50%,
+    black 0%,
+    transparent 70%
+  );
 }
 
 .login__bg-noise {
@@ -620,9 +718,16 @@ async function submit() {
 }
 
 @keyframes login-float {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(30px, -20px) scale(1.02); }
-  66% { transform: translate(-20px, 25px) scale(0.98); }
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(30px, -20px) scale(1.02);
+  }
+  66% {
+    transform: translate(-20px, 25px) scale(0.98);
+  }
 }
 
 .login__cursor-flame {
@@ -690,7 +795,11 @@ async function submit() {
 }
 
 .login__step-line--filled {
-  background: linear-gradient(90deg, var(--color-accent), rgba(99, 102, 241, 0.6));
+  background: linear-gradient(
+    90deg,
+    var(--color-accent),
+    rgba(99, 102, 241, 0.6)
+  );
 }
 
 .login__slide-track {
@@ -805,7 +914,9 @@ async function submit() {
   background: rgba(30, 41, 59, 0.6);
   border: 1px solid rgba(148, 163, 184, 0.15);
   border-radius: 12px;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
 }
 
 .login__input::placeholder {
@@ -851,7 +962,9 @@ async function submit() {
   border: none;
   border-radius: 12px;
   cursor: pointer;
-  transition: background 0.2s, transform 0.15s;
+  transition:
+    background 0.2s,
+    transform 0.15s;
 }
 
 .login__btn:hover:not(:disabled) {
@@ -901,12 +1014,16 @@ async function submit() {
 }
 
 @keyframes login-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .login-error-enter-active,
 .login-error-leave-active {
-  transition: opacity 0.2s, transform 0.2s;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
 }
 
 .login-error-enter-from,
@@ -916,11 +1033,15 @@ async function submit() {
 }
 
 .login-step-enter-active {
-  transition: opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    opacity 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .login-step-leave-active {
-  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: absolute;
   left: 0;
   right: 0;

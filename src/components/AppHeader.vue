@@ -167,19 +167,85 @@ function getFullName(fd: Record<string, unknown> | undefined): string {
   return String(v).trim();
 }
 
+/** Get field value with casing variants (Email, email, Full Name, etc.). */
+function getFieldValue(fd: Record<string, unknown> | undefined, key: string): string {
+  if (!fd) return "";
+  const v =
+    fd[key] ??
+    fd[key.replace(/([A-Z])/g, " $1").trim()] ??
+    fd[key.charAt(0).toLowerCase() + key.slice(1)];
+  if (v == null || v === "") return "";
+  return String(v).trim();
+}
+
+/** Returns true if the string looks like an email (contains @). */
+function looksLikeEmail(s: string): boolean {
+  return typeof s === "string" && s.includes("@");
+}
+
 /** Call FileMaker NotifyManagerOnPost script after successful post. Does not block UI. */
 async function notifyManagerOnPost(): Promise<void> {
   const transRef = payableStore.currentTransRef;
   if (!transRef?.trim()) return;
 
-  const officerEmail = loggedInEmail.value?.trim();
+  // Get FullName from Payables_Users via Payables_Main::CreatedBy > Payables_Users::Email
   let fullname = "";
+  const cached = payableStore.mainCreatorFullName;
+  if (cached && cached.trim() !== "" && !looksLikeEmail(cached)) {
+    fullname = cached.trim();
+  }
+  if (!fullname) {
+    const { data: mainRecords } = await findRecordsByQueryWithIds<
+      Record<string, unknown>
+    >(LAYOUTS.PAYABLES_MAIN, { TransRef: transRef }, 1);
+    const createdBy = mainRecords[0]?.fieldData as Record<string, unknown> | undefined;
+    const creatorEmail =
+      createdBy?.CreatedBy ??
+      createdBy?.["Created By"] ??
+      createdBy?.createdBy;
+    const creatorEmailStr =
+      creatorEmail != null ? String(creatorEmail).trim() : "";
+    if (creatorEmailStr) {
+      const { data: userRecords } = await findRecordsByQueryWithIds<
+        Record<string, unknown>
+      >(LAYOUTS.PAYABLES_USERS, { Email: creatorEmailStr }, 1);
+      const fd = userRecords[0]?.fieldData as Record<string, unknown> | undefined;
+      const resolved = getFullName(fd);
+      if (resolved && !looksLikeEmail(resolved)) fullname = resolved;
+    }
+  }
+
+  // Get FullName of the officer posting (logged-in user) from Payables_Users via Email
+  let postedname = "";
+  const officerEmail = loggedInEmail.value?.trim();
   if (officerEmail) {
-    const { data: userRecords } = await findRecordsByQueryWithIds<
+    const normalizedEmail = officerEmail.toLowerCase();
+    let posterFd: Record<string, unknown> | undefined;
+    const { data: posterRecords } = await findRecordsByQueryWithIds<
       Record<string, unknown>
     >(LAYOUTS.PAYABLES_USERS, { Email: officerEmail }, 1);
-    const fd = userRecords[0]?.fieldData as Record<string, unknown> | undefined;
-    fullname = getFullName(fd);
+    posterFd = posterRecords[0]?.fieldData as Record<string, unknown> | undefined;
+    if (!posterRecords?.length) {
+      const { data: byEmail } = await findRecordsByQueryWithIds<
+        Record<string, unknown>
+      >(LAYOUTS.PAYABLES_USERS, { email: officerEmail }, 1);
+      if (byEmail?.length) {
+        posterFd = byEmail[0]?.fieldData as Record<string, unknown> | undefined;
+      }
+    }
+    if (!posterFd) {
+      const { data: users } = await findRecordsWithIds<
+        Record<string, unknown>
+      >(LAYOUTS.PAYABLES_USERS, { limit: 500 });
+      const match = users?.find((r) => {
+        const fd = r?.fieldData as Record<string, unknown> | undefined;
+        const rowEmail = getFieldValue(fd, "Email");
+        return rowEmail.trim().toLowerCase() === normalizedEmail;
+      });
+      posterFd = match?.fieldData as Record<string, unknown> | undefined;
+    }
+    const resolved = getFullName(posterFd);
+    if (resolved && !looksLikeEmail(resolved)) postedname = resolved;
   }
 
   // Capture all values before any await so they survive navigation
@@ -209,7 +275,8 @@ async function notifyManagerOnPost(): Promise<void> {
   const scriptParam = JSON.stringify({
     url: entryUrl,
     email,
-    fullname: fullname || officerEmail || "Officer",
+    fullname: fullname || "Officer",
+    postedname: postedname || "Officer",
     vendorname: vendorName,
     transref: transRef,
     amount: amountStr,
