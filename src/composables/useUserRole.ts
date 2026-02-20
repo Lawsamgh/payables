@@ -8,6 +8,8 @@ import { useFileMaker } from './useFileMaker'
 import { LAYOUTS } from '../utils/filemakerApi'
 import type { PayablesUsersFieldData } from '../utils/filemakerApi'
 
+const STORAGE_KEY_ROLE = 'fm_user_role'
+
 const userRole = ref<string | null>(null)
 const roleLoaded = ref(false)
 
@@ -23,6 +25,29 @@ function getFieldValue(fd: Record<string, unknown> | undefined, key: string): st
 
 export function useUserRole() {
   const { loggedInEmail, isConnected, findRecordsByQueryWithIds, findRecordsWithIds } = useFileMaker()
+
+  function readCachedRole(): string | null {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY_ROLE)
+      if (!raw) return null
+      const { email, role } = JSON.parse(raw) as { email?: string; role?: string }
+      const current = loggedInEmail.value?.trim().toLowerCase()
+      if (!email || !current || email.toLowerCase() !== current) return null
+      return role && String(role).trim() ? String(role).trim() : null
+    } catch {
+      return null
+    }
+  }
+
+  function writeCachedRole(role: string | null) {
+    try {
+      const email = loggedInEmail.value?.trim()
+      if (!email) return
+      sessionStorage.setItem(STORAGE_KEY_ROLE, JSON.stringify({ email, role: role ?? '' }))
+    } catch {
+      /* ignore */
+    }
+  }
 
   const roleLower = computed(() => (userRole.value ?? '').trim().toLowerCase())
   const isManager = computed(() => roleLoaded.value && roleLower.value === 'manager')
@@ -58,18 +83,36 @@ export function useUserRole() {
     const role = getFieldValue(fd, 'Role')
     userRole.value = role || null
     roleLoaded.value = true
+    writeCachedRole(userRole.value)
   }
 
-  watch([isConnected, loggedInEmail], () => {
-    if (isConnected.value && loggedInEmail.value) loadUserRole()
-    else {
-      userRole.value = null
-      roleLoaded.value = false
-    }
-  })
+  watch(
+    [isConnected, loggedInEmail],
+    () => {
+      if (isConnected.value && loggedInEmail.value) {
+        const cached = readCachedRole()
+        if (cached != null) {
+          userRole.value = cached
+          roleLoaded.value = true
+        }
+        loadUserRole()
+      } else {
+        userRole.value = null
+        roleLoaded.value = false
+      }
+    },
+    { immediate: true }
+  )
 
   onMounted(() => {
-    if (isConnected.value && loggedInEmail.value) loadUserRole()
+    if (isConnected.value && loggedInEmail.value) {
+      const cached = readCachedRole()
+      if (cached != null) {
+        userRole.value = cached
+        roleLoaded.value = true
+      }
+      loadUserRole()
+    }
   })
 
   return { userRole, roleLower, isManager, isOfficer, showForManager, loadUserRole }

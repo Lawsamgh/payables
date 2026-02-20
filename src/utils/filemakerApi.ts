@@ -4,6 +4,8 @@
  * Tables/Layouts: Payables_Main, Payables_Details
  */
 
+import axios from 'axios'
+
 const DEFAULT_BASE_URL = ''
 const STORAGE_KEY_BASE_URL = 'fm_base_url'
 
@@ -173,6 +175,116 @@ export interface PayablesUsersFieldData {
   FullName?: string
   Role?: string
   Status?: string
+}
+
+function getFieldValue(
+  fd: Record<string, unknown> | undefined,
+  key: string
+): string {
+  if (!fd) return ''
+  const v =
+    fd[key] ??
+    fd[key.replace(/([A-Z])/g, ' $1').trim()] ??
+    fd[key.charAt(0).toLowerCase() + key.slice(1)]
+  if (v == null || v === '') return ''
+  return String(v).trim()
+}
+
+/**
+ * Check if an email exists in Payables_Users using VITE_FILEMAKER_USER and VITE_FILEMAKER_PASSWORD.
+ * Used at login to validate email before showing the password step.
+ * Tries _find first; if no match, fetches all users and matches client-side (handles field name / case differences).
+ */
+export async function checkEmailExistsInPayablesUsers(
+  email: string
+): Promise<{ exists: boolean; error?: string }> {
+  const base = getBaseUrl()?.trim()
+  if (!base) return { exists: false, error: 'FileMaker URL not set' }
+  const envUser = (import.meta.env?.VITE_FILEMAKER_USER as string) || ''
+  const envPass = (import.meta.env?.VITE_FILEMAKER_PASSWORD as string) || ''
+  if (!envUser.trim() || !envPass) {
+    return { exists: false, error: 'Service credentials not configured' }
+  }
+  const urlBase = base.replace(/\/$/, '')
+  const normalizedEmail = String(email).trim().toLowerCase()
+  try {
+    const sessRes = await axios.post<{ response?: { token?: string } }>(
+      `${urlBase}/sessions`,
+      {},
+      {
+        auth: { username: envUser.trim(), password: envPass },
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 15000,
+      }
+    )
+    const token =
+      sessRes.data?.response?.token ??
+      (sessRes.headers?.['x-fm-data-access-token'] as string) ??
+      (sessRes.headers?.['X-FM-Data-Access-Token'] as string)
+    if (!token) {
+      return { exists: false, error: 'Could not connect to FileMaker' }
+    }
+    const headers = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    }
+
+    const tryFind = async (query: Record<string, string>) => {
+      try {
+        const findRes = await axios.post<{
+          response?: { data?: unknown[] }
+          messages?: Array<{ code?: string }>
+        }>(
+          `${urlBase}/layouts/Payables_Users/_find`,
+          { query: [query], limit: '1' },
+          { headers, timeout: 15000 }
+        )
+        const list = findRes.data?.response?.data ?? []
+        return list.length > 0
+      } catch (e) {
+        const err = e as { response?: { data?: { messages?: Array<{ code?: string; message?: string }> } } }
+        const code = String(err.response?.data?.messages?.[0]?.code ?? '')
+        const msg = String(err.response?.data?.messages?.[0]?.message ?? '')
+        if (code === '401' || msg.toLowerCase().includes('no records match')) {
+          return false
+        }
+        throw e
+      }
+    }
+
+    const exactEmail = String(email).trim()
+    let found =
+      (await tryFind({ Email: `=${exactEmail}` })) ||
+      (await tryFind({ email: `=${exactEmail}` }))
+
+    if (!found) {
+      const listRes = await axios.get<{
+        response?: { data?: Array<{ fieldData?: Record<string, unknown> }> }
+      }>(`${urlBase}/layouts/Payables_Users/records`, {
+        params: { _limit: '500' },
+        headers,
+        timeout: 15000,
+      })
+      const list = listRes.data?.response?.data ?? []
+      found = list.some((r) => {
+        const fd = r?.fieldData
+        const rowEmail = getFieldValue(fd, 'Email')
+        return rowEmail.trim().toLowerCase() === normalizedEmail
+      })
+    }
+
+    return { exists: found }
+  } catch (err) {
+    const msg = parseFileMakerError(err)
+    if (
+      msg &&
+      (msg.toLowerCase().includes('no record') ||
+        msg.toLowerCase().includes('401'))
+    ) {
+      return { exists: false }
+    }
+    return { exists: false, error: msg }
+  }
 }
 
 /**

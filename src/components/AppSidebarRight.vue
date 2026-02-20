@@ -249,6 +249,21 @@
           }}
         </p>
         <div
+          v-if="payableStore.mainCreatorFullName"
+          class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
+        >
+          <p
+            class="text-[11px] font-medium text-[var(--color-text-muted)] mb-1"
+          >
+            Created by
+          </p>
+          <p
+            class="text-[17px] font-medium text-[var(--color-text)] tracking-tight leading-snug"
+          >
+            {{ payableStore.mainCreatorFullName }}
+          </p>
+        </div>
+        <div
           class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
         >
           <p

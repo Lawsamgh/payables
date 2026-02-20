@@ -16,14 +16,6 @@
         />
         {{ connectionLabel }}
       </span>
-      <button
-        v-if="showConnectButton"
-        type="button"
-        class="pill-btn rounded-lg px-2 py-1 text-[var(--color-accent)] hover:bg-[var(--color-accent-soft)]"
-        @click="$emit('open-connect')"
-      >
-        Connect
-      </button>
     </div>
   </footer>
 </template>
@@ -32,13 +24,7 @@
 import { computed } from "vue";
 import { useFileMaker } from "../composables/useFileMaker";
 
-defineEmits<{ "open-connect": [] }>();
-
-const { status: fmStatus, error: fmError, isConnected } = useFileMaker();
-
-const showConnectButton = computed(
-  () => !isConnected.value && fmStatus.value !== "connecting",
-);
+const { status: fmStatus, error: fmError } = useFileMaker();
 
 const connectionLabel = computed(() => {
   switch (fmStatus.value) {

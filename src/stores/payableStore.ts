@@ -103,6 +103,8 @@ export const usePayableStore = defineStore("payable", () => {
   /** Vendor expiry check status (Valid/Invalid) for coloring. */
   const mainExpiryCheck = ref<string | null>(null);
   const mainWhtExpiryCheck = ref<string | null>(null);
+  /** FullName of the officer who created the entry (from Payables_Main or related Payables_Users). */
+  const mainCreatorFullName = ref<string | null>(null);
   /** True when any cell has been edited or a row added/removed since last load or save. */
   const isDirty = ref(false);
   /** FileMaker recordIds to delete on next save (rows user removed that existed in FileMaker). */
@@ -232,6 +234,7 @@ export const usePayableStore = defineStore("payable", () => {
     mainStatus.value = null;
     mainRejectReason.value = null;
     mainTotalFromMain.value = null;
+    mainCreatorFullName.value = null;
   }
 
   async function fetchFromFileMaker(): Promise<void> {
@@ -298,6 +301,7 @@ export const usePayableStore = defineStore("payable", () => {
       mainWhtExpiryCheckDis.value = null;
       mainExpiryCheck.value = null;
       mainWhtExpiryCheck.value = null;
+      mainCreatorFullName.value = null;
       vendorStore.setFromMain(null);
       return;
     }
@@ -529,6 +533,18 @@ export const usePayableStore = defineStore("payable", () => {
       }
       mainExpiryCheck.value = expiryCheck;
       mainWhtExpiryCheck.value = whtCheck;
+      // FullName of officer who created the entry (try related Payables_Users::FullName and common variants)
+      const creatorFullName = getFieldStr(
+        md,
+        "Payables_Users::FullName",
+        "Creator::FullName",
+        "CreatedBy::FullName",
+        "CreatorFullName",
+        "CreatedByFullName",
+        "FullName",
+        "OfficerFullName",
+      );
+      mainCreatorFullName.value = creatorFullName;
     } else {
       currentMainRecordId.value = null;
       mainPosted.value = false;
@@ -543,6 +559,7 @@ export const usePayableStore = defineStore("payable", () => {
       mainWhtExpiryCheckDis.value = null;
       mainExpiryCheck.value = null;
       mainWhtExpiryCheck.value = null;
+      mainCreatorFullName.value = null;
       vendorStore.setFromMain(null);
     }
   }
@@ -980,6 +997,7 @@ export const usePayableStore = defineStore("payable", () => {
     mainWhtExpiryCheckDis: computed(() => mainWhtExpiryCheckDis.value),
     mainExpiryCheck: computed(() => mainExpiryCheck.value),
     mainWhtExpiryCheck: computed(() => mainWhtExpiryCheck.value),
+    mainCreatorFullName: computed(() => mainCreatorFullName.value),
     entryTotal,
     STATUS_OPTIONS,
     addRow,

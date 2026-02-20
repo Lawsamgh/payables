@@ -15,14 +15,14 @@
           <div class="logout-modal__actions">
             <button
               type="button"
-              class="tax-modal__btn-cancel"
+              class="pill-btn glass-input inline-flex items-center justify-center gap-2 !rounded-xl border border-[var(--color-border)] bg-white/5 px-6 py-2.5 text-[var(--label-size)] font-medium text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-text)]"
               @click="cancel"
             >
               No
             </button>
             <button
               type="button"
-              class="tax-modal__btn-submit"
+              class="pill-btn inline-flex items-center justify-center gap-2 !rounded-xl border-0 bg-emerald-600 px-6 py-2.5 text-[var(--label-size)] font-medium text-white transition-colors hover:bg-emerald-500"
               @click="confirm"
             >
               Yes

@@ -152,12 +152,35 @@ const {
   loggedInEmail,
   runScript,
   findRecordsWithIds,
+  findRecordsByQueryWithIds,
 } = useFileMaker();
+
+/** Get FullName from Payables_Users fieldData (handles FullName / Full Name etc.). */
+function getFullName(fd: Record<string, unknown> | undefined): string {
+  if (!fd) return "";
+  const v =
+    fd.FullName ??
+    fd["Full Name"] ??
+    fd.fullName ??
+    fd.fullname;
+  if (v == null || String(v).trim() === "") return "";
+  return String(v).trim();
+}
 
 /** Call FileMaker NotifyManagerOnPost script after successful post. Does not block UI. */
 async function notifyManagerOnPost(): Promise<void> {
   const transRef = payableStore.currentTransRef;
   if (!transRef?.trim()) return;
+
+  const officerEmail = loggedInEmail.value?.trim();
+  let fullname = "";
+  if (officerEmail) {
+    const { data: userRecords } = await findRecordsByQueryWithIds<
+      Record<string, unknown>
+    >(LAYOUTS.PAYABLES_USERS, { Email: officerEmail }, 1);
+    const fd = userRecords[0]?.fieldData as Record<string, unknown> | undefined;
+    fullname = getFullName(fd);
+  }
 
   // Capture all values before any await so they survive navigation
   const vendorName = vendorStore.vendor?.vendor_name?.trim() || "—";
@@ -186,6 +209,7 @@ async function notifyManagerOnPost(): Promise<void> {
   const scriptParam = JSON.stringify({
     url: entryUrl,
     email,
+    fullname: fullname || officerEmail || "Officer",
     vendorname: vendorName,
     transref: transRef,
     amount: amountStr,

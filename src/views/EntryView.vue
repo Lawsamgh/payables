@@ -15,7 +15,7 @@
     <div class="flex flex-wrap items-center gap-2 mb-4">
       <router-link
         :to="backToListRoute"
-        class="pill-btn glass-input inline-flex items-center gap-1.5 px-3 py-2 text-[var(--label-size)] text-[var(--color-text-muted)] no-underline hover:text-[var(--color-text)]"
+        class="pill-btn glass-input inline-flex items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-white/5 px-4 py-2.5 text-[var(--label-size)] font-medium text-[var(--color-text-muted)] no-underline transition-colors hover:bg-white/10 hover:text-[var(--color-text)]"
       >
         <svg
           class="h-4 w-4"
@@ -67,12 +67,12 @@
         >
           <button
             type="button"
-            class="pill-btn inline-flex items-center gap-2 rounded-full bg-red-700/90 px-4 py-2.5 text-[var(--label-size)] font-semibold text-white shadow-md hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            class="pill-btn glass-input inline-flex items-center gap-2 !rounded-xl border border-[var(--color-border)] bg-white/5 px-6 py-2.5 text-[var(--label-size)] font-medium text-[var(--color-text-muted)] transition-colors hover:bg-white/10 hover:text-[var(--color-text)] disabled:opacity-50 disabled:cursor-not-allowed"
             :disabled="rejecting || approving"
             @click="showRejectModal = true"
           >
             <svg
-              class="h-4 w-4"
+              class="h-4 w-4 shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -88,12 +88,12 @@
           </button>
           <button
             type="button"
-            class="pill-btn inline-flex items-center gap-2 rounded-full bg-emerald-700 px-4 py-2.5 text-[var(--label-size)] font-semibold text-white shadow-md hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            class="pill-btn inline-flex items-center gap-2 !rounded-xl border-0 bg-emerald-600 px-6 py-2.5 text-[var(--label-size)] font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
             :disabled="rejecting || approving"
             @click="onApprove"
           >
             <svg
-              class="h-4 w-4"
+              class="h-4 w-4 shrink-0"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -230,11 +230,7 @@
     </section>
 
     <!-- Vendor expiry checks: show for Draft, Rejected, or Posted. NOT for Approved only. -->
-    <div
-      v-if="showExpiryCheckBanner"
-      class="expiry-check-banner"
-      role="status"
-    >
+    <div v-if="showExpiryCheckBanner" class="expiry-check-banner" role="status">
       <span class="expiry-check-banner__icon" aria-hidden="true">
         <svg
           width="28"
@@ -257,13 +253,24 @@
           v-if="displayExpiryCheckBanner"
           class="expiry-check-banner__item"
           :class="{
-            'expiry-check-banner__item--invalid': isExpiryCheckInvalid(payableStore.mainExpiryCheck, displayExpiryCheckBanner),
-            'expiry-check-banner__item--valid': isExpiryCheckValid(payableStore.mainExpiryCheck, displayExpiryCheckBanner),
+            'expiry-check-banner__item--invalid': isExpiryCheckInvalid(
+              payableStore.mainExpiryCheck,
+              displayExpiryCheckBanner,
+            ),
+            'expiry-check-banner__item--valid': isExpiryCheckValid(
+              payableStore.mainExpiryCheck,
+              displayExpiryCheckBanner,
+            ),
           }"
         >
           <span class="expiry-check-banner__item-icon" aria-hidden="true">
             <svg
-              v-if="isExpiryCheckInvalid(payableStore.mainExpiryCheck, displayExpiryCheckBanner)"
+              v-if="
+                isExpiryCheckInvalid(
+                  payableStore.mainExpiryCheck,
+                  displayExpiryCheckBanner,
+                )
+              "
               class="expiry-check-banner__icon-svg"
               fill="none"
               stroke="currentColor"
@@ -271,34 +278,60 @@
               viewBox="0 0 24 24"
             >
               <circle cx="12" cy="12" r="10" />
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15 9l-6 6M9 9l6 6" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M15 9l-6 6M9 9l6 6"
+              />
             </svg>
             <svg
-              v-else-if="isExpiryCheckValid(payableStore.mainExpiryCheck, displayExpiryCheckBanner)"
+              v-else-if="
+                isExpiryCheckValid(
+                  payableStore.mainExpiryCheck,
+                  displayExpiryCheckBanner,
+                )
+              "
               class="expiry-check-banner__icon-svg"
               fill="none"
               stroke="currentColor"
               stroke-width="2.5"
               viewBox="0 0 24 24"
             >
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
             <span v-else class="expiry-check-banner__icon-placeholder" />
           </span>
           <strong class="expiry-check-banner__label">GRA Expiry:</strong>
-          <span class="expiry-check-banner__text">{{ displayExpiryCheckBanner }}</span>
+          <span class="expiry-check-banner__text">{{
+            displayExpiryCheckBanner
+          }}</span>
         </div>
         <div
           v-if="displayWhtExpiryCheckBanner"
           class="expiry-check-banner__item"
           :class="{
-            'expiry-check-banner__item--invalid': isExpiryCheckInvalid(payableStore.mainWhtExpiryCheck, displayWhtExpiryCheckBanner),
-            'expiry-check-banner__item--valid': isExpiryCheckValid(payableStore.mainWhtExpiryCheck, displayWhtExpiryCheckBanner),
+            'expiry-check-banner__item--invalid': isExpiryCheckInvalid(
+              payableStore.mainWhtExpiryCheck,
+              displayWhtExpiryCheckBanner,
+            ),
+            'expiry-check-banner__item--valid': isExpiryCheckValid(
+              payableStore.mainWhtExpiryCheck,
+              displayWhtExpiryCheckBanner,
+            ),
           }"
         >
           <span class="expiry-check-banner__item-icon" aria-hidden="true">
             <svg
-              v-if="isExpiryCheckInvalid(payableStore.mainWhtExpiryCheck, displayWhtExpiryCheckBanner)"
+              v-if="
+                isExpiryCheckInvalid(
+                  payableStore.mainWhtExpiryCheck,
+                  displayWhtExpiryCheckBanner,
+                )
+              "
               class="expiry-check-banner__icon-svg"
               fill="none"
               stroke="currentColor"
@@ -306,22 +339,37 @@
               viewBox="0 0 24 24"
             >
               <circle cx="12" cy="12" r="10" />
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15 9l-6 6M9 9l6 6" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M15 9l-6 6M9 9l6 6"
+              />
             </svg>
             <svg
-              v-else-if="isExpiryCheckValid(payableStore.mainWhtExpiryCheck, displayWhtExpiryCheckBanner)"
+              v-else-if="
+                isExpiryCheckValid(
+                  payableStore.mainWhtExpiryCheck,
+                  displayWhtExpiryCheckBanner,
+                )
+              "
               class="expiry-check-banner__icon-svg"
               fill="none"
               stroke="currentColor"
               stroke-width="2.5"
               viewBox="0 0 24 24"
             >
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
             <span v-else class="expiry-check-banner__icon-placeholder" />
           </span>
           <strong class="expiry-check-banner__label">WHT Expiry:</strong>
-          <span class="expiry-check-banner__text">{{ displayWhtExpiryCheckBanner }}</span>
+          <span class="expiry-check-banner__text">{{
+            displayWhtExpiryCheckBanner
+          }}</span>
         </div>
       </div>
     </div>
@@ -372,12 +420,19 @@
         >
           <!-- Skeleton Loading State -->
           <!-- Expiry banner skeleton: show when loading existing entry (transRef) -->
-          <div
-            v-if="route.query.transRef"
-            class="expiry-check-banner mb-4"
-          >
-            <span class="expiry-check-banner__icon opacity-60" aria-hidden="true">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <div v-if="route.query.transRef" class="expiry-check-banner mb-4">
+            <span
+              class="expiry-check-banner__icon opacity-60"
+              aria-hidden="true"
+            >
+              <svg
+                width="28"
+                height="28"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                 <line x1="16" y1="2" x2="16" y2="6" />
                 <line x1="8" y1="2" x2="8" y2="6" />
@@ -673,7 +728,7 @@ const canDeleteRow = computed(() => spreadsheet.rowCount.value > 1);
 
 /** Only Manager and Admin can Approve or Reject a Posted entry. */
 const canApproveOrReject = computed(
-  () => roleLower.value === "manager" || roleLower.value === "admin"
+  () => roleLower.value === "manager" || roleLower.value === "admin",
 );
 
 /** Expiry check banner: for Rejected and Draft (always show when status is Draft/Rejected). */
@@ -689,27 +744,56 @@ const displayWhtExpiryCheckBanner = computed(() => {
   return payableStore.mainWhtExpiryCheckDis ?? "—";
 });
 
-function isExpiryCheckInvalid(check: string | null, displayText?: string | null): boolean {
+function isExpiryCheckInvalid(
+  check: string | null,
+  displayText?: string | null,
+): boolean {
   if (check) {
     const s = check.toLowerCase().trim();
     if (s === "invalid" || s === "expired" || s === "no") return true;
-    if (s === "valid" || s === "ok" || s === "yes" || s === "good") return false;
+    if (s === "valid" || s === "ok" || s === "yes" || s === "good")
+      return false;
   }
-  const text = displayText != null && displayText !== "—" ? String(displayText).toLowerCase() : "";
+  const text =
+    displayText != null && displayText !== "—"
+      ? String(displayText).toLowerCase()
+      : "";
   if (!text) return false;
-  if (text.includes("invalid") || text.includes("expired") || /\bno\b/.test(text)) return true;
+  if (
+    text.includes("invalid") ||
+    text.includes("expired") ||
+    /\bno\b/.test(text)
+  )
+    return true;
   return false;
 }
-function isExpiryCheckValid(check: string | null, displayText?: string | null): boolean {
+function isExpiryCheckValid(
+  check: string | null,
+  displayText?: string | null,
+): boolean {
   if (check) {
     const s = check.toLowerCase().trim();
     if (s === "valid" || s === "ok" || s === "yes" || s === "good") return true;
     if (s === "invalid" || s === "expired" || s === "no") return false;
   }
-  const text = displayText != null && displayText !== "—" ? String(displayText).toLowerCase() : "";
+  const text =
+    displayText != null && displayText !== "—"
+      ? String(displayText).toLowerCase()
+      : "";
   if (!text) return false;
-  if (text.includes("invalid") || text.includes("expired") || /\bno\b/.test(text)) return false;
-  if (text.includes("valid") || text.includes("ok") || text.includes("yes") || text.includes("good")) return true;
+  if (
+    text.includes("invalid") ||
+    text.includes("expired") ||
+    /\bno\b/.test(text)
+  )
+    return false;
+  if (
+    text.includes("valid") ||
+    text.includes("ok") ||
+    text.includes("yes") ||
+    text.includes("good")
+  )
+    return true;
   return false;
 }
 
@@ -1728,10 +1812,16 @@ async function downloadApprovedPdf() {
 .expiry-check-banner__item--valid .expiry-check-banner__text {
   color: rgb(134, 239, 172);
 }
-.expiry-check-banner__item:not(.expiry-check-banner__item--invalid):not(.expiry-check-banner__item--valid) .expiry-check-banner__label {
+.expiry-check-banner__item:not(.expiry-check-banner__item--invalid):not(
+    .expiry-check-banner__item--valid
+  )
+  .expiry-check-banner__label {
   color: rgb(191, 219, 254);
 }
-.expiry-check-banner__item:not(.expiry-check-banner__item--invalid):not(.expiry-check-banner__item--valid) .expiry-check-banner__text {
+.expiry-check-banner__item:not(.expiry-check-banner__item--invalid):not(
+    .expiry-check-banner__item--valid
+  )
+  .expiry-check-banner__text {
   color: var(--color-text);
 }
 .expiry-check-banner__text {

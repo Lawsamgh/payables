@@ -92,20 +92,19 @@
                 v-model="email"
                 type="email"
                 class="login__input"
+                :class="{ 'login__input--error': emailFieldError }"
                 placeholder="name@example.com"
                 required
                 autocomplete="email"
+                @input="emailFieldError = false"
               />
             </label>
-            <Transition name="login-error">
-              <p v-if="error" class="login__error">{{ error }}</p>
-            </Transition>
             <button
               type="submit"
               class="login__btn"
               :disabled="loading"
             >
-              Proceed
+              {{ loading ? 'Checking…' : 'Proceed' }}
             </button>
           </div>
           <div v-else key="password" class="login__step">
@@ -161,7 +160,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useFileMaker } from '../composables/useFileMaker'
-import { getBaseUrl, setSessionBaseUrl } from '../utils/filemakerApi'
+import { getBaseUrl, setSessionBaseUrl, checkEmailExistsInPayablesUsers } from '../utils/filemakerApi'
 import { useToastStore } from '../stores/toastStore'
 
 const router = useRouter()
@@ -174,6 +173,7 @@ const email = ref('')
 const password = ref('')
 const loading = ref(false)
 const error = ref<string | null>(null)
+const emailFieldError = ref(false)
 const step = ref<'email' | 'password'>('email')
 const passwordInputRef = ref<HTMLInputElement | null>(null)
 
@@ -246,20 +246,42 @@ onUnmounted(() => {
 
 async function proceed() {
   error.value = null
+  emailFieldError.value = false
   if (!hasBaseUrlEnv.value && !baseUrl.value.trim()) {
     toast.error('Enter FileMaker base URL')
     return
   }
   if (!email.value.trim()) {
     toast.error('Enter your email')
+    emailFieldError.value = true
     return
   }
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   if (!emailRegex.test(email.value.trim())) {
     toast.error('Enter a valid email address')
+    emailFieldError.value = true
     return
   }
-  step.value = 'password'
+  loading.value = true
+  try {
+    if (!hasBaseUrlEnv.value && baseUrl.value.trim()) {
+      setSessionBaseUrl(baseUrl.value.trim())
+    }
+    const { exists, error: checkErr } = await checkEmailExistsInPayablesUsers(email.value.trim())
+    if (checkErr) {
+      toast.error(checkErr)
+      emailFieldError.value = true
+      return
+    }
+    if (!exists) {
+      toast.error('This email is not registered. Contact your administrator.')
+      emailFieldError.value = true
+      return
+    }
+    step.value = 'password'
+  } finally {
+    loading.value = false
+  }
 }
 
 function focusPasswordInput() {
@@ -270,6 +292,7 @@ function focusPasswordInput() {
 
 function goBack() {
   error.value = null
+  emailFieldError.value = false
   step.value = 'email'
 }
 
@@ -793,6 +816,15 @@ async function submit() {
   outline: none;
   border-color: var(--color-accent);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.login__input--error {
+  border-color: rgb(239, 68, 68);
+}
+
+.login__input--error:focus {
+  border-color: rgb(239, 68, 68);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
 }
 
 .login__error {
