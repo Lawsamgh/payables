@@ -136,6 +136,8 @@ import { useVendorStore } from "../stores/vendorStore";
 import { useToastStore } from "../stores/toastStore";
 import { useBookletStore } from "../stores/bookletStore";
 import { useFileMaker } from "../composables/useFileMaker";
+import { LAYOUTS } from "../utils/filemakerApi";
+import { formatNumberDisplay } from "../utils/formatNumber";
 
 const route = useRoute();
 const router = useRouter();
@@ -144,7 +146,60 @@ const payableStore = usePayableStore();
 const vendorStore = useVendorStore();
 const toast = useToastStore();
 const booklet = useBookletStore();
-const { isConnected, hasBaseUrl, loggedInEmail } = useFileMaker();
+const {
+  isConnected,
+  hasBaseUrl,
+  loggedInEmail,
+  runScript,
+  findRecordsWithIds,
+} = useFileMaker();
+
+/** Call FileMaker NotifyManagerOnPost script after successful post. Does not block UI. */
+async function notifyManagerOnPost(): Promise<void> {
+  const transRef = payableStore.currentTransRef;
+  if (!transRef?.trim()) return;
+
+  // Capture all values before any await so they survive navigation
+  const vendorName = vendorStore.vendor?.vendor_name?.trim() || "—";
+  const total = payableStore.entryTotal;
+  const currency = vendorStore.vendor?.currency?.trim() || "";
+  const amountStr =
+    currency && total != null
+      ? `${currency} ${formatNumberDisplay(total)}`
+      : formatNumberDisplay(total) || "—";
+
+  const { data: settingsRecords } = await findRecordsWithIds<
+    Record<string, unknown>
+  >(LAYOUTS.PAYABLES_SETTINGS, { limit: 1 });
+  const settings = settingsRecords[0]?.fieldData;
+  const email =
+    settings?.HODEmail != null && String(settings.HODEmail).trim() !== ""
+      ? String(settings.HODEmail).trim()
+      : null;
+  if (!email) return;
+
+  const entryUrl = new URL(
+    router.resolve({ name: "entry", query: { transRef } }).href,
+    window.location.origin
+  ).href;
+
+  const scriptParam = JSON.stringify({
+    url: entryUrl,
+    email,
+    vendorname: vendorName,
+    transref: transRef,
+    amount: amountStr,
+  });
+
+  const { error } = await runScript(
+    LAYOUTS.PAYABLES_MAIN,
+    "NotifyManagerOnPost",
+    scriptParam
+  );
+  if (error) {
+    toast.warning("Manager notification could not be sent: " + error);
+  }
+}
 
 async function onSave() {
   if (!hasBaseUrl.value) {
@@ -203,6 +258,7 @@ async function onPost() {
     if (updated > 0) parts.push(`${updated} updated`);
     if (deleted > 0) parts.push(`${deleted} deleted`);
     toast.success(`Saved and posted ${parts.join(", ")} row(s).`);
+    notifyManagerOnPost();
     if (booklet.count > 1) {
       booklet.removeCurrent();
       const nextRef = booklet.currentTransRef;
@@ -213,6 +269,7 @@ async function onPost() {
     }
   } else if (markedPosted) {
     toast.success("Marked as posted.");
+    notifyManagerOnPost();
     if (booklet.count > 1) {
       booklet.removeCurrent();
       const nextRef = booklet.currentTransRef;
@@ -254,6 +311,7 @@ async function onRepost() {
     if (updated > 0) parts.push(`${updated} updated`);
     if (deleted > 0) parts.push(`${deleted} deleted`);
     toast.success(`Saved and reposted ${parts.join(", ")} row(s).`);
+    notifyManagerOnPost();
     if (booklet.count > 1) {
       booklet.removeCurrent();
       const nextRef = booklet.currentTransRef;
@@ -264,6 +322,7 @@ async function onRepost() {
     }
   } else if (markedPosted) {
     toast.success("Saved and reposted.");
+    notifyManagerOnPost();
     if (booklet.count > 1) {
       booklet.removeCurrent();
       const nextRef = booklet.currentTransRef;

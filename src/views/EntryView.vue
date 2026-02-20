@@ -59,6 +59,7 @@
         </div>
         <template
           v-if="
+            canApproveOrReject &&
             payableStore.mainPosted &&
             payableStore.mainStatus === 'Posted' &&
             payableStore.currentMainRecordId
@@ -228,7 +229,7 @@
       </ul>
     </section>
 
-    <!-- Vendor expiry checks: show for new entry (vendor selected) or Draft/Posted, NOT for Approved/Posted -->
+    <!-- Vendor expiry checks: show for Draft, Rejected, or Posted. NOT for Approved only. -->
     <div
       v-if="showExpiryCheckBanner"
       class="expiry-check-banner"
@@ -637,6 +638,7 @@ import { usePayableStore } from "../stores/payableStore";
 import { useVendorStore } from "../stores/vendorStore";
 import { useBookletStore } from "../stores/bookletStore";
 import { useFileMaker } from "../composables/useFileMaker";
+import { useUserRole } from "../composables/useUserRole";
 import { LAYOUTS, type PayableInvoiceFieldData } from "../utils/filemakerApi";
 import {
   formatTimestampForFileMaker,
@@ -663,16 +665,22 @@ const { isConnected, updateRecord, createRecord, findRecordsByQueryWithIds } =
   useFileMaker();
 const toast = useToastStore();
 const documentSettings = useDocumentSettingsStore();
+const { roleLower } = useUserRole();
 const rejecting = ref(false);
 const approving = ref(false);
 const downloadingPdf = ref(false);
 const canDeleteRow = computed(() => spreadsheet.rowCount.value > 1);
 
+/** Only Manager and Admin can Approve or Reject a Posted entry. */
+const canApproveOrReject = computed(
+  () => roleLower.value === "manager" || roleLower.value === "admin"
+);
+
 /** Expiry check banner: for Rejected and Draft (always show when status is Draft/Rejected). */
 const showExpiryCheckBanner = computed(() => {
   if (!payableStore.currentTransRef) return false;
   const s = payableStore.mainStatus;
-  return s === "Draft" || s === "Rejected";
+  return s === "Draft" || s === "Rejected" || s === "Posted";
 });
 const displayExpiryCheckBanner = computed(() => {
   return payableStore.mainExpiryCheckDis ?? "—";

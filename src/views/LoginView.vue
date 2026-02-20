@@ -159,12 +159,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useFileMaker } from '../composables/useFileMaker'
 import { getBaseUrl, setSessionBaseUrl } from '../utils/filemakerApi'
 import { useToastStore } from '../stores/toastStore'
 
 const router = useRouter()
+const route = useRoute()
 const toast = useToastStore()
 const { login: fmLogin, hasBaseUrl, error: fmError } = useFileMaker()
 
@@ -290,7 +291,11 @@ async function submit() {
     })
     if (ok) {
       loading.value = false
-      router.replace('/home')
+      const redirect = route.query?.redirect
+      const target = typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//') && !redirect.includes(':')
+        ? redirect
+        : '/home'
+      router.replace(target)
     } else {
       error.value = null
       password.value = ''

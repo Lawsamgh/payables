@@ -58,6 +58,7 @@
       <!-- Home: Draft & Posted with counts + totals (all currencies when vendors use different currencies) -->
       <div v-if="route.name === 'home'" class="overview-cards space-y-3">
         <div
+          v-if="!isManager"
           class="overview-card overview-card--draft rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3 transition-colors hover:bg-white/[0.06]"
         >
           <div class="flex items-center justify-between mb-1.5">
@@ -131,6 +132,7 @@
           </div>
         </div>
         <div
+          v-if="!isManager"
           class="overview-card-wrap overview-card-wrap--rejected"
           :class="{
             'overview-card-wrap--has-rejected': listSummary.rejectedCount > 0,
@@ -509,6 +511,7 @@ import { ref, computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import LogoutConfirmModal from "./LogoutConfirmModal.vue";
 import { useFileMaker } from "../composables/useFileMaker";
+import { useUserRole } from "../composables/useUserRole";
 import { useListSummaryStore } from "../stores/listSummaryStore";
 import { usePayableStore } from "../stores/payableStore";
 import { useVendorStore } from "../stores/vendorStore";
@@ -520,6 +523,7 @@ import { formatNumberDisplay, formatCompactCount } from "../utils/formatNumber";
 const route = useRoute();
 const router = useRouter();
 const { logout } = useFileMaker();
+const { isManager } = useUserRole();
 const showLogoutModal = ref(false);
 
 function onLogout() {

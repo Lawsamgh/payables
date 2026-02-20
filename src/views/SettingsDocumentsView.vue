@@ -92,15 +92,34 @@
 
 <script setup lang="ts">
 import { computed, onMounted } from "vue";
+import { useRouter } from "vue-router";
+import { useFileMaker } from "../composables/useFileMaker";
+import { LAYOUTS } from "../utils/filemakerApi";
+import type { PayablesUsersFieldData } from "../utils/filemakerApi";
 import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
 
+const router = useRouter();
+const { loggedInEmail, isConnected, findRecordsByQueryWithIds } = useFileMaker();
 const documentSettings = useDocumentSettingsStore();
 const invoiceDownloadWhen = computed({
   get: () => documentSettings.invoiceDownloadWhen,
   set: (v) => documentSettings.setInvoiceDownloadWhen(v),
 });
 
-onMounted(() => {
+onMounted(async () => {
+  const email = loggedInEmail.value;
+  if (email && isConnected.value) {
+    const { data } = await findRecordsByQueryWithIds<PayablesUsersFieldData>(
+      LAYOUTS.PAYABLES_USERS,
+      { Email: email },
+      1
+    );
+    const role = (data?.[0]?.fieldData?.Role ?? "").toString().trim().toLowerCase();
+    if (role === "officer" || role === "manager") {
+      router.replace("/settings");
+      return;
+    }
+  }
   documentSettings.loadFromFileMaker();
 });
 </script>

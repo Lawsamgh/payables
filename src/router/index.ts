@@ -72,11 +72,23 @@ const router = createRouter({
   ],
 })
 
+/** Allow only internal paths for redirect (prevents open redirect). */
+function isSafeRedirect(path: unknown): path is string {
+  if (typeof path !== 'string' || !path.startsWith('/')) return false
+  if (path.startsWith('//')) return false // protocol-relative
+  if (path.includes(':')) return false // e.g. http:
+  return true
+}
+
 router.beforeEach((to) => {
   if (to.meta?.requiresAuth && !isAuthenticated()) {
-    return { path: '/', replace: true }
+    return { path: '/', query: { redirect: to.fullPath }, replace: true }
   }
   if (to.path === '/' && isAuthenticated()) {
+    const redirect = to.query?.redirect
+    if (isSafeRedirect(redirect)) {
+      return { path: redirect, replace: true }
+    }
     return { ...getHomeRoute(), replace: true }
   }
 })

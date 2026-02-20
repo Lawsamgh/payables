@@ -396,6 +396,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue";
+import { useRouter } from "vue-router";
 import { useFileMaker } from "../composables/useFileMaker";
 import type { FindRecordWithId } from "../composables/useFileMaker";
 import { LAYOUTS } from "../utils/filemakerApi";
@@ -403,7 +404,8 @@ import type { PayablesUsersFieldData } from "../utils/filemakerApi";
 import { useToastStore } from "../stores/toastStore";
 import Skeleton from "../components/Skeleton.vue";
 
-const { findRecordsWithIds, createRecord, updateRecord, runScript, isConnected } = useFileMaker();
+const router = useRouter();
+const { findRecordsWithIds, findRecordsByQueryWithIds, createRecord, updateRecord, runScript, isConnected, loggedInEmail } = useFileMaker();
 
 const DEFAULT_PASSWORD = "123456789";
 const DEFAULT_RESET_PASSWORD = "123456789";
@@ -833,7 +835,22 @@ async function loadUsers() {
   }
 }
 
-onMounted(() => loadUsers());
+onMounted(async () => {
+  const email = loggedInEmail.value;
+  if (email && isConnected.value) {
+    const { data } = await findRecordsByQueryWithIds<PayablesUsersFieldData>(
+      LAYOUTS.PAYABLES_USERS,
+      { Email: email },
+      1
+    );
+    const role = (data?.[0]?.fieldData?.Role ?? "").toString().trim().toLowerCase();
+    if (role === "officer" || role === "manager") {
+      router.replace("/settings");
+      return;
+    }
+  }
+  loadUsers();
+});
 watch(isConnected, (connected) => {
   if (connected) loadUsers();
 });

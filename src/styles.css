@@ -272,6 +272,16 @@ button:focus-visible {
   animation: statsDashboardEnter 0.5s var(--ease) forwards;
 }
 
+.stats-dashboard__greeting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  grid-column: 1 / -1;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
 .stats-dashboard__greeting {
   font-size: clamp(1.5rem, 4vw, 2rem);
   font-weight: 300;
@@ -279,9 +289,19 @@ button:focus-visible {
   line-height: 1.25;
   color: var(--color-text);
   margin: 0;
-  grid-column: 1 / -1;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.stats-dashboard__role {
+  flex-shrink: 0;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
 }
 
 @keyframes statsDashboardEnter {

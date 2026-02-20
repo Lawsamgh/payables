@@ -110,6 +110,23 @@
           >
             Approved
           </button>
+          <span class="status-filters__divider" aria-hidden="true" />
+          <button
+            type="button"
+            class="status-filter-pill status-filter-pill--cheque"
+            :class="{ 'status-filter-pill--active': chequeFilter === 'issued' }"
+            @click="chequeFilter = chequeFilter === 'issued' ? '' : 'issued'"
+          >
+            Cheque issued
+          </button>
+          <button
+            type="button"
+            class="status-filter-pill status-filter-pill--cheque-not"
+            :class="{ 'status-filter-pill--active': chequeFilter === 'not_issued' }"
+            @click="chequeFilter = chequeFilter === 'not_issued' ? '' : 'not_issued'"
+          >
+            Not issued
+          </button>
         </div>
       </div>
     </header>
@@ -226,70 +243,82 @@
                 </div>
               </div>
 
-              <div class="pdf-thumb__title">
-                {{ (item.fieldData as PayablesMainFieldData).TransRef || "—" }}
-              </div>
-              <div class="pdf-thumb__sub">
-                {{
-                  (item.fieldData as PayablesMainFieldData).VendorName || "—"
-                }}
-              </div>
-              <div class="pdf-thumb__total">
-                {{ formatAmount(item.fieldData as PayablesMainFieldData) }}
-              </div>
-              <span
-                class="pdf-thumb__status"
-                :class="
-                  statusPillClass(
-                    (item.fieldData as PayablesMainFieldData).Status,
-                  )
-                "
-              >
-                {{ (item.fieldData as PayablesMainFieldData).Status || "—" }}
-              </span>
-              <div
-                v-if="
-                  getChequeIssued(item.fieldData as PayablesMainFieldData) ===
-                    'Yes'
-                "
-                class="pdf-thumb__cheque"
-              >
-                <span class="pdf-thumb__cheque-label">Cheque issued</span>
-                <span class="pdf-thumb__cheque-value">
+              <div class="pdf-thumb__main">
+                <div class="pdf-thumb__title">
+                  {{ (item.fieldData as PayablesMainFieldData).TransRef || "—" }}
+                </div>
+                <div class="pdf-thumb__sub">
                   {{
-                    getChequeDisplay(item.fieldData as PayablesMainFieldData)
+                    (item.fieldData as PayablesMainFieldData).VendorName || "—"
                   }}
-                </span>
+                </div>
+                <div class="pdf-thumb__total">
+                  {{ formatAmount(item.fieldData as PayablesMainFieldData) }}
+                </div>
               </div>
 
-              <div
-                class="pdf-thumb__icon"
-                :class="
-                  statusIconClass(
-                    (item.fieldData as PayablesMainFieldData).Status,
-                  )
-                "
-                aria-hidden="true"
-              >
-                <svg
-                  class="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+              <div class="pdf-thumb__meta">
+                <span
+                  class="pdf-thumb__status"
+                  :class="
+                    statusPillClass(
+                      (item.fieldData as PayablesMainFieldData).Status,
+                    )
+                  "
                 >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
+                  {{ (item.fieldData as PayablesMainFieldData).Status || "—" }}
+                </span>
+                <div
+                  v-if="
+                    getChequeIssued(item.fieldData as PayablesMainFieldData) ===
+                      'Yes'
+                  "
+                  class="pdf-thumb__cheque"
+                >
+                  <span class="pdf-thumb__cheque-label">Cheque issued</span>
+                  <span class="pdf-thumb__cheque-value">
+                    {{ getChequeDisplay(item.fieldData as PayablesMainFieldData) }}
+                  </span>
+                  <span
+                    v-if="getChequeIssuedDateFormatted(item.fieldData as PayablesMainFieldData)"
+                    class="pdf-thumb__cheque-date"
+                  >
+                    Issued {{ getChequeIssuedDateFormatted(item.fieldData as PayablesMainFieldData) }}
+                  </span>
+                </div>
               </div>
 
-              <div class="pdf-thumb__line pdf-thumb__line--w1" />
-              <div class="pdf-thumb__line pdf-thumb__line--w2" />
-              <div class="pdf-thumb__line pdf-thumb__line--w3" />
-              <div class="pdf-thumb__line pdf-thumb__line--w4" />
+              <div class="pdf-thumb__footer">
+                <div
+                  class="pdf-thumb__icon"
+                  :class="
+                    statusIconClass(
+                      (item.fieldData as PayablesMainFieldData).Status,
+                    )
+                  "
+                  aria-hidden="true"
+                >
+                  <svg
+                    class="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                </div>
+                <div class="pdf-thumb__lines">
+                  <div class="pdf-thumb__line pdf-thumb__line--w1" />
+                  <div class="pdf-thumb__line pdf-thumb__line--w2" />
+                  <div class="pdf-thumb__line pdf-thumb__line--w3" />
+                  <div class="pdf-thumb__line pdf-thumb__line--w4" />
+                </div>
+              </div>
             </div>
           </div>
         </router-link>
@@ -321,6 +350,7 @@ const loading = ref(false);
 const error = ref<string | null>(null);
 const searchQuery = ref("");
 const statusFilter = ref<"" | "Draft" | "Posted" | "Rejected" | "Approved">("");
+const chequeFilter = ref<"" | "issued" | "not_issued">("");
 /** TransRef of the invoice whose PDF is currently being downloaded. */
 const downloadingTransRef = ref<string | null>(null);
 
@@ -333,6 +363,14 @@ const filteredList = computed(() => {
         (item.fieldData as PayablesMainFieldData).Status ?? "",
       ).trim();
       return s === status;
+    });
+  }
+  const cheque = chequeFilter.value;
+  if (cheque) {
+    result = result.filter((item) => {
+      const issued = getChequeIssued(item.fieldData as PayablesMainFieldData);
+      if (cheque === "issued") return issued === "Yes";
+      return issued !== "Yes";
     });
   }
   const q = searchQuery.value.trim().toLowerCase();
@@ -374,7 +412,10 @@ const filteredList = computed(() => {
 });
 
 const hasActiveFilters = computed(
-  () => statusFilter.value !== "" || searchQuery.value.trim() !== "",
+  () =>
+    statusFilter.value !== "" ||
+    chequeFilter.value !== "" ||
+    searchQuery.value.trim() !== "",
 );
 
 function formatDate(value: string | undefined): string {
@@ -490,6 +531,27 @@ function getChequeIssued(fd: PayablesMainFieldData | Record<string, unknown>): s
   return v != null && String(v).trim() !== "" ? String(v).trim() : "";
 }
 
+function getChequeIssuedDateFormatted(
+  fd: PayablesMainFieldData | Record<string, unknown>,
+): string {
+  const date =
+    (fd as Record<string, unknown>).ChequeIssuedDate ??
+    (fd as Record<string, unknown>)?.["Cheque Issued Date"];
+  const s = date != null && String(date).trim() ? String(date).trim() : "";
+  if (!s) return "";
+  try {
+    const d = new Date(s);
+    if (Number.isNaN(d.getTime())) return s;
+    return d.toLocaleDateString(undefined, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  } catch {
+    return s;
+  }
+}
+
 function getChequeDisplay(fd: PayablesMainFieldData | Record<string, unknown>): string {
   const bank =
     (fd as Record<string, unknown>).BankName ??
@@ -497,16 +559,11 @@ function getChequeDisplay(fd: PayablesMainFieldData | Record<string, unknown>): 
   const no =
     (fd as Record<string, unknown>).ChequeNo ??
     (fd as Record<string, unknown>)?.["Cheque No"];
-  const date =
-    (fd as Record<string, unknown>).ChequeIssuedDate ??
-    (fd as Record<string, unknown>)?.["Cheque Issued Date"];
   const bankStr = bank != null && String(bank).trim() ? String(bank).trim() : "";
   const noStr = no != null && String(no).trim() ? String(no).trim() : "";
-  const dateStr = date != null && String(date).trim() ? String(date).trim() : "";
   const parts: string[] = [];
   if (bankStr) parts.push(bankStr);
   if (noStr) parts.push(`#${noStr}`);
-  if (dateStr) parts.push(dateStr);
   return parts.length > 0 ? parts.join(" · ") : "—";
 }
 
@@ -641,6 +698,13 @@ watch(isConnected, (connected) => {
   margin-right: 0.25rem;
 }
 
+.status-filters__divider {
+  width: 1px;
+  height: 1.25rem;
+  background: rgba(148, 163, 184, 0.3);
+  margin: 0 0.25rem;
+}
+
 .status-filter-pill {
   padding: 0.35rem 0.75rem;
   font-size: 0.8125rem;
@@ -687,6 +751,18 @@ watch(isConnected, (connected) => {
   border-color: rgba(52, 211, 153, 0.8);
   background: rgba(52, 211, 153, 0.15);
   color: rgb(110, 231, 183);
+}
+
+.status-filter-pill--cheque.status-filter-pill--active {
+  border-color: rgba(52, 211, 153, 0.8);
+  background: rgba(52, 211, 153, 0.15);
+  color: rgb(110, 231, 183);
+}
+
+.status-filter-pill--cheque-not.status-filter-pill--active {
+  border-color: rgba(148, 163, 184, 0.5);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-muted);
 }
 
 .invoices-empty-msg {
@@ -752,7 +828,12 @@ watch(isConnected, (connected) => {
   padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+}
+
+.pdf-thumb__main {
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
 .pdf-thumb__top {
@@ -836,14 +917,13 @@ watch(isConnected, (connected) => {
 }
 
 .pdf-thumb__icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 14px;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-top: 4px;
-  margin-bottom: 4px;
 }
 .pdf-thumb__icon svg {
   width: 1.375rem;
@@ -851,30 +931,58 @@ watch(isConnected, (connected) => {
 }
 
 .pdf-thumb__title {
-  font-size: 1.125rem;
+  font-size: 1.0625rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  line-height: 1.2;
-  color: rgba(15, 23, 42, 0.92);
+  line-height: 1.25;
+  color: rgba(15, 23, 42, 0.94);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .pdf-thumb__sub {
-  font-size: 1rem;
+  font-size: 0.9375rem;
   font-weight: 500;
-  color: rgba(15, 23, 42, 0.7);
+  color: rgba(15, 23, 42, 0.65);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin-top: 2px;
 }
 
 .pdf-thumb__total {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: rgba(15, 23, 42, 0.85);
+  font-size: 1rem;
+  font-weight: 700;
+  color: rgba(15, 23, 42, 0.9);
+  margin-top: 6px;
+  letter-spacing: -0.01em;
+}
+
+.pdf-thumb__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
   margin-top: 2px;
+}
+
+.pdf-thumb__footer {
+  margin-top: auto;
+  padding-top: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 0;
+}
+
+.pdf-thumb__lines {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
 }
 
 .pdf-thumb__status {
@@ -882,10 +990,8 @@ watch(isConnected, (connected) => {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 0.3rem 0.6rem;
+  padding: 0.25rem 0.5rem;
   border-radius: 6px;
-  align-self: flex-start;
-  margin-top: 6px;
 }
 .pdf-thumb__status--draft {
   background: rgba(251, 191, 36, 0.2);
@@ -909,27 +1015,37 @@ watch(isConnected, (connected) => {
 }
 
 .pdf-thumb__cheque {
-  margin-top: 6px;
-  padding: 4px 8px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 3px 6px;
   border-radius: 6px;
   background: rgba(52, 211, 153, 0.15);
   border: 1px solid rgba(52, 211, 153, 0.3);
 }
 .pdf-thumb__cheque-label {
-  display: block;
-  font-size: 0.625rem;
+  font-size: 0.5625rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: rgb(6, 95, 70);
 }
 .pdf-thumb__cheque-value {
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.6875rem;
+  font-weight: 600;
   color: rgba(15, 23, 42, 0.85);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 8rem;
+}
+.pdf-thumb__cheque-date {
+  display: block;
+  font-size: 0.5625rem;
+  font-weight: 500;
+  color: rgb(6, 95, 70);
+  margin-top: 2px;
 }
 
 .pdf-thumb__title-line,

@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [vue(), tailwindcss()],
     server: {
+      host: true,
       proxy: proxyTarget
         ? {
             "/fmi": {

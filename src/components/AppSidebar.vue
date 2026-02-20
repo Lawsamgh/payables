@@ -88,8 +88,9 @@
             entrySidebarLabel
           }}</span>
         </router-link>
-        <!-- New entry: always visible, starts a blank entry -->
+        <!-- New entry: hidden for Manager -->
         <router-link
+          v-if="showForManager"
           to="/entry"
           class="sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--label-size)] font-medium no-underline transition-colors"
           :class="
@@ -114,6 +115,7 @@
           <span>New entry</span>
         </router-link>
         <router-link
+          v-if="showForManager"
           to="/invoices"
           class="sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--label-size)] font-medium no-underline transition-colors"
           :class="
@@ -138,6 +140,7 @@
           <span>Invoices</span>
         </router-link>
         <router-link
+          v-if="showForManager"
           to="/cheque-collection"
           class="sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--label-size)] font-medium no-underline transition-colors"
           :class="
@@ -250,10 +253,12 @@ import { useRoute } from "vue-router";
 import { getHomeRoute } from "../utils/homeTab";
 import { usePayableStore } from "../stores/payableStore";
 import { useVendorStore } from "../stores/vendorStore";
+import { useUserRole } from "../composables/useUserRole";
 
 const route = useRoute();
 const payableStore = usePayableStore();
 const vendorStore = useVendorStore();
+const { showForManager } = useUserRole();
 
 /** True when we're on the entry page with an existing entry (vendor) open. */
 const isEntryOpen = computed(

@@ -19,7 +19,11 @@
       <section class="settings-section">
         <h2 class="settings-section__title">Account</h2>
         <div class="settings-list">
-          <router-link to="/settings/users" class="settings-item no-underline">
+          <router-link
+            v-if="showManageUsersAndDocuments"
+            to="/settings/users"
+            class="settings-item no-underline"
+          >
             <div class="settings-item__icon">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -86,8 +90,8 @@
         </div>
       </section>
 
-      <!-- Documents -->
-      <section class="settings-section">
+      <!-- Documents (hidden for Officer/Manager) -->
+      <section v-if="showManageUsersAndDocuments" class="settings-section">
         <h2 class="settings-section__title">Documents</h2>
         <div class="settings-list">
           <router-link to="/settings/documents" class="settings-item no-underline">
@@ -157,10 +161,109 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useFileMaker } from '../composables/useFileMaker'
+import { LAYOUTS } from '../utils/filemakerApi'
+import type { PayablesUsersFieldData } from '../utils/filemakerApi'
 import ResetPasswordModal from '../components/ResetPasswordModal.vue'
 
+const STORAGE_KEY_ROLE = 'fm_user_role'
+
 const showResetPasswordModal = ref(false)
+const userRole = ref<string | null>(null)
+const roleLoaded = ref(false)
+
+const { loggedInEmail, isConnected, findRecordsByQueryWithIds, findRecordsWithIds } = useFileMaker()
+
+function readCachedRole(): string | null {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY_ROLE)
+    if (!raw) return null
+    const { email, role } = JSON.parse(raw) as { email?: string; role?: string }
+    const current = loggedInEmail.value?.trim().toLowerCase()
+    if (!email || !current || email.toLowerCase() !== current) return null
+    return role && String(role).trim() ? String(role).trim() : null
+  } catch {
+    return null
+  }
+}
+
+function writeCachedRole(role: string | null) {
+  try {
+    const email = loggedInEmail.value?.trim()
+    if (!email) return
+    sessionStorage.setItem(STORAGE_KEY_ROLE, JSON.stringify({ email, role: role ?? '' }))
+  } catch {
+    /* ignore */
+  }
+}
+
+const showManageUsersAndDocuments = computed(() => {
+  if (!roleLoaded.value) return false
+  const r = userRole.value?.trim()
+  if (!r) return false
+  const lower = r.toLowerCase()
+  return lower !== 'officer' && lower !== 'manager'
+})
+
+function getFieldValue(fd: Record<string, unknown> | undefined, key: string): string {
+  if (!fd) return ''
+  const v = fd[key] ?? fd[key.replace(/([A-Z])/g, ' $1').trim()] ?? fd[key.charAt(0).toLowerCase() + key.slice(1)]
+  if (v == null || v === '') return ''
+  return String(v).trim()
+}
+
+async function loadUserRole() {
+  const email = loggedInEmail.value
+  if (!email || !isConnected.value) {
+    userRole.value = null
+    roleLoaded.value = false
+    return
+  }
+  const normalizedEmail = String(email).trim().toLowerCase()
+  const { data } = await findRecordsByQueryWithIds<PayablesUsersFieldData>(
+    LAYOUTS.PAYABLES_USERS,
+    { Email: email },
+    1
+  )
+  let fd: Record<string, unknown> | undefined = data?.[0]?.fieldData as Record<string, unknown> | undefined
+  if (!data?.length) {
+    const { data: users } = await findRecordsWithIds<PayablesUsersFieldData | Record<string, unknown>>(
+      LAYOUTS.PAYABLES_USERS,
+      { limit: 500 }
+    )
+    const match = users.find((r) => {
+      const rowFd = r?.fieldData as Record<string, unknown> | undefined
+      const rowEmail = getFieldValue(rowFd, 'Email')
+      return rowEmail.trim().toLowerCase() === normalizedEmail
+    })
+    fd = match?.fieldData as Record<string, unknown> | undefined
+  }
+  const role = getFieldValue(fd, 'Role')
+  userRole.value = role || null
+  roleLoaded.value = true
+  writeCachedRole(userRole.value)
+}
+
+watch([isConnected, loggedInEmail], () => {
+  if (isConnected.value && loggedInEmail.value) loadUserRole()
+  else {
+    userRole.value = null
+    roleLoaded.value = false
+  }
+})
+
+onMounted(() => {
+  const email = loggedInEmail.value
+  if (email && isConnected.value) {
+    const cached = readCachedRole()
+    if (cached != null) {
+      userRole.value = cached
+      roleLoaded.value = true
+    }
+    loadUserRole()
+  }
+})
 </script>
 
 <style scoped>

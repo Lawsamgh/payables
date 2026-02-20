@@ -117,19 +117,23 @@
     <div v-else class="flex flex-col gap-10">
       <!-- Greeting + Stats dashboard: KPIs + Vendors -->
       <div class="stats-dashboard">
-        <p class="stats-dashboard__greeting" aria-live="polite">{{ greeting }}</p>
+        <div class="stats-dashboard__greeting-row">
+          <p class="stats-dashboard__greeting" aria-live="polite">{{ greeting }}</p>
+          <span v-if="userRole" class="stats-dashboard__role">{{ userRole }}</span>
+        </div>
         <div class="stats-dashboard__kpis">
-          <div class="stat-card stat-card--draft">
+          <div v-if="showDraftTab" class="stat-card stat-card--draft">
             <span class="stat-card__label">Draft</span>
             <span class="stat-card__value">{{ displayedDraft }}</span>
             <span class="stat-card__sublabel">entries</span>
           </div>
-          <div class="stat-card stat-card--posted">
+          <div v-if="showPostedTab" class="stat-card stat-card--posted">
             <span class="stat-card__label">Posted</span>
             <span class="stat-card__value">{{ displayedPosted }}</span>
             <span class="stat-card__sublabel">entries</span>
           </div>
           <div
+            v-if="showRejectedTab"
             class="stat-card-wrap stat-card-wrap--rejected"
             :class="{ 'stat-card-wrap--has-rejected': displayedRejected > 0 }"
           >
@@ -454,6 +458,7 @@
             aria-label="List by status"
           >
             <button
+              v-if="showDraftTab"
               type="button"
               role="tab"
               aria-selected="activeSegment === 'draft'"
@@ -473,6 +478,7 @@
               }}</span>
             </button>
             <button
+              v-if="showPostedTab"
               type="button"
               role="tab"
               aria-selected="activeSegment === 'posted'"
@@ -492,6 +498,7 @@
               }}</span>
             </button>
             <button
+              v-if="showRejectedTab"
               type="button"
               role="tab"
               aria-selected="activeSegment === 'rejected'"
@@ -1251,6 +1258,7 @@ const currentPageRejected = ref(1);
 const currentPageApproved = ref(1);
 
 const userFullName = ref<string | null>(null);
+const userRole = ref<string | null>(null);
 
 /** Resolve a field from layout fieldData (handles FullName / Full Name / fullName etc.). */
 function getFieldValue(fd: Record<string, unknown> | undefined, key: string): string {
@@ -1267,6 +1275,7 @@ async function loadUserFullName(): Promise<void> {
   const email = loggedInEmail.value;
   if (!email || !isConnected.value) {
     userFullName.value = null;
+    userRole.value = null;
     return;
   }
   const normalizedEmail = String(email).trim().toLowerCase();
@@ -1281,6 +1290,8 @@ async function loadUserFullName(): Promise<void> {
       getFieldValue(fd, "FullName") ||
       (fd ? String(fd["Full Name"] ?? "").trim() : "");
     userFullName.value = fullName || null;
+    const role = getFieldValue(fd, "Role");
+    userRole.value = role || null;
   } else {
     // Fallback: if exact `_find` didn't match, fetch a list and match client-side.
     // This avoids issues like trailing spaces / collation / strict exact-match behavior.
@@ -1297,6 +1308,8 @@ async function loadUserFullName(): Promise<void> {
       getFieldValue(fd, "FullName") ||
       (fd ? String(fd["Full Name"] ?? "").trim() : "");
     userFullName.value = fullName || null;
+    const role = getFieldValue(fd, "Role");
+    userRole.value = role || null;
   }
 }
 
@@ -1305,6 +1318,7 @@ watch([isConnected, loggedInEmail], () => {
     loadUserFullName();
   } else {
     userFullName.value = null;
+    userRole.value = null;
   }
 }, { immediate: true });
 
@@ -1316,6 +1330,37 @@ const greeting = computed(() => {
     h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
   return `${timeGreeting}, ${name}`;
 });
+
+/** Tab visibility by role: Officer hides Posted; Manager hides Draft and Rejected. */
+const roleLower = computed(() => (userRole.value ?? "").trim().toLowerCase());
+const showDraftTab = computed(() => {
+  if (!roleLower.value) return true;
+  return roleLower.value !== "manager";
+});
+const showPostedTab = computed(() => {
+  if (!roleLower.value) return true;
+  return roleLower.value !== "officer";
+});
+const showRejectedTab = computed(() => {
+  if (!roleLower.value) return true;
+  return roleLower.value !== "manager";
+});
+
+/** Redirect to first visible tab when current tab becomes hidden (role change). */
+watch(
+  [showDraftTab, showPostedTab, showRejectedTab, activeSegment],
+  () => {
+    const cur = activeSegment.value;
+    if (cur === "draft" && !showDraftTab.value) {
+      activeSegment.value = showPostedTab.value ? "posted" : "approved";
+    } else if (cur === "posted" && !showPostedTab.value) {
+      activeSegment.value = showDraftTab.value ? "draft" : "approved";
+    } else if (cur === "rejected" && !showRejectedTab.value) {
+      activeSegment.value = showDraftTab.value ? "draft" : "posted";
+    }
+  },
+  { immediate: true }
+);
 
 /** Animated display values for stat cards (count-up). */
 const displayedDraft = ref(0);
