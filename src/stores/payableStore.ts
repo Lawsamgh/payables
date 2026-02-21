@@ -16,6 +16,7 @@ import {
   rowToPayablesDetails,
   formatDateForFileMaker,
 } from "../utils/filemakerMappers";
+import { writeActivityLog } from "../utils/activityLog";
 import type { PayableRow, PayableStatus } from "../types";
 import type { ColumnKey } from "../composables/useSpreadsheet";
 
@@ -36,7 +37,12 @@ function getRowStr(row: Record<string, unknown>, ...keys: string[]): string {
 /** Return a user-friendly message when the error is due to expired/invalid FileMaker session. */
 function normalizeFileMakerError(context: string, apiError: string): string {
   const lower = apiError.toLowerCase();
-  if (lower.includes("token") || lower.includes("unauthorized") || lower.includes("401") || lower.includes("session")) {
+  if (
+    lower.includes("token") ||
+    lower.includes("unauthorized") ||
+    lower.includes("401") ||
+    lower.includes("session")
+  ) {
     return "Session expired. Please connect to FileMaker again (click Connect in the status bar).";
   }
   return `${context}: ${apiError}`;
@@ -107,6 +113,8 @@ export const usePayableStore = defineStore("payable", () => {
   const mainCreatorFullName = ref<string | null>(null);
   /** FullName of the officer who posted the entry (PostedName field in Payables_Main). */
   const mainPostedName = ref<string | null>(null);
+  /** FullName of the manager who rejected the entry (when Status is Rejected). */
+  const mainRejectedBy = ref<string | null>(null);
   /** True when any cell has been edited or a row added/removed since last load or save. */
   const isDirty = ref(false);
   /** FileMaker recordIds to delete on next save (rows user removed that existed in FileMaker). */
@@ -116,8 +124,8 @@ export const usePayableStore = defineStore("payable", () => {
 
   const rowCount = computed(() => rows.value.length);
   /** Count of rows that have data (excludes empty placeholder row). */
-  const filledRowCount = computed(() =>
-    rows.value.filter((r, i) => !isRowEmptyByIndex(rows.value, i)).length,
+  const filledRowCount = computed(
+    () => rows.value.filter((r, i) => !isRowEmptyByIndex(rows.value, i)).length,
   );
   const hasUndoDelete = computed(() => lastDeleted.value != null);
 
@@ -238,6 +246,7 @@ export const usePayableStore = defineStore("payable", () => {
     mainTotalFromMain.value = null;
     mainCreatorFullName.value = null;
     mainPostedName.value = null;
+    mainRejectedBy.value = null;
   }
 
   async function fetchFromFileMaker(): Promise<void> {
@@ -262,9 +271,11 @@ export const usePayableStore = defineStore("payable", () => {
       const taxStr =
         taxValue != null && taxValue !== "" ? String(taxValue) : "";
       // Fetch Tax Amount field (may be "Tax Amount" with space in FileMaker)
-      const taxAmountValue = d?.['Tax Amount'] ?? d?.TaxAmount;
+      const taxAmountValue = d?.["Tax Amount"] ?? d?.TaxAmount;
       let taxAmountStr =
-        taxAmountValue != null && taxAmountValue !== "" ? String(taxAmountValue) : "";
+        taxAmountValue != null && taxAmountValue !== ""
+          ? String(taxAmountValue)
+          : "";
       if (taxAmountStr === "" && taxStr !== "") taxAmountStr = taxStr;
       return {
         ...emptyRow(),
@@ -306,11 +317,14 @@ export const usePayableStore = defineStore("payable", () => {
       mainWhtExpiryCheck.value = null;
       mainCreatorFullName.value = null;
       mainPostedName.value = null;
+      mainRejectedBy.value = null;
       vendorStore.setFromMain(null);
       return;
     }
     const ref = transRef.trim();
+    const prevRef = currentTransRef.value;
     currentTransRef.value = ref;
+    if (prevRef !== ref) mainRejectedBy.value = null;
     loading.value = true;
     error.value = null;
     setRows([emptyRow()]);
@@ -346,9 +360,11 @@ export const usePayableStore = defineStore("payable", () => {
         taxValue != null && taxValue !== "" ? String(taxValue) : "";
       // Fetch Tax Amount field (may be "Tax Amount" with space in FileMaker)
       const fieldData = d?.fieldData as Record<string, unknown> | undefined;
-      const taxAmountValue = fieldData?.['Tax Amount'] ?? fieldData?.TaxAmount;
+      const taxAmountValue = fieldData?.["Tax Amount"] ?? fieldData?.TaxAmount;
       let taxAmountStr =
-        taxAmountValue != null && taxAmountValue !== "" ? String(taxAmountValue) : "";
+        taxAmountValue != null && taxAmountValue !== ""
+          ? String(taxAmountValue)
+          : "";
       // If FileMaker didn't return Tax Amount but we have Tax, use Tax for the Reference column
       if (taxAmountStr === "" && taxStr !== "") taxAmountStr = taxStr;
       const recordId = d?.recordId ? String(d.recordId) : undefined;
@@ -367,15 +383,22 @@ export const usePayableStore = defineStore("payable", () => {
       if (existing) {
         return {
           ...fromFileMaker,
-          invoice_number: existing.invoice_number ?? fromFileMaker.invoice_number,
+          invoice_number:
+            existing.invoice_number ?? fromFileMaker.invoice_number,
           amount: existing.amount ?? fromFileMaker.amount,
         };
       }
       return fromFileMaker;
     });
     // Keep any new rows (no recordId) that exist in the current grid
-    const newRows = currentRows.filter((r) => !r.recordId || String(r.recordId).trim() === "");
-    const merged = mapped.length ? [...mapped, ...newRows] : (newRows.length ? newRows : [emptyRow()]);
+    const newRows = currentRows.filter(
+      (r) => !r.recordId || String(r.recordId).trim() === "",
+    );
+    const merged = mapped.length
+      ? [...mapped, ...newRows]
+      : newRows.length
+        ? newRows
+        : [emptyRow()];
     setRows(merged);
     const mainWithId = mainWithIdsRes.data?.find(
       (m) => String(m?.fieldData?.TransRef ?? "").trim() === ref,
@@ -386,12 +409,21 @@ export const usePayableStore = defineStore("payable", () => {
         String(mainWithId.fieldData?.Posted ?? "").trim() === "Yes";
       const fd = mainWithId.fieldData as Record<string, unknown> | undefined;
       const statusRaw = fd?.Status ?? fd?.status ?? "";
-      mainStatus.value = typeof statusRaw === "string" && statusRaw.trim() ? statusRaw.trim() : null;
-      const reasonRaw = fd?.RejectReason ?? fd?.["Reject Reason"] ?? fd?.rejectReason ?? "";
-      mainRejectReason.value = typeof reasonRaw === "string" && reasonRaw.trim() ? reasonRaw.trim() : null;
+      mainStatus.value =
+        typeof statusRaw === "string" && statusRaw.trim()
+          ? statusRaw.trim()
+          : null;
+      const reasonRaw =
+        fd?.RejectReason ?? fd?.["Reject Reason"] ?? fd?.rejectReason ?? "";
+      mainRejectReason.value =
+        typeof reasonRaw === "string" && reasonRaw.trim()
+          ? reasonRaw.trim()
+          : null;
       vendorStore.setFromMain({
         VendorID: fd?.VendorID as string | undefined,
-        VendorName: (fd?.VendorName ?? fd?.["Vendor Name"]) as string | undefined,
+        VendorName: (fd?.VendorName ?? fd?.["Vendor Name"]) as
+          | string
+          | undefined,
         VendorEmail: fd?.VendorEmail as string | undefined,
         Date: fd?.Date as string | undefined,
         Currency: fd?.Currency as string | undefined,
@@ -403,17 +435,23 @@ export const usePayableStore = defineStore("payable", () => {
       );
       const totalVal = mainFieldData?.Total ?? mainFieldData?.["Total"];
       if (totalVal !== undefined && totalVal !== null && totalVal !== "") {
-        const num = typeof totalVal === "number" ? totalVal : parseFloat(String(totalVal));
+        const num =
+          typeof totalVal === "number"
+            ? totalVal
+            : parseFloat(String(totalVal));
         mainTotalFromMain.value = Number.isNaN(num) ? totalVal : num;
       } else {
         mainTotalFromMain.value = null;
       }
-      const chequeIssued = mainFieldData?.ChequeIssued ?? mainFieldData?.["Cheque Issued"];
+      const chequeIssued =
+        mainFieldData?.ChequeIssued ?? mainFieldData?.["Cheque Issued"];
       mainChequeIssued.value =
         chequeIssued != null && String(chequeIssued).trim() !== ""
           ? String(chequeIssued).trim()
           : null;
-      const chequeDate = mainFieldData?.ChequeIssuedDate ?? mainFieldData?.["Cheque Issued Date"];
+      const chequeDate =
+        mainFieldData?.ChequeIssuedDate ??
+        mainFieldData?.["Cheque Issued Date"];
       mainChequeIssuedDate.value =
         chequeDate != null && String(chequeDate).trim() !== ""
           ? String(chequeDate).trim()
@@ -431,7 +469,10 @@ export const usePayableStore = defineStore("payable", () => {
       // Expiry_Check_Dis and WHT_Expiry_Check_Dis: from Vendor_TBL via relationship (Vendor ID)
       // 1) Try Payables_Main layout first – related fields may be returned
       // 2) Otherwise fetch Vendor_TBL by Vendor_ID
-      function getFieldStr(obj: Record<string, unknown> | undefined, ...keys: string[]): string | null {
+      function getFieldStr(
+        obj: Record<string, unknown> | undefined,
+        ...keys: string[]
+      ): string | null {
         if (!obj) return null;
         for (const k of keys) {
           const v = obj[k];
@@ -461,7 +502,8 @@ export const usePayableStore = defineStore("payable", () => {
       if (!expiryDis || !whtDis) {
         const vendorId = String(fd?.VendorID ?? fd?.["Vendor ID"] ?? "").trim();
         if (vendorId) {
-          const { findRecordsByQueryWithIds, findRecordsWithIds } = useFileMaker();
+          const { findRecordsByQueryWithIds, findRecordsWithIds } =
+            useFileMaker();
           let vendorRecords: { fieldData: Record<string, unknown> }[] = [];
           const byId = await findRecordsByQueryWithIds<Record<string, unknown>>(
             LAYOUTS.VENDOR_TBL,
@@ -469,15 +511,17 @@ export const usePayableStore = defineStore("payable", () => {
             1,
           );
           if (byId.data?.length) {
-            vendorRecords = byId.data as { fieldData: Record<string, unknown> }[];
+            vendorRecords = byId.data as {
+              fieldData: Record<string, unknown>;
+            }[];
           } else {
-            const byUnderscore = await findRecordsByQueryWithIds<Record<string, unknown>>(
-              LAYOUTS.VENDOR_TBL,
-              { Vendor_ID: vendorId },
-              1,
-            );
+            const byUnderscore = await findRecordsByQueryWithIds<
+              Record<string, unknown>
+            >(LAYOUTS.VENDOR_TBL, { Vendor_ID: vendorId }, 1);
             if (byUnderscore.data?.length) {
-              vendorRecords = byUnderscore.data as { fieldData: Record<string, unknown> }[];
+              vendorRecords = byUnderscore.data as {
+                fieldData: Record<string, unknown>;
+              }[];
             } else {
               const allRes = await findRecordsWithIds<Record<string, unknown>>(
                 LAYOUTS.VENDOR_TBL,
@@ -492,7 +536,9 @@ export const usePayableStore = defineStore("payable", () => {
                 return vid === vendorId;
               });
               if (match) {
-                vendorRecords = [{ fieldData: match.fieldData as Record<string, unknown> }];
+                vendorRecords = [
+                  { fieldData: match.fieldData as Record<string, unknown> },
+                ];
               }
             }
           }
@@ -500,10 +546,22 @@ export const usePayableStore = defineStore("payable", () => {
           if (vendorFd) {
             expiryDis =
               expiryDis ??
-              getFieldStr(vendorFd, "Expiry_Check_Dis", "Expiry Check Dis", "ExpiryCheckDis", "Vendor_TBL::Expiry_Check_Dis");
+              getFieldStr(
+                vendorFd,
+                "Expiry_Check_Dis",
+                "Expiry Check Dis",
+                "ExpiryCheckDis",
+                "Vendor_TBL::Expiry_Check_Dis",
+              );
             whtDis =
               whtDis ??
-              getFieldStr(vendorFd, "WHT_Expiry_Check_Dis", "WHT Expiry Check Dis", "WHTExpiryCheckDis", "Vendor_TBL::WHT_Expiry_Check_Dis");
+              getFieldStr(
+                vendorFd,
+                "WHT_Expiry_Check_Dis",
+                "WHT Expiry Check Dis",
+                "WHTExpiryCheckDis",
+                "Vendor_TBL::WHT_Expiry_Check_Dis",
+              );
           }
         } else {
           vendorFd = undefined;
@@ -530,10 +588,22 @@ export const usePayableStore = defineStore("payable", () => {
       if ((!expiryCheck || !whtCheck) && vendorFd) {
         expiryCheck =
           expiryCheck ??
-          getFieldStr(vendorFd, "Expiry_Check", "Expiry Check", "ExpiryCheck", "Vendor_TBL::Expiry_Check");
+          getFieldStr(
+            vendorFd,
+            "Expiry_Check",
+            "Expiry Check",
+            "ExpiryCheck",
+            "Vendor_TBL::Expiry_Check",
+          );
         whtCheck =
           whtCheck ??
-          getFieldStr(vendorFd, "WHT_Expiry_Check", "WHT Expiry Check", "WHTExpiryCheck", "Vendor_TBL::WHT_Expiry_Check");
+          getFieldStr(
+            vendorFd,
+            "WHT_Expiry_Check",
+            "WHT Expiry Check",
+            "WHTExpiryCheck",
+            "Vendor_TBL::WHT_Expiry_Check",
+          );
       }
       mainExpiryCheck.value = expiryCheck;
       mainWhtExpiryCheck.value = whtCheck;
@@ -556,6 +626,20 @@ export const usePayableStore = defineStore("payable", () => {
         "postedName",
       );
       mainPostedName.value = postedName;
+      const rejectedBy = getFieldStr(
+        md,
+        "RejectedBy",
+        "Rejected by",
+        "rejectedBy",
+        "rejected by",
+      );
+      // Only set from main when we have a value; when Rejected but main has no field,
+      // leave mainRejectedBy unchanged so EntryView's rejection history can set it (avoids race).
+      if (rejectedBy) {
+        mainRejectedBy.value = rejectedBy;
+      } else if (mainStatus.value !== "Rejected") {
+        mainRejectedBy.value = null;
+      }
     } else {
       currentMainRecordId.value = null;
       mainPosted.value = false;
@@ -572,8 +656,13 @@ export const usePayableStore = defineStore("payable", () => {
       mainWhtExpiryCheck.value = null;
       mainCreatorFullName.value = null;
       mainPostedName.value = null;
+      mainRejectedBy.value = null;
       vendorStore.setFromMain(null);
     }
+  }
+
+  function setMainRejectedBy(name: string | null): void {
+    mainRejectedBy.value = name;
   }
 
   async function syncToFileMaker(opts?: {
@@ -613,22 +702,22 @@ export const usePayableStore = defineStore("payable", () => {
       );
       let fd = data?.[0]?.fieldData as Record<string, unknown> | undefined;
       if (!data?.length) {
-        const { data: byEmail } = await findRecordsByQueryWithIds<Record<string, unknown>>(
-          LAYOUTS.PAYABLES_USERS,
-          { email },
-          1,
-        );
+        const { data: byEmail } = await findRecordsByQueryWithIds<
+          Record<string, unknown>
+        >(LAYOUTS.PAYABLES_USERS, { email }, 1);
         fd = byEmail?.[0]?.fieldData as Record<string, unknown> | undefined;
       }
       if (!fd) {
-        const { data: users } = await findRecordsWithIds<Record<string, unknown>>(
-          LAYOUTS.PAYABLES_USERS,
-          { limit: 500 },
-        );
+        const { data: users } = await findRecordsWithIds<
+          Record<string, unknown>
+        >(LAYOUTS.PAYABLES_USERS, { limit: 500 });
         const normalizedEmail = email.toLowerCase();
         const match = users?.find((r) => {
           const rowFd = r?.fieldData as Record<string, unknown> | undefined;
-          const rowEmail = (rowFd?.Email ?? rowFd?.email ?? "").toString().trim().toLowerCase();
+          const rowEmail = (rowFd?.Email ?? rowFd?.email ?? "")
+            .toString()
+            .trim()
+            .toLowerCase();
           return rowEmail === normalizedEmail;
         });
         fd = match?.fieldData as Record<string, unknown> | undefined;
@@ -675,35 +764,38 @@ export const usePayableStore = defineStore("payable", () => {
     // This must happen before the early return for "Save and Post" with only updates
     const hasRowsToUpdate = currentRows.some((r) => r.recordId);
     if (hasRowsToUpdate && isConnected.value) {
-        for (const row of currentRows) {
-          if (!row.recordId) continue; // Skip rows without recordId (they're new, will be checked later)
-          const invRaw = getRowStr(
-            row as Record<string, unknown>,
-            "invoice_number",
-            "invoiceNumber",
-            "InvoiceNumber",
-          );
-          if (invRaw === "") continue;
-          const invNum = Number(invRaw);
-          const invForFind = Number.isNaN(invNum) ? invRaw : invNum;
+      for (const row of currentRows) {
+        if (!row.recordId) continue; // Skip rows without recordId (they're new, will be checked later)
+        const invRaw = getRowStr(
+          row as Record<string, unknown>,
+          "invoice_number",
+          "invoiceNumber",
+          "InvoiceNumber",
+        );
+        if (invRaw === "") continue;
+        const invNum = Number(invRaw);
+        const invForFind = Number.isNaN(invNum) ? invRaw : invNum;
 
-          // Check Payables_Details - exclude current record
-          const detailsResultWithIds = await findRecordsByQueryWithIds<{
-            InvoiceNumber?: string | number;
-          }>(LAYOUTS.PAYABLES_DETAILS, { InvoiceNumber: invForFind }, 100);
-          if (detailsResultWithIds.error) {
-            error.value = normalizeFileMakerError("Could not check invoice uniqueness", detailsResultWithIds.error);
-            return { posted: 0, updated: 0, deleted: 0, error: error.value };
-          }
-          // Filter out the current record being updated
-          const otherDetailsWithSameInvoice = detailsResultWithIds.data.filter(
-            (r) => r.recordId !== row.recordId,
+        // Check Payables_Details - exclude current record
+        const detailsResultWithIds = await findRecordsByQueryWithIds<{
+          InvoiceNumber?: string | number;
+        }>(LAYOUTS.PAYABLES_DETAILS, { InvoiceNumber: invForFind }, 100);
+        if (detailsResultWithIds.error) {
+          error.value = normalizeFileMakerError(
+            "Could not check invoice uniqueness",
+            detailsResultWithIds.error,
           );
-          if (otherDetailsWithSameInvoice.length > 0) {
-            error.value = `Invoice number "${invRaw}" already exists in FileMaker (in another record). Use a unique invoice number.`;
-            return { posted: 0, updated: 0, deleted: 0, error: error.value };
-          }
+          return { posted: 0, updated: 0, deleted: 0, error: error.value };
         }
+        // Filter out the current record being updated
+        const otherDetailsWithSameInvoice = detailsResultWithIds.data.filter(
+          (r) => r.recordId !== row.recordId,
+        );
+        if (otherDetailsWithSameInvoice.length > 0) {
+          error.value = `Invoice number "${invRaw}" already exists in FileMaker (in another record). Use a unique invoice number.`;
+          return { posted: 0, updated: 0, deleted: 0, error: error.value };
+        }
+      }
     }
 
     // Record already exists, no new rows, no pending deletes, no edits to persist: just set Posted to Yes
@@ -720,7 +812,10 @@ export const usePayableStore = defineStore("payable", () => {
       try {
         const todayIso = new Date().toISOString().slice(0, 10);
         const postedDate = formatDateForFileMaker(todayIso) ?? todayIso;
-        const mainPayload: FileMakerFieldData = { Posted: "Yes", PostedDate: postedDate };
+        const mainPayload: FileMakerFieldData = {
+          Posted: "Yes",
+          PostedDate: postedDate,
+        };
         const postedName = await resolvePostedName();
         if (postedName) mainPayload.PostedName = postedName;
         if (clearRejected) {
@@ -737,11 +832,19 @@ export const usePayableStore = defineStore("payable", () => {
           error.value = updateErr;
           return { posted: 0, updated: 0, deleted: 0, error: updateErr };
         }
+        const actor = postedName || (await resolvePostedName()) || "—";
+        await writeActivityLog(
+          createRecord,
+          currentTransRef.value,
+          clearRejected ? "Reposted" : "Posted",
+          actor,
+        );
         mainPosted.value = true;
         if (postedName) mainPostedName.value = postedName;
         if (clearRejected) {
           mainStatus.value = null;
           mainRejectReason.value = null;
+          mainRejectedBy.value = null;
         }
         isDirty.value = false;
         return {
@@ -757,7 +860,8 @@ export const usePayableStore = defineStore("payable", () => {
     }
 
     const hasPendingDeletes = pendingDeletes.value.length > 0;
-    const noGridWork = toPost.length === 0 && !hasRowsToUpdate && !hasPendingDeletes;
+    const noGridWork =
+      toPost.length === 0 && !hasRowsToUpdate && !hasPendingDeletes;
     if (noGridWork && !currentTransRef.value) {
       return {
         posted: 0,
@@ -793,6 +897,7 @@ export const usePayableStore = defineStore("payable", () => {
     let updated = 0;
     let deleted = 0;
     let mainUpdated = false;
+    let didMarkPosted = false;
     let mainRecordIdToUpdate: string | null = null;
     try {
       // Ensure each new row's invoice number does not already exist in FileMaker
@@ -812,7 +917,10 @@ export const usePayableStore = defineStore("payable", () => {
           1,
         );
         if (detailsResult.error) {
-          error.value = normalizeFileMakerError("Could not check invoice uniqueness", detailsResult.error);
+          error.value = normalizeFileMakerError(
+            "Could not check invoice uniqueness",
+            detailsResult.error,
+          );
           return { posted: 0, updated: 0, deleted: 0, error: error.value };
         }
         if (detailsResult.data.length > 0) {
@@ -854,7 +962,8 @@ export const usePayableStore = defineStore("payable", () => {
           mainCreatePayload.VendorName = vendorNameVal;
         }
         if (Object.keys(mainCreatePayload).length === 0) {
-          error.value = "Required: Enter Vendor name or Vendor ID in Vendor details.";
+          error.value =
+            "Required: Enter Vendor name or Vendor ID in Vendor details.";
           return { posted: 0, updated: 0, deleted: 0, error: error.value };
         }
         const { id: mainRecordId, error: mainErr } = await createRecord(
@@ -862,7 +971,9 @@ export const usePayableStore = defineStore("payable", () => {
           mainCreatePayload,
         );
         if (mainErr || !mainRecordId) {
-          error.value = mainErr ? `Payables_Main create: ${mainErr}` : "Main record not created";
+          error.value = mainErr
+            ? `Payables_Main create: ${mainErr}`
+            : "Main record not created";
           return { posted: 0, updated: 0, deleted: 0, error: error.value };
         }
         mainRecordIdToUpdate = mainRecordId;
@@ -876,6 +987,13 @@ export const usePayableStore = defineStore("payable", () => {
         transRef = mainDataResp.TransRef;
         currentTransRef.value = transRef;
         currentMainRecordId.value = mainRecordId;
+        const createdBy = await resolvePostedName();
+        await writeActivityLog(
+          createRecord,
+          transRef,
+          "Created",
+          createdBy || "—",
+        );
       }
       for (const { row, index } of toPost) {
         const detailsData = rowToPayablesDetails(row, transRef);
@@ -890,10 +1008,76 @@ export const usePayableStore = defineStore("payable", () => {
         posted++;
         rows.value = rows.value.map((r, j) =>
           j === index
-            ? { ...r, id: `synced-${Date.now()}-${index}`, recordId: detailsRecordId ?? undefined }
+            ? {
+                ...r,
+                id: `synced-${Date.now()}-${index}`,
+                recordId: detailsRecordId ?? undefined,
+              }
             : r,
         );
       }
+      // Update existing Details first, then log "Edited" before "Posted" when both apply
+      for (const row of currentRows) {
+        if (row.recordId) {
+          const newInv = getRowStr(
+            row as Record<string, unknown>,
+            "invoice_number",
+            "invoiceNumber",
+            "InvoiceNumber",
+          ).trim();
+          // Get current Payables_Details to read old InvoiceNumber before we overwrite
+          const { data: currentDetails } = await getRecord<{
+            InvoiceNumber?: string | number;
+          }>(LAYOUTS.PAYABLES_DETAILS, row.recordId);
+          const oldInv =
+            currentDetails?.InvoiceNumber != null
+              ? String(currentDetails.InvoiceNumber).trim()
+              : "";
+
+          const detailsData = rowToPayablesDetails(row, transRef);
+          const { error: updateErr } = await updateRecord(
+            LAYOUTS.PAYABLES_DETAILS,
+            row.recordId,
+            detailsData as FileMakerFieldData,
+          );
+          if (updateErr) {
+            error.value = updateErr;
+            return { posted, updated, deleted, error: error.value };
+          }
+          updated++;
+
+          // If invoice number changed, update Payable_Invoice records that used the old number
+          if (oldInv !== "" && newInv !== "" && oldInv !== newInv) {
+            const { data: invoiceRecords } = await findRecordsByQueryWithIds<{
+              invoiceNumber?: string;
+            }>(LAYOUTS.PAYABLE_INVOICE, { invoiceNumber: oldInv }, 500);
+            for (const rec of invoiceRecords) {
+              if (!rec.recordId) continue;
+              const { error: invUpdateErr } = await updateRecord(
+                LAYOUTS.PAYABLE_INVOICE,
+                rec.recordId,
+                { invoiceNumber: newInv } as FileMakerFieldData,
+              );
+              if (invUpdateErr) {
+                error.value = `Updated Details but failed to update Payable_Invoice: ${invUpdateErr}`;
+                return { posted, updated, deleted, error: error.value };
+              }
+            }
+          }
+        }
+      }
+
+      // Log "Edited" before "Posted" when both apply (existing record with edits + post)
+      if (updated > 0 && currentTransRef.value) {
+        const editedActor = (await resolvePostedName()) || "—";
+        await writeActivityLog(
+          createRecord,
+          currentTransRef.value,
+          "Edited",
+          editedActor,
+        );
+      }
+
       const vendorStoreForMain = useVendorStore();
       if (mainRecordIdToUpdate && currentTransRef.value) {
         const v = vendorStoreForMain.vendor;
@@ -931,77 +1115,32 @@ export const usePayableStore = defineStore("payable", () => {
           return { posted, updated, deleted, error: error.value };
         }
         mainUpdated = true;
-        if (markPosted) {
+        if (markPosted && currentTransRef.value) {
+          const actor = postedNameVal || (await resolvePostedName()) || "—";
+          await writeActivityLog(
+            createRecord,
+            currentTransRef.value,
+            clearRejected ? "Reposted" : "Posted",
+            actor,
+          );
+          didMarkPosted = true;
           mainPosted.value = true;
           if (postedNameVal) mainPostedName.value = postedNameVal;
           if (clearRejected) {
             mainStatus.value = null;
             mainRejectReason.value = null;
+            mainRejectedBy.value = null;
           }
         }
       }
 
-      for (const row of currentRows) {
-        if (row.recordId) {
-          const newInv = getRowStr(
-            row as Record<string, unknown>,
-            "invoice_number",
-            "invoiceNumber",
-            "InvoiceNumber",
-          ).trim();
-          // Get current Payables_Details to read old InvoiceNumber before we overwrite
-          const { data: currentDetails } = await getRecord<{
-            InvoiceNumber?: string | number;
-          }>(LAYOUTS.PAYABLES_DETAILS, row.recordId);
-          const oldInv =
-            currentDetails?.InvoiceNumber != null
-              ? String(currentDetails.InvoiceNumber).trim()
-              : "";
-
-          const detailsData = rowToPayablesDetails(row, transRef);
-          const { error: updateErr } = await updateRecord(
-            LAYOUTS.PAYABLES_DETAILS,
-            row.recordId,
-            detailsData as FileMakerFieldData,
-          );
-          if (updateErr) {
-            error.value = updateErr;
-            return { posted, updated, deleted, error: error.value };
-          }
-          updated++;
-
-          // If invoice number changed, update Payable_Invoice records that used the old number
-          if (
-            oldInv !== "" &&
-            newInv !== "" &&
-            oldInv !== newInv
-          ) {
-            const { data: invoiceRecords } =
-              await findRecordsByQueryWithIds<{ invoiceNumber?: string }>(
-                LAYOUTS.PAYABLE_INVOICE,
-                { invoiceNumber: oldInv },
-                500,
-              );
-            for (const rec of invoiceRecords) {
-              if (!rec.recordId) continue;
-              const { error: invUpdateErr } = await updateRecord(
-                LAYOUTS.PAYABLE_INVOICE,
-                rec.recordId,
-                { invoiceNumber: newInv } as FileMakerFieldData,
-              );
-              if (invUpdateErr) {
-                error.value =
-                  `Updated Details but failed to update Payable_Invoice: ${invUpdateErr}`;
-                return { posted, updated, deleted, error: error.value };
-              }
-            }
-          }
-        }
-      }
       if (markPosted && mainRecordIdToUpdate && !mainUpdated) {
         const todayIso = new Date().toISOString().slice(0, 10);
         const postedDate = formatDateForFileMaker(todayIso) ?? todayIso;
-        const mainPayload: FileMakerFieldData = { Posted: "Yes", PostedDate: postedDate };
+        const mainPayload: FileMakerFieldData = {
+          Posted: "Yes",
+          PostedDate: postedDate,
+        };
         const postedName = await resolvePostedName();
         if (postedName) mainPayload.PostedName = postedName;
         if (clearRejected) {
@@ -1014,12 +1153,21 @@ export const usePayableStore = defineStore("payable", () => {
           mainPayload,
           clearRejected ? { allowEmptyStrings: true } : undefined,
         );
-        if (!updateErr) {
+        if (!updateErr && currentTransRef.value) {
+          const actor = postedName || (await resolvePostedName()) || "—";
+          await writeActivityLog(
+            createRecord,
+            currentTransRef.value,
+            clearRejected ? "Reposted" : "Posted",
+            actor,
+          );
+          didMarkPosted = true;
           mainPosted.value = true;
           if (postedName) mainPostedName.value = postedName;
           if (clearRejected) {
             mainStatus.value = null;
             mainRejectReason.value = null;
+            mainRejectedBy.value = null;
           }
         }
       }
@@ -1029,7 +1177,14 @@ export const usePayableStore = defineStore("payable", () => {
         return acc + (Number.isNaN(t) ? 0 : t);
       }, 0);
       mainTotalFromMain.value = sum;
-      return { posted, updated, deleted, error: error.value, mainUpdated: mainUpdated || undefined };
+      return {
+        posted,
+        updated,
+        deleted,
+        error: error.value,
+        mainUpdated: mainUpdated || undefined,
+        markedPosted: didMarkPosted || undefined,
+      };
     } finally {
       syncing.value = false;
     }
@@ -1060,6 +1215,8 @@ export const usePayableStore = defineStore("payable", () => {
     mainWhtExpiryCheck: computed(() => mainWhtExpiryCheck.value),
     mainCreatorFullName: computed(() => mainCreatorFullName.value),
     mainPostedName: computed(() => mainPostedName.value),
+    mainRejectedBy: computed(() => mainRejectedBy.value),
+    setMainRejectedBy,
     entryTotal,
     STATUS_OPTIONS,
     addRow,

@@ -465,7 +465,9 @@ button:focus-visible {
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  transition: color 0.15s, background 0.15s;
+  transition:
+    color 0.15s,
+    background 0.15s;
 }
 
 .chart-calendar__nav:hover {
@@ -505,7 +507,9 @@ button:focus-visible {
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .chart-calendar__day:hover:not(:disabled) {
@@ -543,7 +547,9 @@ button:focus-visible {
   border: 1px solid rgba(52, 211, 153, 0.35);
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .chart-calendar__today:hover {
@@ -573,7 +579,10 @@ button:focus-visible {
   border: 1px solid transparent;
   border-radius: 8px;
   cursor: pointer;
-  transition: color 0.2s, background 0.2s, border-color 0.2s;
+  transition:
+    color 0.2s,
+    background 0.2s,
+    border-color 0.2s;
 }
 
 .daily-chart-metric-btn:hover {
@@ -669,7 +678,8 @@ button:focus-visible {
 }
 
 @keyframes stat-card-arrow-bounce {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateX(-50%) translateY(0);
     opacity: 1;
   }
@@ -711,7 +721,9 @@ button:focus-visible {
   top: 50%;
   transform: translateY(-50%);
   color: rgba(254, 202, 202, 0.7);
-  transition: color 0.2s, transform 0.2s;
+  transition:
+    color 0.2s,
+    transform 0.2s;
 }
 
 .stat-card--clickable:not(:disabled):hover .stat-card__action-icon {
@@ -750,7 +762,9 @@ button:focus-visible {
   top: 50%;
   transform: translateY(-50%);
   color: rgba(165, 180, 252, 0.7);
-  transition: color 0.2s, transform 0.2s;
+  transition:
+    color 0.2s,
+    transform 0.2s;
 }
 
 .stat-card--vendors:hover .stat-card__action-icon--vendors {

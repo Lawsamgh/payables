@@ -64,6 +64,70 @@
             </button>
           </div>
         </div>
+        <div class="invoice-date-range">
+          <div class="invoice-date-range__icon" aria-hidden="true">
+            <svg
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+          </div>
+          <div class="invoice-date-range__inputs">
+            <label for="invoice-date-from" class="invoice-date-range__field">
+              <span class="invoice-date-range__label">From</span>
+              <input
+                id="invoice-date-from"
+                v-model="dateFrom"
+                type="date"
+                class="invoice-date-range__input"
+                aria-label="Filter by date from"
+              />
+            </label>
+            <span class="invoice-date-range__sep" aria-hidden="true">→</span>
+            <label for="invoice-date-to" class="invoice-date-range__field">
+              <span class="invoice-date-range__label">To</span>
+              <input
+                id="invoice-date-to"
+                v-model="dateTo"
+                type="date"
+                class="invoice-date-range__input"
+                aria-label="Filter by date to"
+              />
+            </label>
+          </div>
+          <button
+            v-if="dateFrom || dateTo"
+            type="button"
+            class="invoice-date-range__clear"
+            aria-label="Clear date range"
+            @click="
+              dateFrom = '';
+              dateTo = '';
+            "
+          >
+            <svg
+              class="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
         <div class="status-filters">
           <span class="status-filters__label">Status</span>
           <button
@@ -122,10 +186,57 @@
           <button
             type="button"
             class="status-filter-pill status-filter-pill--cheque-not"
-            :class="{ 'status-filter-pill--active': chequeFilter === 'not_issued' }"
-            @click="chequeFilter = chequeFilter === 'not_issued' ? '' : 'not_issued'"
+            :class="{
+              'status-filter-pill--active': chequeFilter === 'not_issued',
+            }"
+            @click="
+              chequeFilter = chequeFilter === 'not_issued' ? '' : 'not_issued'
+            "
           >
             Not issued
+          </button>
+          <span class="status-filters__divider" aria-hidden="true" />
+          <button
+            type="button"
+            class="invoice-download-all pill-btn"
+            :class="{ 'invoice-download-all--loading': downloadingCombined }"
+            :disabled="
+              downloadableTransRefs.length === 0 ||
+              !isConnected ||
+              downloadingCombined
+            "
+            :title="
+              downloadableTransRefs.length > 0
+                ? `Download ${downloadableTransRefs.length} invoice${downloadableTransRefs.length === 1 ? '' : 's'} as combined PDF`
+                : 'No downloadable invoices in current filters'
+            "
+            aria-label="Download all shown invoices as combined PDF"
+            @click="onDownloadAll"
+          >
+            <svg
+              class="invoice-download-all__icon"
+              :class="{
+                'invoice-download-all__icon--spin': downloadingCombined,
+              }"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>PDF</span>
+            <span
+              v-if="downloadableTransRefs.length > 0"
+              class="invoice-download-all__count"
+            >
+              ({{ downloadableTransRefs.length }})
+            </span>
           </button>
         </div>
       </div>
@@ -207,12 +318,17 @@
                     title="Download PDF"
                     aria-label="Download PDF"
                     :disabled="downloadingTransRef !== null"
-                    @click.stop="onDownloadPdf((item.fieldData as PayablesMainFieldData).TransRef)"
+                    @click.stop="
+                      onDownloadPdf(
+                        (item.fieldData as PayablesMainFieldData).TransRef,
+                      )
+                    "
                   >
                     <svg
                       v-if="
                         downloadingTransRef !==
-                        ((item.fieldData as PayablesMainFieldData).TransRef ?? '')
+                        ((item.fieldData as PayablesMainFieldData).TransRef ??
+                          '')
                       "
                       class="pdf-thumb__download-icon"
                       fill="none"
@@ -245,7 +361,9 @@
 
               <div class="pdf-thumb__main">
                 <div class="pdf-thumb__title">
-                  {{ (item.fieldData as PayablesMainFieldData).TransRef || "—" }}
+                  {{
+                    (item.fieldData as PayablesMainFieldData).TransRef || "—"
+                  }}
                 </div>
                 <div class="pdf-thumb__sub">
                   {{
@@ -271,19 +389,30 @@
                 <div
                   v-if="
                     getChequeIssued(item.fieldData as PayablesMainFieldData) ===
-                      'Yes'
+                    'Yes'
                   "
                   class="pdf-thumb__cheque"
                 >
                   <span class="pdf-thumb__cheque-label">Cheque issued</span>
                   <span class="pdf-thumb__cheque-value">
-                    {{ getChequeDisplay(item.fieldData as PayablesMainFieldData) }}
+                    {{
+                      getChequeDisplay(item.fieldData as PayablesMainFieldData)
+                    }}
                   </span>
                   <span
-                    v-if="getChequeIssuedDateFormatted(item.fieldData as PayablesMainFieldData)"
+                    v-if="
+                      getChequeIssuedDateFormatted(
+                        item.fieldData as PayablesMainFieldData,
+                      )
+                    "
                     class="pdf-thumb__cheque-date"
                   >
-                    Issued {{ getChequeIssuedDateFormatted(item.fieldData as PayablesMainFieldData) }}
+                    Issued
+                    {{
+                      getChequeIssuedDateFormatted(
+                        item.fieldData as PayablesMainFieldData,
+                      )
+                    }}
                   </span>
                 </div>
               </div>
@@ -330,6 +459,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue";
 import { useFileMaker } from "../composables/useFileMaker";
+import { useListSummaryStore } from "../stores/listSummaryStore";
 import { LAYOUTS } from "../utils/filemakerApi";
 import type { PayablesMainFieldData } from "../utils/filemakerApi";
 import type { FindRecordWithId } from "../composables/useFileMaker";
@@ -340,19 +470,24 @@ import { usePayableStore } from "../stores/payableStore";
 import { usePdfDownload } from "../composables/usePdfDownload";
 
 const { findRecordsWithIds, isConnected } = useFileMaker();
+const listSummary = useListSummaryStore();
 const documentSettings = useDocumentSettingsStore();
 const toast = useToastStore();
 const payableStore = usePayableStore();
-const { buildAndDownloadPdf } = usePdfDownload();
+const { buildAndDownloadPdf, buildAndDownloadCombinedPdf } = usePdfDownload();
 
 const list = ref<FindRecordWithId<PayablesMainFieldData>[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
 const searchQuery = ref("");
+const dateFrom = ref("");
+const dateTo = ref("");
 const statusFilter = ref<"" | "Draft" | "Posted" | "Rejected" | "Approved">("");
 const chequeFilter = ref<"" | "issued" | "not_issued">("");
 /** TransRef of the invoice whose PDF is currently being downloaded. */
 const downloadingTransRef = ref<string | null>(null);
+/** Whether combined PDF download is in progress. */
+const downloadingCombined = ref(false);
 
 const filteredList = computed(() => {
   let result = list.value;
@@ -371,6 +506,21 @@ const filteredList = computed(() => {
       const issued = getChequeIssued(item.fieldData as PayablesMainFieldData);
       if (cheque === "issued") return issued === "Yes";
       return issued !== "Yes";
+    });
+  }
+  const from = dateFrom.value.trim();
+  const to = dateTo.value.trim();
+  if (from || to) {
+    const fromTime = from ? new Date(from + "T00:00:00").getTime() : 0;
+    const toTime = to
+      ? new Date(to + "T23:59:59.999").getTime()
+      : Number.MAX_SAFE_INTEGER;
+    result = result.filter((item) => {
+      const itemTime = parseItemDate(
+        (item.fieldData as PayablesMainFieldData).Date,
+      );
+      if (itemTime === null) return false;
+      return itemTime >= fromTime && itemTime <= toTime;
     });
   }
   const q = searchQuery.value.trim().toLowerCase();
@@ -415,8 +565,46 @@ const hasActiveFilters = computed(
   () =>
     statusFilter.value !== "" ||
     chequeFilter.value !== "" ||
-    searchQuery.value.trim() !== "",
+    searchQuery.value.trim() !== "" ||
+    dateFrom.value.trim() !== "" ||
+    dateTo.value.trim() !== "",
 );
+
+function getTransRef(
+  fd: PayablesMainFieldData | Record<string, unknown>,
+): string {
+  const v =
+    (fd as Record<string, unknown>).TransRef ??
+    (fd as Record<string, unknown>)?.["Trans Ref"];
+  return v != null && String(v).trim() !== "" ? String(v).trim() : "";
+}
+
+const downloadableTransRefs = computed(() =>
+  filteredList.value
+    .filter((item) => {
+      const fd = item.fieldData as PayablesMainFieldData;
+      const status = String(fd?.Status ?? fd?.["Status"] ?? "").trim();
+      return canShowDownload(status);
+    })
+    .map((item) => getTransRef(item.fieldData as Record<string, unknown>))
+    .filter(Boolean),
+);
+
+/** Parse item Date field to timestamp; returns null if invalid or missing. */
+function parseItemDate(value: string | undefined): number | null {
+  const s = value != null ? String(value).trim() : "";
+  if (!s) return null;
+  let d: Date;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    d = new Date(s);
+  } else if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)) {
+    const [mm, dd, yyyy] = s.split(/[/\s]/);
+    d = new Date(parseInt(yyyy, 10), parseInt(mm, 10) - 1, parseInt(dd, 10));
+  } else {
+    d = new Date(s);
+  }
+  return Number.isNaN(d.getTime()) ? null : d.getTime();
+}
 
 function formatDate(value: string | undefined): string {
   if (!value) return "—";
@@ -479,6 +667,18 @@ function canShowDownload(status: string | undefined): boolean {
   return false;
 }
 
+/** Download all filtered invoices as a combined PDF. */
+async function onDownloadAll() {
+  const refs = downloadableTransRefs.value;
+  if (refs.length === 0 || !isConnected.value) return;
+  downloadingCombined.value = true;
+  try {
+    await buildAndDownloadCombinedPdf(refs);
+  } finally {
+    downloadingCombined.value = false;
+  }
+}
+
 /** Load entry and download PDF directly from Invoices (no navigation). */
 async function onDownloadPdf(transRef: string | undefined) {
   const ref = (transRef ?? "").trim();
@@ -503,7 +703,9 @@ async function onDownloadPdf(transRef: string | undefined) {
           ? status === "Posted" || status === "Approved"
           : false;
     if (!allowed) {
-      toast.error("This entry is not available for PDF download with current settings.");
+      toast.error(
+        "This entry is not available for PDF download with current settings.",
+      );
       return;
     }
     await buildAndDownloadPdf();
@@ -524,7 +726,9 @@ function statusDotClass(status: string | undefined): string {
   return "pdf-thumb__dot--neutral";
 }
 
-function getChequeIssued(fd: PayablesMainFieldData | Record<string, unknown>): string {
+function getChequeIssued(
+  fd: PayablesMainFieldData | Record<string, unknown>,
+): string {
   const v =
     (fd as Record<string, unknown>).ChequeIssued ??
     (fd as Record<string, unknown>)?.["Cheque Issued"];
@@ -552,19 +756,75 @@ function getChequeIssuedDateFormatted(
   }
 }
 
-function getChequeDisplay(fd: PayablesMainFieldData | Record<string, unknown>): string {
+function getChequeDisplay(
+  fd: PayablesMainFieldData | Record<string, unknown>,
+): string {
   const bank =
     (fd as Record<string, unknown>).BankName ??
     (fd as Record<string, unknown>)?.["Bank Name"];
   const no =
     (fd as Record<string, unknown>).ChequeNo ??
     (fd as Record<string, unknown>)?.["Cheque No"];
-  const bankStr = bank != null && String(bank).trim() ? String(bank).trim() : "";
+  const bankStr =
+    bank != null && String(bank).trim() ? String(bank).trim() : "";
   const noStr = no != null && String(no).trim() ? String(no).trim() : "";
   const parts: string[] = [];
   if (bankStr) parts.push(bankStr);
   if (noStr) parts.push(`#${noStr}`);
   return parts.length > 0 ? parts.join(" · ") : "—";
+}
+
+function getItemStatus(item: FindRecordWithId<PayablesMainFieldData>): string {
+  const fd = item?.fieldData as Record<string, unknown> | undefined;
+  if (!fd) return "Draft";
+  const status = fd.Status ?? fd.status;
+  if (status != null && String(status).trim()) return String(status).trim();
+  const approved = fd.Approved ?? fd.approved;
+  const rejected = fd.Rejected ?? fd.rejected;
+  const posted = fd.Posted ?? fd.posted;
+  if (approved != null && String(approved).trim()) return "Approved";
+  if (rejected != null && String(rejected).trim()) return "Rejected";
+  if (posted != null && String(posted).trim()) return "Posted";
+  return "Draft";
+}
+
+function updateListSummaryForInvoices() {
+  const items = list.value;
+  let draftCount = 0;
+  let postedCount = 0;
+  let rejectedCount = 0;
+  let approvedCount = 0;
+  const draftByCur: Record<string, number> = {};
+  const postedByCur: Record<string, number> = {};
+  const rejectedByCur: Record<string, number> = {};
+  const approvedByCur: Record<string, number> = {};
+  for (const item of items) {
+    const status = getItemStatus(item);
+    const fd = item.fieldData as PayablesMainFieldData;
+    const currency = String(fd?.Currency ?? "").trim() || "GHS";
+    const total = Number(fd?.Total);
+    const totalNum = Number.isFinite(total) ? total : 0;
+    if (status === "Draft") {
+      draftCount++;
+      draftByCur[currency] = (draftByCur[currency] ?? 0) + totalNum;
+    } else if (status === "Posted") {
+      postedCount++;
+      postedByCur[currency] = (postedByCur[currency] ?? 0) + totalNum;
+    } else if (status === "Rejected") {
+      rejectedCount++;
+      rejectedByCur[currency] = (rejectedByCur[currency] ?? 0) + totalNum;
+    } else if (status === "Approved") {
+      approvedCount++;
+      approvedByCur[currency] = (approvedByCur[currency] ?? 0) + totalNum;
+    }
+  }
+  listSummary.setCounts(draftCount, postedCount, rejectedCount, approvedCount);
+  listSummary.setTotalsByCurrency(
+    draftByCur,
+    postedByCur,
+    rejectedByCur,
+    approvedByCur,
+  );
 }
 
 async function load() {
@@ -594,6 +854,7 @@ onMounted(load);
 watch(isConnected, (connected) => {
   if (connected) load();
 });
+watch(list, updateListSummaryForInvoices, { immediate: true });
 </script>
 
 <style scoped>
@@ -684,6 +945,106 @@ watch(isConnected, (connected) => {
   background: rgba(255, 255, 255, 0.08);
 }
 
+.invoice-date-range {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: rgba(30, 41, 59, 0.5);
+  backdrop-filter: blur(var(--blur-glass));
+  -webkit-backdrop-filter: blur(var(--blur-glass));
+  min-width: 280px;
+  transition:
+    border-color 0.2s var(--ease),
+    box-shadow 0.2s var(--ease);
+}
+
+.invoice-date-range:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.invoice-date-range__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+}
+
+.invoice-date-range__inputs {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.invoice-date-range__field {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  cursor: pointer;
+}
+
+.invoice-date-range__label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.invoice-date-range__input {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: rgba(15, 23, 42, 0.4);
+  color: var(--color-text);
+  min-width: 110px;
+  color-scheme: dark;
+  transition:
+    border-color 0.2s var(--ease),
+    background 0.2s var(--ease);
+}
+
+.invoice-date-range__input:hover {
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.invoice-date-range__input:focus {
+  border-color: rgba(59, 130, 246, 0.5);
+  background: rgba(15, 23, 42, 0.6);
+  outline: none;
+}
+
+.invoice-date-range__sep {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.invoice-date-range__clear {
+  flex-shrink: 0;
+  padding: 0.375rem;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    color 0.2s var(--ease),
+    background 0.2s var(--ease);
+}
+
+.invoice-date-range__clear:hover {
+  color: var(--color-text);
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .status-filters {
   display: flex;
   flex-wrap: wrap;
@@ -763,6 +1124,65 @@ watch(isConnected, (connected) => {
   border-color: rgba(148, 163, 184, 0.5);
   background: rgba(255, 255, 255, 0.08);
   color: var(--color-text-muted);
+}
+
+.invoice-download-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border-radius: 9999px;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  cursor: pointer;
+  transition:
+    border-color 0.2s var(--ease),
+    background 0.2s var(--ease),
+    color 0.2s var(--ease),
+    opacity 0.2s var(--ease);
+}
+
+.invoice-download-all:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--color-accent);
+}
+
+.invoice-download-all:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.invoice-download-all--loading {
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+.invoice-download-all__icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.invoice-download-all__icon--spin {
+  animation: invoice-download-spin 0.8s linear infinite;
+}
+
+@keyframes invoice-download-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.invoice-download-all__count {
+  font-size: 0.75rem;
+  opacity: 0.9;
 }
 
 .invoices-empty-msg {
@@ -880,7 +1300,9 @@ watch(isConnected, (connected) => {
 }
 
 @keyframes pdf-thumb-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .pdf-thumb__tag {

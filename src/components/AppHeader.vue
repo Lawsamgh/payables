@@ -98,6 +98,43 @@
           {{ payableStore.syncing ? "Saving…" : "Save and Post" }}
         </button>
       </div>
+      <div
+        v-if="showRequestEditButton"
+        class="flex flex-wrap items-center gap-2"
+      >
+        <button
+          type="button"
+          class="pill-btn glass-input inline-flex items-center gap-2 rounded-full border border-amber-500/50 bg-amber-500/10 px-4 py-2.5 text-[var(--label-size)] font-semibold text-amber-400 transition-colors hover:bg-amber-500/20 disabled:opacity-60 disabled:cursor-not-allowed"
+          :disabled="editRequestSending || !!editRequestPending"
+          :title="
+            editRequestPending
+              ? 'Request sent. Manager will be prompted when they open this entry.'
+              : 'Ask manager to allow editing this posted entry (e.g. posted by mistake).'
+          "
+          @click="onRequestEditForMistakePosted"
+        >
+          <svg
+            class="h-4 w-4 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+            />
+          </svg>
+          {{
+            editRequestSending
+              ? "Sending…"
+              : editRequestPending
+                ? "Request pending"
+                : "Request to edit (mistake posted)"
+          }}
+        </button>
+      </div>
       <span
         v-if="isConnected && loggedInEmail"
         class="user-email-badge inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[var(--label-size)] text-[var(--color-text)] bg-white/5 border border-[var(--color-border)] hover:bg-white/[0.08] transition-colors"
@@ -128,7 +165,7 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick } from "vue";
+import { nextTick, ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { getHomeRoute } from "../utils/homeTab";
 import { usePayableStore } from "../stores/payableStore";
@@ -136,6 +173,8 @@ import { useVendorStore } from "../stores/vendorStore";
 import { useToastStore } from "../stores/toastStore";
 import { useBookletStore } from "../stores/bookletStore";
 import { useFileMaker } from "../composables/useFileMaker";
+import { useEditRequest } from "../composables/useEditRequest";
+import { useUserRole } from "../composables/useUserRole";
 import { LAYOUTS } from "../utils/filemakerApi";
 import { formatNumberDisplay } from "../utils/formatNumber";
 
@@ -154,21 +193,86 @@ const {
   findRecordsWithIds,
   findRecordsByQueryWithIds,
 } = useFileMaker();
+const {
+  fetchPendingEditRequest,
+  getCachedPending,
+  createEditRequest,
+} = useEditRequest();
+const { userFullName, isManager, isAdmin } = useUserRole();
+
+/** Only officers see "Request to edit (mistake posted)"; Manager/Admin use Approve/Reject and the Proceed modal. */
+const showRequestEditButton = computed(
+  () =>
+    route.name === "entry" &&
+    payableStore.mainPosted &&
+    payableStore.mainStatus === "Posted" &&
+    route.query.transRef &&
+    !isManager.value &&
+    !isAdmin.value,
+);
+
+const editRequestSending = ref(false);
+const editRequestPending = computed(() => {
+  const transRef = route.query.transRef;
+  if (typeof transRef !== "string" || !transRef.trim()) return null;
+  return getCachedPending(transRef.trim());
+});
+
+watch(
+  () => [
+    route.query.transRef,
+    payableStore.mainPosted,
+    payableStore.mainStatus,
+    payableStore.loading,
+  ] as const,
+  async ([transRef, mainPosted, mainStatus, loading]) => {
+    if (
+      loading ||
+      typeof transRef !== "string" ||
+      !transRef.trim() ||
+      !mainPosted ||
+      mainStatus !== "Posted"
+    ) {
+      return;
+    }
+    await fetchPendingEditRequest(transRef.trim());
+  },
+  { immediate: true },
+);
+
+async function onRequestEditForMistakePosted() {
+  const transRef = route.query.transRef;
+  if (typeof transRef !== "string" || !transRef.trim()) return;
+  if (editRequestSending.value || editRequestPending.value) return;
+  if (!hasBaseUrl.value || !isConnected.value) {
+    toast.error("Connect to FileMaker first.");
+    return;
+  }
+  editRequestSending.value = true;
+  const officerName = (userFullName.value || "").trim() || "Officer";
+  const { error } = await createEditRequest(transRef.trim(), officerName);
+  if (error) {
+    toast.error("Request failed: " + error);
+  } else {
+    await fetchPendingEditRequest(transRef.trim());
+    toast.success("Request sent to manager. They will be prompted when they open this entry.");
+  }
+  editRequestSending.value = false;
+}
 
 /** Get FullName from Payables_Users fieldData (handles FullName / Full Name etc.). */
 function getFullName(fd: Record<string, unknown> | undefined): string {
   if (!fd) return "";
-  const v =
-    fd.FullName ??
-    fd["Full Name"] ??
-    fd.fullName ??
-    fd.fullname;
+  const v = fd.FullName ?? fd["Full Name"] ?? fd.fullName ?? fd.fullname;
   if (v == null || String(v).trim() === "") return "";
   return String(v).trim();
 }
 
 /** Get field value with casing variants (Email, email, Full Name, etc.). */
-function getFieldValue(fd: Record<string, unknown> | undefined, key: string): string {
+function getFieldValue(
+  fd: Record<string, unknown> | undefined,
+  key: string,
+): string {
   if (!fd) return "";
   const v =
     fd[key] ??
@@ -198,18 +302,20 @@ async function notifyManagerOnPost(): Promise<void> {
     const { data: mainRecords } = await findRecordsByQueryWithIds<
       Record<string, unknown>
     >(LAYOUTS.PAYABLES_MAIN, { TransRef: transRef }, 1);
-    const createdBy = mainRecords[0]?.fieldData as Record<string, unknown> | undefined;
+    const createdBy = mainRecords[0]?.fieldData as
+      | Record<string, unknown>
+      | undefined;
     const creatorEmail =
-      createdBy?.CreatedBy ??
-      createdBy?.["Created By"] ??
-      createdBy?.createdBy;
+      createdBy?.CreatedBy ?? createdBy?.["Created By"] ?? createdBy?.createdBy;
     const creatorEmailStr =
       creatorEmail != null ? String(creatorEmail).trim() : "";
     if (creatorEmailStr) {
       const { data: userRecords } = await findRecordsByQueryWithIds<
         Record<string, unknown>
       >(LAYOUTS.PAYABLES_USERS, { Email: creatorEmailStr }, 1);
-      const fd = userRecords[0]?.fieldData as Record<string, unknown> | undefined;
+      const fd = userRecords[0]?.fieldData as
+        | Record<string, unknown>
+        | undefined;
       const resolved = getFullName(fd);
       if (resolved && !looksLikeEmail(resolved)) fullname = resolved;
     }
@@ -224,7 +330,9 @@ async function notifyManagerOnPost(): Promise<void> {
     const { data: posterRecords } = await findRecordsByQueryWithIds<
       Record<string, unknown>
     >(LAYOUTS.PAYABLES_USERS, { Email: officerEmail }, 1);
-    posterFd = posterRecords[0]?.fieldData as Record<string, unknown> | undefined;
+    posterFd = posterRecords[0]?.fieldData as
+      | Record<string, unknown>
+      | undefined;
     if (!posterRecords?.length) {
       const { data: byEmail } = await findRecordsByQueryWithIds<
         Record<string, unknown>
@@ -234,9 +342,10 @@ async function notifyManagerOnPost(): Promise<void> {
       }
     }
     if (!posterFd) {
-      const { data: users } = await findRecordsWithIds<
-        Record<string, unknown>
-      >(LAYOUTS.PAYABLES_USERS, { limit: 500 });
+      const { data: users } = await findRecordsWithIds<Record<string, unknown>>(
+        LAYOUTS.PAYABLES_USERS,
+        { limit: 500 },
+      );
       const match = users?.find((r) => {
         const fd = r?.fieldData as Record<string, unknown> | undefined;
         const rowEmail = getFieldValue(fd, "Email");
@@ -269,7 +378,7 @@ async function notifyManagerOnPost(): Promise<void> {
 
   const entryUrl = new URL(
     router.resolve({ name: "entry", query: { transRef } }).href,
-    window.location.origin
+    window.location.origin,
   ).href;
 
   const scriptParam = JSON.stringify({
@@ -285,7 +394,7 @@ async function notifyManagerOnPost(): Promise<void> {
   const { error } = await runScript(
     LAYOUTS.PAYABLES_MAIN,
     "NotifyManagerOnPost",
-    scriptParam
+    scriptParam,
   );
   if (error) {
     toast.warning("Manager notification could not be sent: " + error);

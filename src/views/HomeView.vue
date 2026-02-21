@@ -148,7 +148,9 @@
           <p class="stats-dashboard__greeting" aria-live="polite">
             {{ greeting }}
           </p>
-          <span v-if="userRole" class="stats-dashboard__role">{{ userRole }}</span>
+          <span v-if="userRole" class="stats-dashboard__role">{{
+            userRole
+          }}</span>
         </div>
         <div class="stats-dashboard__kpis">
           <div v-if="showDraftTab" class="stat-card stat-card--draft">
@@ -264,7 +266,9 @@
         aria-busy="true"
       >
         <div class="chart-calendar">
-          <div class="chart-calendar__header flex items-center justify-between gap-2">
+          <div
+            class="chart-calendar__header flex items-center justify-between gap-2"
+          >
             <Skeleton width="2rem" height="2rem" class="rounded shrink-0" />
             <Skeleton width="10rem" height="1.25rem" class="rounded" />
             <Skeleton width="2rem" height="2rem" class="rounded shrink-0" />
@@ -1296,17 +1300,27 @@ import { useListSummaryStore } from "../stores/listSummaryStore";
 import { useBookletStore } from "../stores/bookletStore";
 import { useToastStore } from "../stores/toastStore";
 import { LAYOUTS } from "../utils/filemakerApi";
-import type { PayablesMainFieldData, PayablesUsersFieldData } from "../utils/filemakerApi";
+import type {
+  PayablesMainFieldData,
+  PayablesUsersFieldData,
+} from "../utils/filemakerApi";
 import { formatNumberDisplay } from "../utils/formatNumber";
 import type { FindRecordWithId } from "../composables/useFileMaker";
 
 const router = useRouter();
 const route = useRoute();
 
-function isValidTab(t: unknown): t is "draft" | "posted" | "rejected" | "approved" {
+function isValidTab(
+  t: unknown,
+): t is "draft" | "posted" | "rejected" | "approved" {
   return isValidHomeTab(t);
 }
-const { findRecordsWithIds, isConnected, loggedInEmail, findRecordsByQueryWithIds } = useFileMaker();
+const {
+  findRecordsWithIds,
+  isConnected,
+  loggedInEmail,
+  findRecordsByQueryWithIds,
+} = useFileMaker();
 const listSummary = useListSummaryStore();
 const booklet = useBookletStore();
 const toast = useToastStore();
@@ -1370,7 +1384,10 @@ const userRole = ref<string | null>(null);
 const roleLoaded = ref(false);
 
 /** Resolve a field from layout fieldData (handles FullName / Full Name / fullName etc.). */
-function getFieldValue(fd: Record<string, unknown> | undefined, key: string): string {
+function getFieldValue(
+  fd: Record<string, unknown> | undefined,
+  key: string,
+): string {
   if (!fd) return "";
   const v =
     fd[key] ??
@@ -1392,7 +1409,7 @@ async function loadUserFullName(): Promise<void> {
   const { data } = await findRecordsByQueryWithIds<PayablesUsersFieldData>(
     LAYOUTS.PAYABLES_USERS,
     { Email: email },
-    1
+    1,
   );
   if (data?.length) {
     const fd = data[0]?.fieldData as Record<string, unknown> | undefined;
@@ -1424,16 +1441,20 @@ async function loadUserFullName(): Promise<void> {
   roleLoaded.value = true;
 }
 
-watch([isConnected, loggedInEmail], () => {
-  if (isConnected.value && loggedInEmail.value) {
-    roleLoaded.value = false;
-    loadUserFullName();
-  } else {
-    userFullName.value = null;
-    userRole.value = null;
-    roleLoaded.value = false;
-  }
-}, { immediate: true });
+watch(
+  [isConnected, loggedInEmail],
+  () => {
+    if (isConnected.value && loggedInEmail.value) {
+      roleLoaded.value = false;
+      loadUserFullName();
+    } else {
+      userFullName.value = null;
+      userRole.value = null;
+      roleLoaded.value = false;
+    }
+  },
+  { immediate: true },
+);
 
 /** Greeting with user's FullName from Payables_Users (time-based). Falls back to email local part if no record. */
 const greeting = computed(() => {
@@ -1444,7 +1465,7 @@ const greeting = computed(() => {
   return `${timeGreeting}, ${name}`;
 });
 
-/** Tab visibility by role: Officer hides Posted; Manager hides Draft and Rejected. Requires roleLoaded to avoid flash on refresh. */
+/** Tab visibility by role: Manager hides Draft and Rejected. Requires roleLoaded to avoid flash on refresh. */
 const roleLower = computed(() => (userRole.value ?? "").trim().toLowerCase());
 const showDraftTab = computed(() => {
   if (!roleLoaded.value) return false;
@@ -1453,8 +1474,7 @@ const showDraftTab = computed(() => {
 });
 const showPostedTab = computed(() => {
   if (!roleLoaded.value) return false;
-  if (!roleLower.value) return true;
-  return roleLower.value !== "officer";
+  return true;
 });
 const showRejectedTab = computed(() => {
   if (!roleLoaded.value) return false;
@@ -1462,10 +1482,11 @@ const showRejectedTab = computed(() => {
   return roleLower.value !== "manager";
 });
 
-/** Redirect to first visible tab when current tab becomes hidden (role change). */
+/** Redirect to first visible tab when current tab becomes hidden (role change). Only when role is loaded to avoid overriding saved tab on initial mount. */
 watch(
-  [showDraftTab, showPostedTab, showRejectedTab, activeSegment],
+  [showDraftTab, showPostedTab, showRejectedTab, activeSegment, roleLoaded],
   () => {
+    if (!roleLoaded.value) return;
     const cur = activeSegment.value;
     if (cur === "draft" && !showDraftTab.value) {
       activeSegment.value = showPostedTab.value ? "posted" : "approved";
@@ -1475,7 +1496,7 @@ watch(
       activeSegment.value = showDraftTab.value ? "draft" : "posted";
     }
   },
-  { immediate: true }
+  { immediate: true },
 );
 
 /** Animated display values for stat cards (count-up). */
@@ -1616,6 +1637,75 @@ const rejectedList = computed(() =>
 const approvedList = computed(() =>
   filterByStatusAndSort(list.value, "Approved"),
 );
+
+/** Days threshold: Posted entries older than this are considered overdue for approval. */
+const OVERDUE_DAYS = 7;
+
+/** Posted entries awaiting approval for more than OVERDUE_DAYS (based on PostedDate or CreationTimestamp). */
+const overdueList = computed(() => {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - OVERDUE_DAYS);
+  const cutoffKey = toDateKey(cutoff.toISOString().slice(0, 10));
+  if (!cutoffKey) return [];
+  return postedList.value.filter((item) => {
+    const postedKey = toDateKey(getPostedDate(item));
+    const createdKey = toDateKey(getCreationTimestamp(item));
+    const refKey = postedKey || createdKey;
+    return refKey && refKey < cutoffKey;
+  });
+});
+
+/** Top vendors by total payment volume (approved + posted). Per-vendor: sum by primary currency. */
+const topVendorsByVolume = computed(() => {
+  const byVendor = new Map<
+    string,
+    { name: string; byCurrency: Record<string, number> }
+  >();
+  for (const item of [...approvedList.value, ...postedList.value]) {
+    const vid = String(item.fieldData?.VendorID ?? "").trim();
+    const name = String(item.fieldData?.VendorName ?? "").trim();
+    const key = vid || name || "—";
+    const label = name || vid || "—";
+    const total = Number(item.fieldData?.Total);
+    if (!Number.isFinite(total)) continue;
+    const currency = String(item.fieldData?.Currency ?? "").trim() || "GHS";
+    if (!byVendor.has(key)) {
+      byVendor.set(key, { name: label, byCurrency: {} });
+    }
+    const row = byVendor.get(key)!;
+    row.byCurrency[currency] = (row.byCurrency[currency] ?? 0) + total;
+  }
+  return Array.from(byVendor.values())
+    .map((r) => {
+      const entries = Object.entries(r.byCurrency);
+      if (entries.length === 0) return null;
+      const [currency, total] = entries.reduce((a, b) =>
+        (a[1] > b[1] ? a : b),
+      );
+      return { vendorName: r.name, total, currency };
+    })
+    .filter((x): x is NonNullable<typeof x> => x != null && x.total > 0)
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5);
+});
+
+/** Top vendors by entry count (approved + posted). */
+const topVendorsByEntryCount = computed(() => {
+  const byVendor = new Map<string, { name: string; count: number }>();
+  for (const item of [...approvedList.value, ...postedList.value]) {
+    const vid = String(item.fieldData?.VendorID ?? "").trim();
+    const name = String(item.fieldData?.VendorName ?? "").trim();
+    const key = vid || name || "—";
+    const label = name || vid || "—";
+    if (!byVendor.has(key)) byVendor.set(key, { name: label, count: 0 });
+    byVendor.get(key)!.count += 1;
+  }
+  return Array.from(byVendor.values())
+    .filter((r) => r.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5)
+    .map((r) => ({ vendorName: r.name, count: r.count }));
+});
 
 /** Rejected entry TransRefs in list order (for opening single entry or booklet). */
 const rejectedRefsInOrder = computed(() =>
@@ -2133,6 +2223,11 @@ watch(
       postedList.value.length,
       rejectedList.value.length,
       approvedList.value.length,
+    );
+    listSummary.setOverdueCount(overdueList.value.length);
+    listSummary.setVendorStats(
+      topVendorsByVolume.value,
+      topVendorsByEntryCount.value,
     );
   },
   { immediate: true },

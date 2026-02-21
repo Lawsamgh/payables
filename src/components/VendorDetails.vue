@@ -207,8 +207,8 @@
               :value="vendor.vendor_name"
               type="text"
               class="vendor-details__input"
-              placeholder="Acme Corp"
-              :readonly="readOnly"
+              placeholder="Select vendor above"
+              :readonly="vendorNameReadOnly"
               @input="
                 onVendorFieldChange(
                   'vendor_name',
@@ -314,6 +314,11 @@ const vendorSearch = ref("");
 /** Editable except when Posted (Rejected entries stay editable). */
 const readOnly = computed(
   () => payableStore.mainPosted && payableStore.mainStatus !== "Rejected",
+);
+
+/** Vendor name is never editable in New Entry; must select from Vendor ID dropdown. */
+const vendorNameReadOnly = computed(
+  () => !payableStore.currentTransRef || readOnly.value,
 );
 
 /** Don't show expiry for Approved/Posted. New entry: VendorDetails. Existing Draft/Rejected: EntryView banner. */

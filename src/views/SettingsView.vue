@@ -90,6 +90,47 @@
         </div>
       </section>
 
+      <!-- Logs (Admin and Manager only) -->
+      <section v-if="showLogs" class="settings-section">
+        <h2 class="settings-section__title">Audit</h2>
+        <div class="settings-list">
+          <router-link
+            to="/settings/logs"
+            class="settings-item no-underline"
+          >
+            <div class="settings-item__icon">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                />
+              </svg>
+            </div>
+            <div class="settings-item__content">
+              <span class="settings-item__title">Activity Logs</span>
+              <span class="settings-item__desc"
+                >View audit trail of entries</span
+              >
+            </div>
+            <svg
+              class="settings-item__chevron"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+          </router-link>
+        </div>
+      </section>
+
       <!-- Documents (hidden for Officer/Manager) -->
       <section v-if="showManageUsersAndDocuments" class="settings-section">
         <h2 class="settings-section__title">Documents</h2>
@@ -204,6 +245,12 @@ const showManageUsersAndDocuments = computed(() => {
   if (!r) return false
   const lower = r.toLowerCase()
   return lower !== 'officer' && lower !== 'manager'
+})
+
+const showLogs = computed(() => {
+  if (!roleLoaded.value) return false
+  const r = userRole.value?.trim().toLowerCase()
+  return r === 'admin' || r === 'manager'
 })
 
 function getFieldValue(fd: Record<string, unknown> | undefined, key: string): string {

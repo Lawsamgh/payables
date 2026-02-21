@@ -76,11 +76,65 @@
         </div>
       </div>
 
-      <!-- Home: Draft & Posted with counts + totals (all currencies when vendors use different currencies) -->
-      <div
-        v-else-if="route.name === 'home'"
-        class="overview-cards space-y-3"
-      >
+      <!-- Home: Overdue / Pending approval indicators + Draft & Posted with counts + totals -->
+      <div v-else-if="route.name === 'home'" class="overview-cards space-y-3">
+        <!-- Overdue / Pending approval badges -->
+        <div
+          v-if="
+            roleLoaded &&
+            (listSummary.overdueCount > 0 || listSummary.postedCount > 0)
+          "
+          class="overview-alerts flex flex-col gap-2"
+        >
+          <div
+            v-if="listSummary.overdueCount > 0"
+            class="overview-badge-card overview-badge-card--overdue rounded-xl border border-amber-500/40 bg-amber-500/15 px-3.5 py-2.5"
+          >
+            <span class="overview-badge-card__icon" aria-hidden="true">
+              <svg
+                class="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </span>
+            <span class="overview-badge-card__label">Overdue</span>
+            <span class="overview-badge-card__value"
+              >{{ listSummary.overdueCount }} awaiting approval</span
+            >
+          </div>
+          <div
+            v-if="listSummary.postedCount > 0"
+            class="overview-badge-card overview-badge-card--pending rounded-xl border border-slate-500/40 bg-slate-500/15 px-3.5 py-2.5"
+          >
+            <span class="overview-badge-card__icon" aria-hidden="true">
+              <svg
+                class="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                />
+              </svg>
+            </span>
+            <span class="overview-badge-card__label">Pending approval</span>
+            <span class="overview-badge-card__value">{{
+              listSummary.postedCount
+            }}</span>
+          </div>
+        </div>
         <div
           v-if="roleLoaded && !isManager"
           class="overview-card overview-card--draft rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3 transition-colors hover:bg-white/[0.06]"
@@ -259,6 +313,77 @@
             </p>
           </div>
         </div>
+
+        <!-- Vendor analytics: top by volume & entry count -->
+        <div
+          v-if="
+            roleLoaded &&
+            (listSummary.topVendorsByVolume.length > 0 ||
+              listSummary.topVendorsByEntryCount.length > 0)
+          "
+          class="overview-vendor-analytics space-y-3 pt-1 border-t border-[var(--color-border)]/40"
+        >
+          <h4
+            class="text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]"
+          >
+            Vendor analytics
+          </h4>
+          <div
+            v-if="listSummary.topVendorsByVolume.length > 0"
+            class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
+          >
+            <p
+              class="text-[11px] font-medium text-[var(--color-text-muted)] mb-2"
+            >
+              Top by volume
+            </p>
+            <ul class="space-y-1.5">
+              <li
+                v-for="(v, i) in listSummary.topVendorsByVolume"
+                :key="v.vendorName + String(i)"
+                class="flex items-center justify-between gap-2 text-[13px]"
+              >
+                <span
+                  class="min-w-0 truncate text-[var(--color-text)]"
+                  :title="v.vendorName"
+                  >{{ v.vendorName }}</span
+                >
+                <span
+                  class="tabular-nums text-[var(--color-text-muted)] shrink-0"
+                >
+                  {{ v.currency }} {{ formatNumberDisplay(v.total) || "0" }}
+                </span>
+              </li>
+            </ul>
+          </div>
+          <div
+            v-if="listSummary.topVendorsByEntryCount.length > 0"
+            class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
+          >
+            <p
+              class="text-[11px] font-medium text-[var(--color-text-muted)] mb-2"
+            >
+              Top by entry count
+            </p>
+            <ul class="space-y-1.5">
+              <li
+                v-for="(v, i) in listSummary.topVendorsByEntryCount"
+                :key="v.vendorName + String(i)"
+                class="flex items-center justify-between gap-2 text-[13px]"
+              >
+                <span
+                  class="min-w-0 truncate text-[var(--color-text)]"
+                  :title="v.vendorName"
+                  >{{ v.vendorName }}</span
+                >
+                <span
+                  class="tabular-nums text-[var(--color-text-muted)] shrink-0"
+                  >{{ v.count }} entries</span
+                >
+              </li>
+            </ul>
+          </div>
+        </div>
       </div>
 
       <!-- Entry: skeleton while loading -->
@@ -278,10 +403,7 @@
       </div>
 
       <!-- Entry: status + entry total + line count -->
-      <div
-        v-else-if="route.name === 'entry'"
-        class="overview-cards space-y-3"
-      >
+      <div v-else-if="route.name === 'entry'" class="overview-cards space-y-3">
         <p
           class="text-[var(--label-size)] leading-relaxed text-[var(--color-text-muted)]"
         >
@@ -323,6 +445,21 @@
             class="text-[17px] font-medium text-[var(--color-text)] tracking-tight leading-snug"
           >
             {{ payableStore.mainPostedName }}
+          </p>
+        </div>
+        <div
+          v-if="payableStore.mainStatus === 'Rejected'"
+          class="overview-card overview-card--rejected-by rounded-xl px-4 py-3"
+        >
+          <p
+            class="text-[11px] font-medium text-[var(--color-text-muted)] mb-1"
+          >
+            Rejected by
+          </p>
+          <p
+            class="text-[17px] font-medium text-[var(--color-text)] tracking-tight leading-snug"
+          >
+            {{ payableStore.mainRejectedBy || '—' }}
           </p>
         </div>
         <div
@@ -416,7 +553,9 @@
             class="text-2xl font-semibold tabular-nums text-[var(--color-text)] tracking-tight leading-snug"
           >
             {{ payableStore.mainBankName || "—" }}
-            {{ payableStore.mainChequeNo ? `#${payableStore.mainChequeNo}` : "" }}
+            {{
+              payableStore.mainChequeNo ? `#${payableStore.mainChequeNo}` : ""
+            }}
           </p>
           <p
             v-if="payableStore.mainChequeIssuedDate"
@@ -435,7 +574,8 @@
         <p
           class="text-[var(--label-size)] leading-relaxed text-[var(--color-text-muted)]"
         >
-          All payable entries as PDF-style thumbnails. Search, filter by status, and open any to view or edit.
+          All payable entries as PDF-style thumbnails. Search, filter by status,
+          and open any to view or edit.
         </p>
         <div
           class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
@@ -452,21 +592,53 @@
             {{ formatCompactCount(listSummary.totalCount) }}
           </p>
         </div>
-        <div class="overview-card overview-card--draft rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-2.5 flex items-center justify-between">
-          <span class="text-[var(--label-size)] text-[var(--color-text-muted)]">Draft</span>
-          <span class="overview-badge overview-badge--draft rounded-full min-w-[2rem] px-2.5 py-1 text-[14px] font-bold tabular-nums" :title="String(listSummary.draftCount)">{{ formatCompactCount(listSummary.draftCount) }}</span>
+        <div
+          class="overview-card overview-card--draft rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-2.5 flex items-center justify-between"
+        >
+          <span class="text-[var(--label-size)] text-[var(--color-text-muted)]"
+            >Draft</span
+          >
+          <span
+            class="overview-badge overview-badge--draft rounded-full min-w-[2rem] px-2.5 py-1 text-[14px] font-bold tabular-nums"
+            :title="String(listSummary.draftCount)"
+            >{{ formatCompactCount(listSummary.draftCount) }}</span
+          >
         </div>
-        <div class="overview-card overview-card--posted rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-2.5 flex items-center justify-between">
-          <span class="text-[var(--label-size)] text-[var(--color-text-muted)]">Posted</span>
-          <span class="overview-badge overview-badge--posted rounded-full min-w-[2rem] px-2.5 py-1 text-[14px] font-bold tabular-nums" :title="String(listSummary.postedCount)">{{ formatCompactCount(listSummary.postedCount) }}</span>
+        <div
+          class="overview-card overview-card--posted rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-2.5 flex items-center justify-between"
+        >
+          <span class="text-[var(--label-size)] text-[var(--color-text-muted)]"
+            >Posted</span
+          >
+          <span
+            class="overview-badge overview-badge--posted rounded-full min-w-[2rem] px-2.5 py-1 text-[14px] font-bold tabular-nums"
+            :title="String(listSummary.postedCount)"
+            >{{ formatCompactCount(listSummary.postedCount) }}</span
+          >
         </div>
-        <div class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-2.5 flex items-center justify-between">
-          <span class="text-[var(--label-size)] text-[var(--color-text-muted)]">Rejected</span>
-          <span class="rounded-full min-w-[2rem] px-2.5 py-1 text-[14px] font-bold tabular-nums text-center bg-red-500/20 text-red-400" :title="String(listSummary.rejectedCount)">{{ formatCompactCount(listSummary.rejectedCount) }}</span>
+        <div
+          class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-2.5 flex items-center justify-between"
+        >
+          <span class="text-[var(--label-size)] text-[var(--color-text-muted)]"
+            >Rejected</span
+          >
+          <span
+            class="rounded-full min-w-[2rem] px-2.5 py-1 text-[14px] font-bold tabular-nums text-center bg-red-500/20 text-red-400"
+            :title="String(listSummary.rejectedCount)"
+            >{{ formatCompactCount(listSummary.rejectedCount) }}</span
+          >
         </div>
-        <div class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-2.5 flex items-center justify-between">
-          <span class="text-[var(--label-size)] text-[var(--color-text-muted)]">Approved</span>
-          <span class="rounded-full min-w-[2rem] px-2.5 py-1 text-[14px] font-bold tabular-nums text-center bg-emerald-500/20 text-emerald-400" :title="String(listSummary.approvedCount)">{{ formatCompactCount(listSummary.approvedCount) }}</span>
+        <div
+          class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-2.5 flex items-center justify-between"
+        >
+          <span class="text-[var(--label-size)] text-[var(--color-text-muted)]"
+            >Approved</span
+          >
+          <span
+            class="rounded-full min-w-[2rem] px-2.5 py-1 text-[14px] font-bold tabular-nums text-center bg-emerald-500/20 text-emerald-400"
+            :title="String(listSummary.approvedCount)"
+            >{{ formatCompactCount(listSummary.approvedCount) }}</span
+          >
         </div>
       </div>
 
@@ -550,9 +722,41 @@
         </div>
       </div>
 
+      <!-- Activity Logs: total logs + short description -->
+      <div
+        v-else-if="route.name === 'settings-logs'"
+        class="overview-cards space-y-3"
+      >
+        <p
+          class="text-[var(--label-size)] leading-relaxed text-[var(--color-text-muted)]"
+        >
+          View audit trail of Created, Edited, Posted, Rejected, Approved, and
+          Reposted events.
+        </p>
+        <div
+          class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
+        >
+          <p
+            class="text-[11px] font-medium text-[var(--color-text-muted)] mb-1"
+          >
+            Total logs
+          </p>
+          <p
+            class="text-[17px] font-semibold tabular-nums text-[var(--color-text)] tracking-tight leading-snug"
+            :title="String(activityLogOverview.logCount)"
+          >
+            {{ formatCompactCount(activityLogOverview.logCount) }}
+          </p>
+        </div>
+      </div>
+
       <!-- Settings (and Manage Users, Documents): short description -->
       <div
-        v-else-if="route.name === 'settings' || route.name === 'settings-users' || route.name === 'settings-documents'"
+        v-else-if="
+          route.name === 'settings' ||
+          route.name === 'settings-users' ||
+          route.name === 'settings-documents'
+        "
         class="overview-cards space-y-3"
       >
         <p
@@ -570,7 +774,7 @@
             Sections
           </p>
           <p class="text-[13px] text-[var(--color-text)] leading-relaxed">
-            Account · Documents · General
+            {{ canViewLogs ? 'Account · Audit · Documents · General' : 'Account · Documents · General' }}
           </p>
         </div>
       </div>
@@ -596,12 +800,13 @@ import { useVendorStore } from "../stores/vendorStore";
 import { useVendorOverviewStore } from "../stores/vendorOverviewStore";
 import { useChequeOverviewStore } from "../stores/chequeOverviewStore";
 import { useTaxOverviewStore } from "../stores/taxOverviewStore";
+import { useActivityLogOverviewStore } from "../stores/activityLogOverviewStore";
 import { formatNumberDisplay, formatCompactCount } from "../utils/formatNumber";
 
 const route = useRoute();
 const router = useRouter();
 const { logout } = useFileMaker();
-const { isManager, roleLoaded } = useUserRole();
+const { isManager, roleLoaded, canViewLogs } = useUserRole();
 const showLogoutModal = ref(false);
 
 function onLogout() {
@@ -641,6 +846,7 @@ const vendorStore = useVendorStore();
 const vendorOverview = useVendorOverviewStore();
 const chequeOverview = useChequeOverviewStore();
 const taxOverview = useTaxOverviewStore();
+const activityLogOverview = useActivityLogOverviewStore();
 
 /** One line per currency for a cleaner list (currency label + amount). */
 function totalsByCurrencyLines(
@@ -704,6 +910,12 @@ function totalsByCurrencyLines(
   color: rgb(254, 202, 202);
 }
 
+/* Rejected by card: red outline so it stands out in the Overview */
+.overview-card--rejected-by {
+  border: 2px solid rgba(239, 68, 68, 0.7);
+  background: rgba(239, 68, 68, 0.08);
+}
+
 .overview-badge--approved {
   background: rgba(34, 197, 94, 0.3);
   color: rgb(187, 247, 208);
@@ -741,5 +953,49 @@ function totalsByCurrencyLines(
   font-size: 0.9375rem;
   color: var(--color-text-muted);
   margin: 0;
+}
+
+.overview-alerts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.overview-badge-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.overview-badge-card__icon {
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.overview-badge-card--overdue .overview-badge-card__icon {
+  color: rgb(245, 158, 11);
+}
+
+.overview-badge-card--overdue .overview-badge-card__label {
+  color: rgb(253, 230, 138);
+}
+
+.overview-badge-card--overdue .overview-badge-card__value {
+  color: rgb(254, 243, 199);
+  font-weight: 600;
+}
+
+.overview-badge-card--pending .overview-badge-card__icon {
+  color: rgb(148, 163, 184);
+}
+
+.overview-badge-card--pending .overview-badge-card__label {
+  color: rgb(203, 213, 225);
+}
+
+.overview-badge-card--pending .overview-badge-card__value {
+  color: rgb(226, 232, 240);
+  font-weight: 600;
 }
 </style>

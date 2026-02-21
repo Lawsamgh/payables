@@ -12,6 +12,13 @@
       @submit="onRejectSubmit"
       @cancel="showRejectModal = false"
     />
+    <EditRequestModal
+      :visible="!!(showEditRequestModal && pendingEditRequestForModal)"
+      :requested-by="pendingEditRequestForModal?.RequestedBy"
+      :proceeding="grantingEditRequest"
+      @dismiss="dismissEditRequestModal"
+      @proceed="onProceedAllowEdit"
+    />
     <div class="flex flex-wrap items-center gap-2 mb-4">
       <router-link
         :to="backToListRoute"
@@ -685,6 +692,7 @@ import { getHomeRoute } from "../utils/homeTab";
 import VendorDetails from "../components/VendorDetails.vue";
 import UnsavedChangesModal from "../components/UnsavedChangesModal.vue";
 import RejectReasonModal from "../components/RejectReasonModal.vue";
+import EditRequestModal from "../components/EditRequestModal.vue";
 import Toolbar from "../components/Toolbar.vue";
 import DataGrid from "../components/DataGrid.vue";
 import Skeleton from "../components/Skeleton.vue";
@@ -694,36 +702,51 @@ import { useVendorStore } from "../stores/vendorStore";
 import { useBookletStore } from "../stores/bookletStore";
 import { useFileMaker } from "../composables/useFileMaker";
 import { useUserRole } from "../composables/useUserRole";
+import { useEditRequest, type PendingEditRequest } from "../composables/useEditRequest";
 import { LAYOUTS, type PayableInvoiceFieldData } from "../utils/filemakerApi";
 import {
   formatTimestampForFileMaker,
   formatDateOnlyForFileMaker,
 } from "../utils/filemakerMappers";
+import { writeActivityLog } from "../utils/activityLog";
 import { useToastStore } from "../stores/toastStore";
 import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
 
 const route = useRoute();
 const router = useRouter();
 
-/** Back to Invoices when arrived from Invoices thumbnails, else Home. */
-const backToListRoute = computed(() =>
-  route.query.from === "invoices"
-    ? { name: "invoices" as const }
-    : getHomeRoute(),
-);
+/** Back to list: Invoices, Cheque Collection, Activity Logs, or Home depending on arrival. */
+const backToListRoute = computed(() => {
+  const from = route.query.from;
+  if (from === "invoices") return { name: "invoices" as const };
+  if (from === "cheque-collection") return { name: "cheque-collection" as const };
+  if (from === "settings-logs") return { name: "settings-logs" as const };
+  return getHomeRoute();
+});
 
 const spreadsheet = useSpreadsheet();
 const payableStore = usePayableStore();
 const vendorStore = useVendorStore();
 const booklet = useBookletStore();
-const { isConnected, updateRecord, createRecord, findRecordsByQueryWithIds } =
-  useFileMaker();
+const {
+  isConnected,
+  updateRecord,
+  createRecord,
+  findRecordsByQueryWithIds,
+} = useFileMaker();
 const toast = useToastStore();
 const documentSettings = useDocumentSettingsStore();
-const { roleLower } = useUserRole();
+const { roleLower, userFullName, roleLoaded } = useUserRole();
 const rejecting = ref(false);
 const approving = ref(false);
 const downloadingPdf = ref(false);
+const grantingEditRequest = ref(false);
+const showEditRequestModal = ref(false);
+const pendingEditRequestForModal = ref<PendingEditRequest | null>(null);
+const editRequestModalDismissedForTransRef = ref<string | null>(null);
+
+const { fetchPendingEditRequest, grantEditRequest, notifyEditRequestGranted } = useEditRequest();
+
 const canDeleteRow = computed(() => spreadsheet.rowCount.value > 1);
 
 /** Only Manager and Admin can Approve or Reject a Posted entry. */
@@ -849,7 +872,8 @@ function syncBookletToDraftsOnly() {
 
 function entryQuery(transRef: string) {
   const q: { transRef: string; from?: string } = { transRef };
-  if (route.query.from === "invoices") q.from = "invoices";
+  const from = route.query.from;
+  if (from === "invoices" || from === "cheque-collection" || from === "settings-logs") q.from = from;
   return { name: "entry" as const, query: q };
 }
 
@@ -890,9 +914,30 @@ interface RejectionHistoryItem {
 const rejectionHistory = ref<RejectionHistoryItem[]>([]);
 const rejectionHistoryLoading = ref(false);
 
+/** Get "Rejected by" value from raw fieldData trying common FileMaker key variants. */
+function getRejectedByFromRaw(raw: Record<string, unknown> | undefined): string {
+  if (!raw) return "";
+  const keys = [
+    "RejectedBy",
+    "Rejected by",
+    "rejectedBy",
+    "rejected by",
+    "REJECTEDBY",
+  ];
+  for (const k of keys) {
+    const v = raw[k];
+    if (v != null && String(v).trim() !== "") return String(v).trim();
+  }
+  return "";
+}
+
 async function fetchRejectionHistory() {
   const transRef = payableStore.currentTransRef;
-  if (!transRef?.trim() || !payableStore.mainPosted || !isConnected.value) {
+  const shouldFetch =
+    transRef?.trim() &&
+    isConnected.value &&
+    (payableStore.mainPosted || payableStore.mainStatus === "Rejected");
+  if (!shouldFetch) {
     rejectionHistory.value = [];
     rejectionHistoryLoading.value = false;
     return;
@@ -906,19 +951,18 @@ async function fetchRejectionHistory() {
   if (error || !data?.length) {
     rejectionHistory.value = [];
   } else {
-    const items: RejectionHistoryItem[] = data
-      .map((r) => r.fieldData)
-      .filter(Boolean)
-      .map((fd) => {
-        const raw = fd as Record<string, unknown>;
+    const rawRecords = data.map((r) => r.fieldData as Record<string, unknown> | undefined);
+    const items: RejectionHistoryItem[] = rawRecords
+      .filter((raw): raw is Record<string, unknown> => !!raw)
+      .map((raw) => {
+        const rejectedBy = getRejectedByFromRaw(raw);
+        const rejectedDate =
+          (raw.RejectedDate ?? raw["Rejected date"] ?? raw["Rejected Date"]) as string | undefined;
+        const reason = (raw.Reason ?? raw["Reason"]) as string | undefined;
         return {
-          RejectedDate: (fd.RejectedDate ?? raw["Rejected date"]) as
-            | string
-            | undefined,
-          RejectedBy: (fd.RejectedBy ?? raw["Rejected by"]) as
-            | string
-            | undefined,
-          Reason: (fd.Reason ?? raw["Reason"]) as string | undefined,
+          RejectedDate: rejectedDate,
+          RejectedBy: rejectedBy || undefined,
+          Reason: reason,
         };
       });
     items.sort((a, b) => {
@@ -927,6 +971,12 @@ async function fetchRejectionHistory() {
       return db.localeCompare(da);
     });
     rejectionHistory.value = items;
+    // Populate sidebar "Rejected by" from most recent rejection when entry is Rejected
+    if (payableStore.mainStatus === "Rejected") {
+      const firstRaw = data[0]?.fieldData as Record<string, unknown> | undefined;
+      const rejectedByName = getRejectedByFromRaw(firstRaw) || items[0]?.RejectedBy?.trim() || "";
+      if (rejectedByName) payableStore.setMainRejectedBy(rejectedByName);
+    }
   }
   rejectionHistoryLoading.value = false;
 }
@@ -976,10 +1026,15 @@ watch(
     [
       payableStore.currentTransRef,
       payableStore.mainPosted,
+      payableStore.mainStatus,
       payableStore.loading,
     ] as const,
-  ([transRef, mainPosted, loading]) => {
-    if (!loading && transRef && mainPosted) {
+  ([transRef, mainPosted, mainStatus, loading]) => {
+    const shouldFetch =
+      !loading &&
+      !!transRef &&
+      (mainPosted || mainStatus === "Rejected");
+    if (shouldFetch) {
       fetchRejectionHistory();
     } else {
       rejectionHistory.value = [];
@@ -987,6 +1042,81 @@ watch(
   },
   { immediate: true },
 );
+
+watch(() => route.query.transRef, (transRef) => {
+  editRequestModalDismissedForTransRef.value = null;
+});
+
+watch(
+  () =>
+    [
+      payableStore.currentTransRef,
+      payableStore.mainPosted,
+      payableStore.mainStatus,
+      payableStore.loading,
+      canApproveOrReject.value,
+      roleLoaded.value,
+    ] as const,
+  async ([transRef, mainPosted, mainStatus, loading, canApprove, roleLoadedVal]) => {
+    if (
+      loading ||
+      !transRef ||
+      !canApprove ||
+      !roleLoadedVal ||
+      !mainPosted ||
+      mainStatus !== "Posted"
+    ) {
+      return;
+    }
+    const { data: pending } = await fetchPendingEditRequest(transRef);
+    if (pending && editRequestModalDismissedForTransRef.value !== transRef) {
+      pendingEditRequestForModal.value = pending;
+      showEditRequestModal.value = true;
+    } else if (!pending) {
+      pendingEditRequestForModal.value = null;
+      showEditRequestModal.value = false;
+    }
+  },
+  { immediate: true },
+);
+
+function dismissEditRequestModal() {
+  if (payableStore.currentTransRef) {
+    editRequestModalDismissedForTransRef.value = payableStore.currentTransRef;
+  }
+  showEditRequestModal.value = false;
+}
+
+async function onProceedAllowEdit() {
+  const transRef = payableStore.currentTransRef;
+  const mainRecordId = payableStore.currentMainRecordId;
+  const requestedBy = pendingEditRequestForModal.value?.RequestedBy;
+  if (!transRef || !mainRecordId || !isConnected.value) return;
+  const managerName = (userFullName.value || "").trim() || "Manager";
+  grantingEditRequest.value = true;
+  try {
+    const { error } = await grantEditRequest(
+      transRef,
+      mainRecordId,
+      managerName,
+    );
+    if (error) {
+      toast.error("Could not allow edit: " + error);
+      return;
+    }
+    const { error: notifyErr } = await notifyEditRequestGranted(transRef, requestedBy ?? "Officer");
+    if (notifyErr) {
+      toast.warning("Officer notification could not be sent: " + notifyErr);
+    }
+    toast.success("Entry returned to draft. Officer can now edit and post again.");
+    showEditRequestModal.value = false;
+    pendingEditRequestForModal.value = null;
+    await payableStore.fetchDetailsByTransRef(transRef);
+    router.push(getHomeRoute());
+  } finally {
+    grantingEditRequest.value = false;
+  }
+}
 
 function handleDeleteRow() {
   spreadsheet.deleteRow(spreadsheet.selectedRow.value);
@@ -1032,17 +1162,28 @@ async function performReject(reason: string) {
       toast.error("Reject failed: " + updateErr);
       return;
     }
+    const rejectedBy = (userFullName.value || "").trim() || "Manager";
     const { error: createErr } = await createRecord(
       LAYOUTS.PAYABLES_REJECTION_HISTORY,
       {
         TransRef: transRef,
         RejectedDate: formatTimestampForFileMaker(),
-        RejectedBy: "Manager",
+        RejectedBy: rejectedBy,
         Reason: reason.trim(),
       },
     );
     if (createErr) {
       toast.error("Rejected but failed to record history: " + createErr);
+    }
+    const activityErr = await writeActivityLog(
+      createRecord,
+      transRef,
+      "Rejected",
+      rejectedBy,
+      reason.trim(),
+    );
+    if (activityErr) {
+      toast.error("Rejected but failed to record activity: " + activityErr);
     }
     toast.success("Entry rejected.");
     await payableStore.fetchDetailsByTransRef(transRef);
@@ -1054,22 +1195,35 @@ async function performReject(reason: string) {
 
 async function onApprove() {
   const mainRecordId = payableStore.currentMainRecordId;
-  if (!mainRecordId || !isConnected.value) return;
+  const transRef = payableStore.currentTransRef;
+  if (!mainRecordId || !isConnected.value || !transRef) return;
   approving.value = true;
   try {
+    const approvedBy = (userFullName.value || "").trim() || "Manager";
     const { error: updateErr } = await updateRecord(
       LAYOUTS.PAYABLES_MAIN,
       mainRecordId,
-      { Approved: "Yes", ApprovedDate: formatDateOnlyForFileMaker() },
+      {
+        Approved: "Yes",
+        ApprovedDate: formatDateOnlyForFileMaker(),
+        ApprovedBy: approvedBy,
+      },
     );
     if (updateErr) {
       toast.error("Approve failed: " + updateErr);
       return;
     }
-    toast.success("Entry approved.");
-    await payableStore.fetchDetailsByTransRef(
-      payableStore.currentTransRef ?? "",
+    const activityErr = await writeActivityLog(
+      createRecord,
+      transRef,
+      "Approved",
+      approvedBy,
     );
+    if (activityErr) {
+      toast.error("Approved but failed to record activity: " + activityErr);
+    }
+    toast.success("Entry approved.");
+    await payableStore.fetchDetailsByTransRef(transRef);
     router.push(backToListRoute.value);
   } finally {
     approving.value = false;

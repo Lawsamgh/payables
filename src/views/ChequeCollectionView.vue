@@ -27,26 +27,50 @@
           Cheque collection
         </h1>
       </div>
-      <button
-        type="button"
-        class="pill-btn inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2.5 text-[var(--label-size)] font-semibold text-white shadow-md hover:bg-orange-600 transition-colors"
-        @click="showAddModal = true"
-      >
-        <svg
-          class="h-4 w-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
+      <div class="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          class="pill-btn glass-input inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-4 py-2.5 text-[var(--label-size)] font-medium text-[var(--color-text-muted)] transition-colors hover:bg-white/5 hover:text-[var(--color-text)]"
+          :disabled="filteredCollectionList.length === 0"
+          aria-label="Export cheque collections to CSV"
+          @click="onExport"
         >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M12 4v16m8-8H4"
-          />
-        </svg>
-        Add collection
-      </button>
+          <svg
+            class="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+            />
+          </svg>
+          Export
+        </button>
+        <button
+          type="button"
+          class="pill-btn inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2.5 text-[var(--label-size)] font-semibold text-white shadow-md hover:bg-orange-600 transition-colors"
+          @click="showAddModal = true"
+        >
+          <svg
+            class="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 4v16m8-8H4"
+            />
+          </svg>
+          Add collection
+        </button>
+      </div>
     </header>
 
     <p class="text-[var(--label-size)] text-[var(--color-text-muted)] mb-4">
@@ -188,6 +212,9 @@
                 <th>Cheque Payee</th>
                 <th>Received By</th>
                 <th>Collection Date</th>
+                <th>Issued By</th>
+                <th class="cheque-table-actions">View</th>
+                <th class="cheque-table-actions">Edit</th>
               </tr>
             </thead>
             <tbody>
@@ -202,6 +229,60 @@
                 <td>{{ getField(row, "ChequePayee") }}</td>
                 <td>{{ getField(row, "ReceivedBy") }}</td>
                 <td>{{ formatDate(getField(row, "CollectionDate")) }}</td>
+                <td>{{ getField(row, "IssuedBy") }}</td>
+                <td class="cheque-table-actions">
+                  <router-link
+                    v-if="getFieldValue(row, 'TransRef')"
+                    :to="{
+                      name: 'entry',
+                      query: {
+                        transRef: getFieldValue(row, 'TransRef'),
+                        from: 'cheque-collection',
+                      },
+                    }"
+                    class="cheque-view-btn"
+                    :title="`View payable ${getFieldValue(row, 'TransRef')}`"
+                    aria-label="View record"
+                  >
+                    <svg
+                      class="cheque-view-btn__icon"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  </router-link>
+                  <span v-else class="text-[var(--color-text-muted)]">—</span>
+                </td>
+                <td class="cheque-table-actions">
+                  <button
+                    v-if="isCollectionDateToday(row)"
+                    type="button"
+                    class="cheque-view-btn"
+                    title="Edit record"
+                    aria-label="Edit record"
+                    @click="openEditModal(row)"
+                  >
+                    <svg
+                      class="cheque-view-btn__icon"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                  </button>
+                  <span v-else class="text-[var(--color-text-muted)]">—</span>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -267,7 +348,7 @@
         >
           <header class="tax-modal__header">
             <h2 id="add-collection-title" class="tax-modal__title">
-              Add collection record
+              {{ editingRecordId ? "Edit collection record" : "Add collection record" }}
             </h2>
             <button
               type="button"
@@ -316,14 +397,20 @@
               >
                 {{ selectedPayableDisplay }}
               </p>
-              <label class="tax-modal__label">
+              <p
+                v-if="editingRecordId"
+                class="text-[var(--label-size)] text-[var(--color-text-muted)] mb-3"
+              >
+                TransRef: {{ form.TransRef }}
+              </p>
+              <label v-if="!editingRecordId" class="tax-modal__label">
                 <span
                   >Select approved payable
                   <span class="text-[var(--color-text-muted)] font-normal"
                     >(only those not yet collected)</span
                   ></span
                 >
-                <div class="payable-select-wrap" ref="payableSelectWrapRef">
+                <div v-if="!editingRecordId" class="payable-select-wrap" ref="payableSelectWrapRef">
                   <div
                     class="payable-select-trigger glass-input flex items-center gap-2 w-full px-3 py-2.5 rounded-lg cursor-pointer"
                     :class="{ 'payable-select-trigger--focused': showPayableDropdown }"
@@ -368,7 +455,7 @@
                     </svg>
                   </div>
                   <div
-                    v-if="showPayableDropdown"
+                    v-if="!editingRecordId && showPayableDropdown"
                     class="payable-select-dropdown"
                     @click.stop
                   >
@@ -566,7 +653,7 @@
                 class="tax-modal__btn-submit"
                 :disabled="saving"
               >
-                {{ saving ? "Saving…" : "Add" }}
+                {{ saving ? "Saving…" : (editingRecordId ? "Save" : "Add") }}
               </button>
             </div>
           </form>
@@ -590,6 +677,7 @@ import { useToastStore } from "../stores/toastStore";
 import { useChequeOverviewStore } from "../stores/chequeOverviewStore";
 import { formatDateForFileMaker } from "../utils/filemakerMappers";
 import { formatNumberDisplay } from "../utils/formatNumber";
+import { exportChequeCollections } from "../utils/exportData";
 
 const {
     createRecord,
@@ -597,6 +685,7 @@ const {
     findRecordsByQueryWithIds,
     updateRecord,
     isConnected,
+    loggedInEmail,
   } = useFileMaker();
 const toast = useToastStore();
 const chequeOverview = useChequeOverviewStore();
@@ -607,6 +696,7 @@ const collectionList = ref<
 const loading = ref(true);
 const loadError = ref<string | null>(null);
 const showAddModal = ref(false);
+const editingRecordId = ref<string | null>(null);
 const searchQuery = ref("");
 const formError = ref<string | null>(null);
 const saving = ref(false);
@@ -631,6 +721,29 @@ function defaultCollectionDate(): string {
   return `${y}-${m}-${day}`;
 }
 
+/** True if the row's CollectionDate is today (same calendar day). */
+function isCollectionDateToday(
+  row: FindRecordWithId<ChequeCollectionFieldData | Record<string, unknown>>,
+): boolean {
+  const dateStr = getFieldValue(row, "CollectionDate");
+  if (!dateStr) return false;
+  const today = defaultCollectionDate();
+  const normalized = dateStr.replace(/\//g, "-");
+  const match = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (match) {
+    const [, y, m, d] = match;
+    const rowDate = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    return rowDate === today;
+  }
+  const mmddyy = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (mmddyy) {
+    const [, m, d, y] = mmddyy;
+    const rowDate = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+    return rowDate === today;
+  }
+  return false;
+}
+
 const form = ref({
   TransRef: "",
   BankName: "",
@@ -644,14 +757,21 @@ const form = ref({
   CollectionDate: defaultCollectionDate(),
 });
 
-function getField(
+function getFieldValue(
   row: FindRecordWithId<ChequeCollectionFieldData | Record<string, unknown>>,
   key: string,
 ): string {
   const fd = row.fieldData as Record<string, unknown>;
   const v = fd[key] ?? fd[key.replace(/([A-Z])/g, " $1").trim()];
-  if (v == null || v === "") return "—";
-  return String(v).trim();
+  return v != null && v !== "" ? String(v).trim() : "";
+}
+
+function getField(
+  row: FindRecordWithId<ChequeCollectionFieldData | Record<string, unknown>>,
+  key: string,
+): string {
+  const val = getFieldValue(row, key);
+  return val || "—";
 }
 
 function formatDate(value: string | undefined): string {
@@ -702,6 +822,10 @@ watch(searchQuery, () => {
 watch(totalPages, (total) => {
   if (currentPage.value > total) currentPage.value = Math.max(1, total);
 });
+
+function onExport() {
+  exportChequeCollections(filteredCollectionList.value, "csv");
+}
 
 function getPayableStatus(
   fd: PayablesMainFieldData | Record<string, unknown> | undefined,
@@ -840,10 +964,12 @@ watch(showPayableDropdown, (open) => {
 });
 
 watch(showAddModal, (open) => {
-  if (open) {
+  if (open && !editingRecordId.value) {
     loadApprovedPayables();
-  } else {
+  }
+  if (!open) {
     resetForm();
+    editingRecordId.value = null;
   }
 });
 
@@ -854,8 +980,53 @@ onUnmounted(() => {
   document.removeEventListener("click", handleClickOutsidePayableSelect);
 });
 
+function fileMakerDateToInput(dateStr: string | undefined): string {
+  const s = String(dateStr ?? "").trim();
+  if (!s) return defaultCollectionDate();
+  const match = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (match) {
+    const [, month, day, year] = match;
+    return `${year}-${month!.padStart(2, "0")}-${day!.padStart(2, "0")}`;
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  return defaultCollectionDate();
+}
+
+function openEditModal(
+  row: FindRecordWithId<ChequeCollectionFieldData | Record<string, unknown>>,
+) {
+  const fd = row.fieldData as Record<string, unknown>;
+  const get = (key: string) => {
+    const v = fd[key] ?? fd[key.replace(/([A-Z])/g, " $1").trim()];
+    return v != null && v !== "" ? String(v).trim() : "";
+  };
+  const transRef = get("TransRef");
+  const chequePayee = get("ChequePayee");
+  form.value = {
+    TransRef: transRef,
+    BankName: get("BankName"),
+    ChequeNo: get("ChequeNo"),
+    Amount: get("Amount") || "",
+    ChequePayee: chequePayee,
+    ReceivedBy: get("ReceivedBy"),
+    IDNo: get("IDNo"),
+    Contact: get("Contact"),
+    TinNo: get("TinNo"),
+    CollectionDate: fileMakerDateToInput(
+      (fd.CollectionDate ?? fd["Collection Date"]) as string | undefined,
+    ),
+  };
+  selectedPayableVendorId.value = transRef;
+  selectedPayableVendorName.value = chequePayee;
+  editingRecordId.value = row.recordId ? String(row.recordId) : null;
+  formError.value = null;
+  showPayableDropdown.value = false;
+  showAddModal.value = true;
+}
+
 function closeModal() {
   showAddModal.value = false;
+  editingRecordId.value = null;
 }
 
 function resetForm() {
@@ -876,6 +1047,56 @@ function resetForm() {
   selectedPayableVendorName.value = "";
   payableSearchQuery.value = "";
   showPayableDropdown.value = false;
+}
+
+function getFullNameFromUserRecord(
+  fd: Record<string, unknown> | undefined,
+): string {
+  if (!fd) return "";
+  const v =
+    fd.FullName ??
+    fd["Full Name"] ??
+    fd.fullName ??
+    fd.fullname;
+  return v != null && String(v).trim() ? String(v).trim() : "";
+}
+
+function looksLikeEmail(s: string): boolean {
+  return /^[^@]+@[^@]+\.[^@]+$/.test(s.trim());
+}
+
+/** Resolve officer FullName from Payables_Users by logged-in email. */
+async function resolveOfficerName(): Promise<string | null> {
+  const officerEmail = loggedInEmail.value?.trim();
+  if (!officerEmail) return null;
+  const normalizedEmail = officerEmail.toLowerCase();
+  let posterFd: Record<string, unknown> | undefined;
+  const { data: posterRecords } = await findRecordsByQueryWithIds<
+    Record<string, unknown>
+  >(LAYOUTS.PAYABLES_USERS, { Email: officerEmail }, 1);
+  posterFd = posterRecords[0]?.fieldData as Record<string, unknown> | undefined;
+  if (!posterRecords?.length) {
+    const { data: byEmail } = await findRecordsByQueryWithIds<
+      Record<string, unknown>
+    >(LAYOUTS.PAYABLES_USERS, { email: officerEmail }, 1);
+    if (byEmail?.length) {
+      posterFd = byEmail[0]?.fieldData as Record<string, unknown> | undefined;
+    }
+  }
+  if (!posterFd) {
+    const { data: users } = await findRecordsWithIds<
+      Record<string, unknown>
+    >(LAYOUTS.PAYABLES_USERS, { limit: 500 });
+    const match = users?.find((r) => {
+      const fd = r?.fieldData as Record<string, unknown> | undefined;
+      const rowEmail = (fd?.Email ?? fd?.email ?? "").toString().trim();
+      return rowEmail.toLowerCase() === normalizedEmail;
+    });
+    posterFd = match?.fieldData as Record<string, unknown> | undefined;
+  }
+  const resolved = getFullNameFromUserRecord(posterFd);
+  if (resolved && !looksLikeEmail(resolved)) return resolved;
+  return null;
 }
 
 function validateForm(): string | null {
@@ -901,6 +1122,8 @@ async function submit() {
   }
   saving.value = true;
   formError.value = null;
+  const recordId = editingRecordId.value;
+  const isEdit = !!recordId;
   try {
     const amountNum =
       form.value.Amount === ""
@@ -920,41 +1143,74 @@ async function submit() {
       TinNo: form.value.TinNo?.trim() || undefined,
       CollectionDate: formatDateForFileMaker(form.value.CollectionDate),
     };
-    const { id, error } = await createRecord(
-      LAYOUTS.CHEQUE_COLLECTION,
-      fieldData,
-    );
-    if (error) {
-      toast.error(error);
-      formError.value = null;
-      return;
+    if (!isEdit) {
+      const issuedBy = await resolveOfficerName();
+      fieldData.IssuedBy = issuedBy || undefined;
     }
-    // Update Payables_Main with cheque issued details
-    const transRef = form.value.TransRef?.trim();
-    if (transRef) {
-      const { data: mainRecords } = await findRecordsByQueryWithIds<
-        PayablesMainFieldData | Record<string, unknown>
-      >(LAYOUTS.PAYABLES_MAIN, { TransRef: transRef }, 1);
-      const mainRecord = mainRecords[0];
-      if (mainRecord?.recordId) {
-        const { error: updateErr } = await updateRecord(
-          LAYOUTS.PAYABLES_MAIN,
-          mainRecord.recordId,
-          {
-            ChequeIssued: "Yes",
+    if (isEdit) {
+      const { error } = await updateRecord(
+        LAYOUTS.CHEQUE_COLLECTION,
+        recordId,
+        fieldData,
+      );
+      if (error) {
+        toast.error(error);
+        formError.value = null;
+        return;
+      }
+      // Sync Payables_Main cheque details when collection is edited
+      const transRef = form.value.TransRef?.trim();
+      if (transRef) {
+        const { data: mainRecords } = await findRecordsByQueryWithIds<
+          PayablesMainFieldData | Record<string, unknown>
+        >(LAYOUTS.PAYABLES_MAIN, { TransRef: transRef }, 1);
+        const mainRecord = mainRecords[0];
+        if (mainRecord?.recordId) {
+          await updateRecord(LAYOUTS.PAYABLES_MAIN, mainRecord.recordId, {
             ChequeIssuedDate: formatDateForFileMaker(form.value.CollectionDate),
             BankName: form.value.BankName?.trim(),
             ChequeNo: form.value.ChequeNo?.trim(),
-          },
-        );
-        if (updateErr) {
-          toast.error(
-            "Collection saved but Payables_Main update failed: " + updateErr,
-          );
+          });
         }
       }
+      toast.success("Collection record updated.");
+    } else {
+      const { error } = await createRecord(
+        LAYOUTS.CHEQUE_COLLECTION,
+        fieldData,
+      );
+      if (error) {
+        toast.error(error);
+        formError.value = null;
+        return;
+      }
+      // Update Payables_Main with cheque issued details (only on create)
+      const transRef = form.value.TransRef?.trim();
+      if (transRef) {
+        const { data: mainRecords } = await findRecordsByQueryWithIds<
+          PayablesMainFieldData | Record<string, unknown>
+        >(LAYOUTS.PAYABLES_MAIN, { TransRef: transRef }, 1);
+        const mainRecord = mainRecords[0];
+        if (mainRecord?.recordId) {
+          const { error: updateErr } = await updateRecord(
+            LAYOUTS.PAYABLES_MAIN,
+            mainRecord.recordId,
+            {
+              ChequeIssued: "Yes",
+              ChequeIssuedDate: formatDateForFileMaker(form.value.CollectionDate),
+              BankName: form.value.BankName?.trim(),
+              ChequeNo: form.value.ChequeNo?.trim(),
+            },
+          );
+          if (updateErr) {
+            toast.error(
+              "Collection saved but Payables_Main update failed: " + updateErr,
+            );
+          }
+        }
+      }
+      toast.success("Collection record added.");
     }
-    toast.success("Collection record added.");
     closeModal();
     await loadCollections();
   } finally {
@@ -994,6 +1250,33 @@ watch(isConnected, (connected) => {
 <style scoped>
 .cheque-modal {
   max-width: 920px;
+}
+
+.cheque-table-actions {
+  width: 1%;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.cheque-view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.375rem;
+  border-radius: 8px;
+  color: var(--color-text-muted);
+  transition: color 0.2s var(--ease), background 0.2s var(--ease);
+  text-decoration: none;
+}
+
+.cheque-view-btn:hover {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.cheque-view-btn__icon {
+  width: 1.25rem;
+  height: 1.25rem;
 }
 
 .payable-select-wrap {

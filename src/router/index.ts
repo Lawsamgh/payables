@@ -69,6 +69,12 @@ const router = createRouter({
       component: () => import('../views/SettingsDocumentsView.vue'),
       meta: { title: 'Documents', requiresAuth: true },
     },
+    {
+      path: '/settings/logs',
+      name: 'settings-logs',
+      component: () => import('../views/SettingsLogsView.vue'),
+      meta: { title: 'Activity Logs', requiresAuth: true },
+    },
   ],
 })
 

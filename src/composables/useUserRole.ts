@@ -11,6 +11,7 @@ import type { PayablesUsersFieldData } from '../utils/filemakerApi'
 const STORAGE_KEY_ROLE = 'fm_user_role'
 
 const userRole = ref<string | null>(null)
+const userFullName = ref<string | null>(null)
 const roleLoaded = ref(false)
 
 function getFieldValue(fd: Record<string, unknown> | undefined, key: string): string {
@@ -50,15 +51,21 @@ export function useUserRole() {
   }
 
   const roleLower = computed(() => (userRole.value ?? '').trim().toLowerCase())
+  const isAdmin = computed(() => roleLoaded.value && roleLower.value === 'admin')
   const isManager = computed(() => roleLoaded.value && roleLower.value === 'manager')
   const isOfficer = computed(() => roleLoaded.value && roleLower.value === 'officer')
   /** True when role loaded and user is not Manager (show nav items Manager should not see). */
   const showForManager = computed(() => roleLoaded.value && roleLower.value !== 'manager')
+  /** True when Admin or Manager (can view activity logs). */
+  const canViewLogs = computed(
+    () => roleLoaded.value && (roleLower.value === 'admin' || roleLower.value === 'manager')
+  )
 
   async function loadUserRole() {
     const email = loggedInEmail.value
     if (!email || !isConnected.value) {
       userRole.value = null
+      userFullName.value = null
       roleLoaded.value = false
       return
     }
@@ -81,7 +88,9 @@ export function useUserRole() {
       fd = match?.fieldData as Record<string, unknown> | undefined
     }
     const role = getFieldValue(fd, 'Role')
+    const fullName = getFieldValue(fd, 'FullName') || (fd ? String(fd['Full Name'] ?? '').trim() : '')
     userRole.value = role || null
+    userFullName.value = fullName || null
     roleLoaded.value = true
     writeCachedRole(userRole.value)
   }
@@ -96,10 +105,11 @@ export function useUserRole() {
           roleLoaded.value = true
         }
         loadUserRole()
-      } else {
-        userRole.value = null
-        roleLoaded.value = false
-      }
+    } else {
+      userRole.value = null
+      userFullName.value = null
+      roleLoaded.value = false
+    }
     },
     { immediate: true }
   )
@@ -115,5 +125,16 @@ export function useUserRole() {
     }
   })
 
-  return { userRole, roleLower, isManager, isOfficer, showForManager, roleLoaded, loadUserRole }
+  return {
+    userRole,
+    userFullName,
+    roleLower,
+    isAdmin,
+    isManager,
+    isOfficer,
+    showForManager,
+    canViewLogs,
+    roleLoaded,
+    loadUserRole,
+  }
 }
