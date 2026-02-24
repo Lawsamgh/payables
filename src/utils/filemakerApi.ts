@@ -225,23 +225,52 @@ function getFieldValue(
 }
 
 /**
+ * Result of checking if an email exists in Payables_Users.
+ * - exists: true if the email was found AND the account is active
+ * - inactive: true if the email was found but Status is "Inactive"
+ * - error: set if a connection or unexpected error occurred
+ */
+export interface CheckEmailResult {
+  exists: boolean;
+  inactive?: boolean;
+  error?: string;
+}
+
+/**
  * Check if an email exists in Payables_Users using VITE_FILEMAKER_USER and VITE_FILEMAKER_PASSWORD.
  * Used at login to validate email before showing the password step.
- * Tries _find first; if no match, fetches all users and matches client-side (handles field name / case differences).
+ *
+ * Returns:
+ *   { exists: true }              — email found and account is Active
+ *   { exists: false, inactive: true } — email found but account is Inactive
+ *   { exists: false }             — email not found
+ *   { exists: false, error: '…' } — connection or unexpected error
+ *
+ * Strategy:
+ *   1. Try FileMaker _find with Email + Status=Active (exact match)
+ *   2. Try _find with lowercase field name variant
+ *   3. Try _find for email only (to detect inactive accounts)
+ *   4. Fall back to fetching all records and matching client-side
+ *      (handles field name / case differences in older FM layouts)
  */
 export async function checkEmailExistsInPayablesUsers(
   email: string,
-): Promise<{ exists: boolean; error?: string }> {
+): Promise<CheckEmailResult> {
   const base = getBaseUrl()?.trim();
   if (!base) return { exists: false, error: "FileMaker URL not set" };
+
   const envUser = (import.meta.env?.VITE_FILEMAKER_USER as string) || "";
   const envPass = (import.meta.env?.VITE_FILEMAKER_PASSWORD as string) || "";
   if (!envUser.trim() || !envPass) {
     return { exists: false, error: "Service credentials not configured" };
   }
+
   const urlBase = base.replace(/\/$/, "");
-  const normalizedEmail = String(email).trim().toLowerCase();
+  const exactEmail = String(email).trim();
+  const normalizedEmail = exactEmail.toLowerCase();
+
   try {
+    // ── 1. Open a service session ──────────────────────────────────────────
     const sessRes = await axios.post<{ response?: { token?: string } }>(
       `${urlBase}/sessions`,
       {},
@@ -255,26 +284,31 @@ export async function checkEmailExistsInPayablesUsers(
       sessRes.data?.response?.token ??
       (sessRes.headers?.["x-fm-data-access-token"] as string) ??
       (sessRes.headers?.["X-FM-Data-Access-Token"] as string);
+
     if (!token) {
       return { exists: false, error: "Could not connect to FileMaker" };
     }
+
     const headers = {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     };
 
-    const tryFind = async (query: Record<string, string>) => {
+    // ── 2. Helper: run a _find query, returns matching records ─────────────
+    const runFind = async (
+      query: Record<string, string>,
+    ): Promise<Array<{ fieldData?: Record<string, unknown> }>> => {
       try {
-        const findRes = await axios.post<{
-          response?: { data?: unknown[] };
-          messages?: Array<{ code?: string }>;
+        const res = await axios.post<{
+          response?: {
+            data?: Array<{ fieldData?: Record<string, unknown> }>;
+          };
         }>(
           `${urlBase}/layouts/Payables_Users/_find`,
-          { query: [query], limit: "1" },
+          { query: [query], limit: "5" },
           { headers, timeout: 15000 },
         );
-        const list = findRes.data?.response?.data ?? [];
-        return list.length > 0;
+        return res.data?.response?.data ?? [];
       } catch (e) {
         const err = e as {
           response?: {
@@ -282,36 +316,90 @@ export async function checkEmailExistsInPayablesUsers(
           };
         };
         const code = String(err.response?.data?.messages?.[0]?.code ?? "");
-        const msg = String(err.response?.data?.messages?.[0]?.message ?? "");
-        if (code === "401" || msg.toLowerCase().includes("no records match")) {
-          return false;
+        const msg = String(
+          err.response?.data?.messages?.[0]?.message ?? "",
+        ).toLowerCase();
+        // FM error 401 = no records match the request — not a real error
+        if (code === "401" || msg.includes("no records match")) {
+          return [];
         }
         throw e;
       }
     };
 
-    const exactEmail = String(email).trim();
-    let found =
-      (await tryFind({ Email: `=${exactEmail}` })) ||
-      (await tryFind({ email: `=${exactEmail}` }));
+    // ── 3. Try _find: email AND Status = Active ────────────────────────────
+    let activeRecords = await runFind({
+      Email: `=${exactEmail}`,
+      Status: "Active",
+    });
 
-    if (!found) {
-      const listRes = await axios.get<{
-        response?: { data?: Array<{ fieldData?: Record<string, unknown> }> };
-      }>(`${urlBase}/layouts/Payables_Users/records`, {
-        params: { _limit: "500" },
-        headers,
-        timeout: 15000,
-      });
-      const list = listRes.data?.response?.data ?? [];
-      found = list.some((r) => {
-        const fd = r?.fieldData;
-        const rowEmail = getFieldValue(fd, "Email");
-        return rowEmail.trim().toLowerCase() === normalizedEmail;
+    // Retry with lowercase field name variant
+    if (activeRecords.length === 0) {
+      activeRecords = await runFind({
+        email: `=${exactEmail}`,
+        Status: "Active",
       });
     }
 
-    return { exists: found };
+    if (activeRecords.length > 0) {
+      return { exists: true };
+    }
+
+    // ── 4. Try _find: email only (no Status filter) to detect inactive ─────
+    let emailOnlyRecords = await runFind({ Email: `=${exactEmail}` });
+    if (emailOnlyRecords.length === 0) {
+      emailOnlyRecords = await runFind({ email: `=${exactEmail}` });
+    }
+
+    if (emailOnlyRecords.length > 0) {
+      // Email exists — check whether all matching records are Inactive
+      const allInactive = emailOnlyRecords.every((r) => {
+        const status = getFieldValue(r?.fieldData, "Status").toLowerCase();
+        return status === "inactive";
+      });
+      if (allInactive) {
+        return { exists: false, inactive: true };
+      }
+      // Found but not inactive and not active — treat as active to be safe
+      return { exists: true };
+    }
+
+    // ── 5. Fallback: fetch all records and match client-side ───────────────
+    //    (handles layouts where _find field names differ from actual names)
+    const listRes = await axios.get<{
+      response?: {
+        data?: Array<{ fieldData?: Record<string, unknown> }>;
+      };
+    }>(`${urlBase}/layouts/Payables_Users/records`, {
+      params: { _limit: "500" },
+      headers,
+      timeout: 15000,
+    });
+
+    const allRecords = listRes.data?.response?.data ?? [];
+
+    // Find records matching this email (case-insensitive)
+    const matchingRecords = allRecords.filter((r) => {
+      const fd = r?.fieldData;
+      const rowEmail = getFieldValue(fd, "Email").toLowerCase();
+      return rowEmail === normalizedEmail;
+    });
+
+    if (matchingRecords.length === 0) {
+      return { exists: false };
+    }
+
+    // Check Status on matched records
+    const allInactive = matchingRecords.every((r) => {
+      const status = getFieldValue(r?.fieldData, "Status").toLowerCase();
+      return status === "inactive";
+    });
+
+    if (allInactive) {
+      return { exists: false, inactive: true };
+    }
+
+    return { exists: true };
   } catch (err) {
     const msg = parseFileMakerError(err);
     if (

@@ -265,6 +265,7 @@ onUnmounted(() => {
 async function proceed() {
   error.value = null;
   emailFieldError.value = false;
+
   if (!hasBaseUrlEnv.value && !baseUrl.value.trim()) {
     toast.error("Enter FileMaker base URL");
     return;
@@ -280,24 +281,39 @@ async function proceed() {
     emailFieldError.value = true;
     return;
   }
+
   loading.value = true;
   try {
     if (!hasBaseUrlEnv.value && baseUrl.value.trim()) {
       setSessionBaseUrl(baseUrl.value.trim());
     }
-    const { exists, error: checkErr } = await checkEmailExistsInPayablesUsers(
-      email.value.trim(),
-    );
+
+    const {
+      exists,
+      inactive,
+      error: checkErr,
+    } = await checkEmailExistsInPayablesUsers(email.value.trim());
+
     if (checkErr) {
       toast.error(checkErr);
       emailFieldError.value = true;
       return;
     }
+
+    // Email found but account is inactive
+    if (inactive) {
+      toast.error("Your account is inactive. Contact your administrator.");
+      emailFieldError.value = true;
+      return;
+    }
+
+    // Email not registered at all
     if (!exists) {
       toast.error("This email is not registered. Contact your administrator.");
       emailFieldError.value = true;
       return;
     }
+
     step.value = "password";
   } finally {
     loading.value = false;
