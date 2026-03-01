@@ -9,8 +9,8 @@ import { ref, computed } from 'vue'
 export const useBookletStore = defineStore('booklet', () => {
   const openEntryRefs = ref<string[]>([])
   const currentOpenIndex = ref(0)
-  /** 'draft' = booklet from draft selection (remove posted); 'rejected' = booklet from rejected card (keep all). */
-  const mode = ref<'draft' | 'rejected' | null>(null)
+  /** 'draft' = booklet from draft selection (remove posted); 'rejected' = booklet from rejected card (keep all); 'overdue' = booklet from overdue modal (keep all). */
+  const mode = ref<'draft' | 'rejected' | 'overdue' | null>(null)
   /** Refs selected on the list view for the booklet (Apple Books–style). */
   const selectedForBooklet = ref<Set<string>>(new Set())
 
@@ -123,8 +123,8 @@ export const useBookletStore = defineStore('booklet', () => {
     selectedForBooklet.value = new Set()
   }
 
-  /** Open the booklet with the given ordered refs. Pass mode so EntryView knows not to remove entries when viewing rejected. */
-  function openBookletWithRefs(orderedRefs: string[], bookletMode?: 'draft' | 'rejected'): void {
+  /** Open the booklet with the given ordered refs. Pass mode so EntryView knows not to remove entries when viewing rejected/overdue. */
+  function openBookletWithRefs(orderedRefs: string[], bookletMode?: 'draft' | 'rejected' | 'overdue'): void {
     const refs = orderedRefs.map((r) => (r ?? '').trim()).filter(Boolean)
     openEntryRefs.value = refs
     currentOpenIndex.value = 0

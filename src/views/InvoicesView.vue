@@ -1,9 +1,9 @@
 <template>
   <div
-    class="content-area flex flex-col flex-1 min-h-0 w-full max-w-[1600px] mx-auto px-4 py-5 md:px-6 md:py-6 min-h-[400px]"
+    class="content-area flex flex-col flex-1 min-h-0 w-full max-w-[1600px] mx-auto px-4 py-5 md:px-6 md:py-6 min-h-[400px] overflow-hidden"
   >
     <header
-      class="invoices-header sticky top-0 z-10 -mx-4 -mt-5 px-4 pt-5 pb-4 md:-mx-6 md:-mt-6 md:px-6 md:pt-6 md:pb-4 mb-6 bg-[#0f172a] border-b border-[var(--color-border)]"
+      class="invoices-header shrink-0 -mx-4 -mt-5 px-4 pt-5 pb-4 md:-mx-6 md:-mt-6 md:px-6 md:pt-6 md:pb-4 mb-4 bg-[#0f172a] border-b border-[var(--color-border)]"
     >
       <h1
         class="text-[1.75rem] font-bold tracking-tight text-[var(--color-text)] md:text-[2rem]"
@@ -242,6 +242,7 @@
       </div>
     </header>
 
+    <div class="invoices-scroll flex-1 min-h-0 overflow-y-auto -mx-4 px-4 md:-mx-6 md:px-6">
     <div v-if="loading" class="pdf-grid">
       <div v-for="i in 12" :key="i" class="pdf-tile pdf-tile--skeleton">
         <div class="pdf-thumb">
@@ -453,6 +454,7 @@
         </router-link>
       </div>
     </template>
+    </div>
   </div>
 </template>
 

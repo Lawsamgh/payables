@@ -13,7 +13,7 @@
       @cancel="showRejectModal = false"
     />
     <EditRequestModal
-      :visible="!!(showEditRequestModal && pendingEditRequestForModal)"
+      :visible="!!(documentSettings.editRequestEnabled && showEditRequestModal && pendingEditRequestForModal && editRequestModalTransRef === (route.query.transRef as string)?.trim())"
       :requested-by="pendingEditRequestForModal?.RequestedBy"
       :proceeding="grantingEditRequest"
       @dismiss="dismissEditRequestModal"
@@ -42,7 +42,7 @@
       <!-- Center: booklet + Reject + Approve -->
       <div class="flex flex-1 flex-wrap items-center justify-center gap-2">
         <div
-          v-if="booklet.count > 1"
+          v-if="documentSettings.bookletEnabled && booklet.count > 1"
           class="booklet-bar glass-input inline-flex items-center overflow-hidden rounded-full border border-[var(--color-border)]"
         >
           <button
@@ -415,7 +415,7 @@
 
     <div
       class="booklet-flip-view"
-      :class="{ 'booklet-flip-view--swipeable': booklet.count > 1 }"
+      :class="{ 'booklet-flip-view--swipeable': documentSettings.bookletEnabled && booklet.count > 1 }"
       @touchstart="onSwipeStart"
       @touchend="onSwipeEnd"
     >
@@ -479,7 +479,7 @@
               </div>
             </section>
             <button
-              v-if="booklet.count > 1"
+              v-if="documentSettings.bookletEnabled && booklet.count > 1"
               type="button"
               disabled
               class="booklet-circle absolute -left-16 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full flex items-center justify-center glass-input border-2 opacity-30 pointer-events-none"
@@ -500,7 +500,7 @@
               </svg>
             </button>
             <button
-              v-if="booklet.count > 1"
+              v-if="documentSettings.bookletEnabled && booklet.count > 1"
               type="button"
               disabled
               class="booklet-circle absolute -right-16 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full flex items-center justify-center glass-input border-2 opacity-30 pointer-events-none"
@@ -617,10 +617,11 @@
           <div class="vendor-details-row relative mb-4">
             <VendorDetails />
             <button
-              v-if="booklet.count > 1"
+              v-if="documentSettings.bookletEnabled && booklet.count > 1"
               type="button"
               :disabled="!booklet.hasPrev"
               class="booklet-circle absolute -left-16 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full flex items-center justify-center glass-input border-2 text-orange-400/90 hover:text-orange-400 hover:bg-orange-500/10 border-orange-500/70 hover:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:ring-offset-2 focus:ring-offset-[var(--color-bg)] disabled:opacity-30 disabled:pointer-events-none disabled:border-[var(--color-border)] disabled:text-[var(--color-text-muted)] transition-all shadow-lg"
+              :title="isMac ? 'Previous entry (⌘←)' : 'Previous entry (Ctrl+←)'"
               aria-label="Previous entry"
               @click="goPrev"
             >
@@ -639,10 +640,11 @@
               </svg>
             </button>
             <button
-              v-if="booklet.count > 1"
+              v-if="documentSettings.bookletEnabled && booklet.count > 1"
               type="button"
               :disabled="!booklet.hasNext"
               class="booklet-circle absolute -right-16 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full flex items-center justify-center glass-input border-2 text-orange-400/90 hover:text-orange-400 hover:bg-orange-500/10 border-orange-500/70 hover:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:ring-offset-2 focus:ring-offset-[var(--color-bg)] disabled:opacity-30 disabled:pointer-events-none disabled:border-[var(--color-border)] disabled:text-[var(--color-text-muted)] transition-all shadow-lg"
+              :title="isMac ? 'Next entry (⌘→)' : 'Next entry (Ctrl+→)'"
               aria-label="Next entry"
               @click="goNext"
             >
@@ -703,6 +705,7 @@ import { useBookletStore } from "../stores/bookletStore";
 import { useFileMaker } from "../composables/useFileMaker";
 import { useUserRole } from "../composables/useUserRole";
 import { useEditRequest, type PendingEditRequest } from "../composables/useEditRequest";
+import { useApprovalNotification } from "../composables/useApprovalNotification";
 import { LAYOUTS, type PayableInvoiceFieldData } from "../utils/filemakerApi";
 import {
   formatTimestampForFileMaker,
@@ -714,13 +717,18 @@ import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
 
 const route = useRoute();
 const router = useRouter();
+const isMac =
+  typeof navigator !== "undefined" &&
+  /Mac|iPod|iPhone|iPad/.test(navigator.platform);
 
-/** Back to list: Invoices, Cheque Collection, Activity Logs, or Home depending on arrival. */
+/** Back to list: Invoices, Cheque Collection, Activity Logs, Overdue modal, or Home depending on arrival. */
 const backToListRoute = computed(() => {
   const from = route.query.from;
   if (from === "invoices") return { name: "invoices" as const };
   if (from === "cheque-collection") return { name: "cheque-collection" as const };
   if (from === "settings-logs") return { name: "settings-logs" as const };
+  if (from === "overdue")
+    return { path: "/home", query: { tab: "posted", openOverdue: "1" } };
   return getHomeRoute();
 });
 
@@ -743,9 +751,11 @@ const downloadingPdf = ref(false);
 const grantingEditRequest = ref(false);
 const showEditRequestModal = ref(false);
 const pendingEditRequestForModal = ref<PendingEditRequest | null>(null);
+const editRequestModalTransRef = ref<string | null>(null);
 const editRequestModalDismissedForTransRef = ref<string | null>(null);
 
 const { fetchPendingEditRequest, grantEditRequest, notifyEditRequestGranted } = useEditRequest();
+const { notifyApprovalToOfficer } = useApprovalNotification();
 
 const canDeleteRow = computed(() => spreadsheet.rowCount.value > 1);
 
@@ -843,6 +853,9 @@ function formatRejectionDate(raw?: string): string {
 }
 
 function loadForRoute() {
+  showEditRequestModal.value = false;
+  pendingEditRequestForModal.value = null;
+  editRequestModalTransRef.value = null;
   const transRef = route.query.transRef as string | undefined;
   if (transRef?.trim()) {
     payableStore.fetchDetailsByTransRef(transRef.trim());
@@ -857,12 +870,12 @@ function loadForRoute() {
   }
 }
 
-/** Booklet: add current entry to booklet, remove posted from booklet only when in draft mode (not rejected booklet). */
+/** Booklet: add current entry to booklet, remove posted from booklet only when in draft mode (not rejected/overdue booklet). */
 function syncBookletToDraftsOnly() {
   const transRef = (route.query.transRef as string)?.trim();
   if (!transRef) return;
   if (payableStore.currentTransRef !== transRef) return;
-  if (booklet.mode === "rejected") {
+  if (booklet.mode === "rejected" || booklet.mode === "overdue") {
     booklet.ensureCurrent(transRef);
     return;
   }
@@ -873,7 +886,7 @@ function syncBookletToDraftsOnly() {
 function entryQuery(transRef: string) {
   const q: { transRef: string; from?: string } = { transRef };
   const from = route.query.from;
-  if (from === "invoices" || from === "cheque-collection" || from === "settings-logs") q.from = from;
+  if (from === "invoices" || from === "cheque-collection" || from === "settings-logs" || from === "overdue") q.from = from;
   return { name: "entry" as const, query: q };
 }
 
@@ -1043,8 +1056,11 @@ watch(
   { immediate: true },
 );
 
-watch(() => route.query.transRef, (transRef) => {
+watch(() => route.query.transRef, () => {
   editRequestModalDismissedForTransRef.value = null;
+  showEditRequestModal.value = false;
+  pendingEditRequestForModal.value = null;
+  editRequestModalTransRef.value = null;
 });
 
 watch(
@@ -1066,14 +1082,19 @@ watch(
       !mainPosted ||
       mainStatus !== "Posted"
     ) {
+      showEditRequestModal.value = false;
+      pendingEditRequestForModal.value = null;
+      editRequestModalTransRef.value = null;
       return;
     }
     const { data: pending } = await fetchPendingEditRequest(transRef);
     if (pending && editRequestModalDismissedForTransRef.value !== transRef) {
       pendingEditRequestForModal.value = pending;
+      editRequestModalTransRef.value = transRef;
       showEditRequestModal.value = true;
-    } else if (!pending) {
+    } else {
       pendingEditRequestForModal.value = null;
+      editRequestModalTransRef.value = null;
       showEditRequestModal.value = false;
     }
   },
@@ -1111,6 +1132,7 @@ async function onProceedAllowEdit() {
     toast.success("Entry returned to draft. Officer can now edit and post again.");
     showEditRequestModal.value = false;
     pendingEditRequestForModal.value = null;
+    editRequestModalTransRef.value = null;
     await payableStore.fetchDetailsByTransRef(transRef);
     router.push(getHomeRoute());
   } finally {
@@ -1221,6 +1243,19 @@ async function onApprove() {
     );
     if (activityErr) {
       toast.error("Approved but failed to record activity: " + activityErr);
+    }
+    if (documentSettings.approvalEmailToOfficerEnabled) {
+      const postedName = payableStore.mainPostedName ?? "";
+      const vendorName = vendorStore.vendor?.vendor_name ?? "";
+      const { error: notifyErr } = await notifyApprovalToOfficer({
+        transRef,
+        postedName,
+        approvedBy,
+        vendorName,
+      });
+      if (notifyErr) {
+        toast.info("Approval notification could not be sent: " + notifyErr);
+      }
     }
     toast.success("Entry approved.");
     await payableStore.fetchDetailsByTransRef(transRef);

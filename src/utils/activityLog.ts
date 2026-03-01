@@ -18,7 +18,7 @@ export type ActivityAction =
 
 type CreateRecordFn = (
   layout: string,
-  fieldData: Record<string, unknown>,
+  fieldData: Record<string, string | number | null | undefined>,
 ) => Promise<{ id: string | null; error: string | null }>
 
 /** Write an activity log entry. Returns error message if failed, null on success. */
@@ -29,7 +29,7 @@ export async function writeActivityLog(
   actor: string,
   reason?: string,
 ): Promise<string | null> {
-  const payload: Record<string, unknown> = {
+  const payload: Record<string, string | number | null | undefined> = {
     TransRef: transRef,
     Action: action,
     Actor: actor || '—',

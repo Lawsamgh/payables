@@ -42,9 +42,33 @@ function loadFromStorage(): InvoiceDownloadWhen {
   return "approved_only";
 }
 
+/** Parse FileMaker "Yes"/"1" as true; "No"/"0"/empty as false. Default when empty. */
+function parseYesNo(value: string | undefined, defaultWhenEmpty: boolean): boolean {
+  const v = (value ?? "").trim().toLowerCase();
+  if (!v) return defaultWhenEmpty;
+  return v === "yes" || v === "1" || v === "true";
+}
+
 export const useDocumentSettingsStore = defineStore("documentSettings", () => {
   const invoiceDownloadWhen = ref<InvoiceDownloadWhen>(loadFromStorage());
   const settingsRecordId = ref<string | null>(null);
+  /** HOD Email: recipient for notification mails (from Payables_Settings.HODEmail). */
+  const hodEmail = ref<string>("");
+
+  /** Feature flags from Payables_Settings (admin-configurable). */
+  const bulkApproveEnabled = ref(true);
+  const managerEditDraftEnabled = ref(false);
+  const sessionTimeoutWarningEnabled = ref(true);
+  const editRequestEnabled = ref(true);
+  const overdueDays = ref(7);
+  const overdueIndicatorEnabled = ref(true);
+  const commandPaletteEnabled = ref(true);
+  const bookletEnabled = ref(true);
+  const chequeCollectionEnabled = ref(true);
+  const taxViewEnabled = ref(true);
+  const vendorsViewEnabled = ref(true);
+  const approvalEmailToOfficerEnabled = ref(true);
+  const onboardingEnabled = ref(true);
 
   const { findRecordsWithIds, updateRecord, isConnected } = useFileMaker();
 
@@ -65,13 +89,89 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
     if (error || !data?.length) return;
     const record = data[0];
     settingsRecordId.value = record?.recordId ?? null;
-    const docOpt = (record?.fieldData as PayablesSettingsFieldData | undefined)?.DocOption;
+    const fd = record?.fieldData as PayablesSettingsFieldData | undefined;
+    const docOpt = fd?.DocOption;
     invoiceDownloadWhen.value = fmToInternal(docOpt);
+    const hod = fd?.HODEmail ?? (fd as Record<string, unknown>)?.["HOD Email"] ?? (fd as Record<string, unknown>)?.["hodEmail"] ?? "";
+    hodEmail.value = typeof hod === "string" ? hod.trim() : "";
+    bulkApproveEnabled.value = parseYesNo(fd?.BulkApprove, true);
+    managerEditDraftEnabled.value = parseYesNo(fd?.ManagerEditDraft, false);
+    sessionTimeoutWarningEnabled.value = parseYesNo(fd?.SessionTimeoutWarning, true);
+    editRequestEnabled.value = parseYesNo(fd?.EditRequestEnabled, true);
+    const od = fd?.OverdueDays;
+    const odNum = typeof od === "number" ? od : (od != null && od !== "" ? parseInt(String(od), 10) : NaN);
+    overdueDays.value = Number.isFinite(odNum) && odNum >= 1 && odNum <= 365 ? odNum : 7;
+    overdueIndicatorEnabled.value = parseYesNo(fd?.OverdueIndicatorEnabled, true);
+    commandPaletteEnabled.value = parseYesNo(fd?.CommandPaletteEnabled, true);
+    bookletEnabled.value = parseYesNo(fd?.BookletEnabled, true);
+    chequeCollectionEnabled.value = parseYesNo(fd?.ChequeCollectionEnabled, true);
+    taxViewEnabled.value = parseYesNo(fd?.TaxViewEnabled, true);
+    vendorsViewEnabled.value = parseYesNo(fd?.VendorsViewEnabled, true);
+    approvalEmailToOfficerEnabled.value = parseYesNo(fd?.ApprovalEmailToOfficer, true);
+    onboardingEnabled.value = parseYesNo(fd?.OnboardingEnabled, true);
     try {
       localStorage.setItem(STORAGE_KEY, invoiceDownloadWhen.value);
     } catch {
       /* ignore */
     }
+  }
+
+  type FeatureFlagKey =
+    | "BulkApprove"
+    | "ManagerEditDraft"
+    | "SessionTimeoutWarning"
+    | "EditRequestEnabled"
+    | "OverdueIndicatorEnabled"
+    | "CommandPaletteEnabled"
+    | "BookletEnabled"
+    | "ChequeCollectionEnabled"
+    | "TaxViewEnabled"
+    | "VendorsViewEnabled"
+    | "ApprovalEmailToOfficer"
+    | "OnboardingEnabled";
+
+  async function saveFeatureFlag(
+    field: FeatureFlagKey,
+    value: boolean
+  ): Promise<{ error: string | null }> {
+    if (!isConnected.value || !settingsRecordId.value) {
+      return { error: "Not connected" };
+    }
+    const fmValue = value ? "Yes" : "No";
+    const { error } = await updateRecord(
+      LAYOUTS.PAYABLES_SETTINGS,
+      settingsRecordId.value,
+      { [field]: fmValue },
+    );
+    if (!error) {
+      if (field === "BulkApprove") bulkApproveEnabled.value = value;
+      else if (field === "ManagerEditDraft") managerEditDraftEnabled.value = value;
+      else if (field === "SessionTimeoutWarning") sessionTimeoutWarningEnabled.value = value;
+      else if (field === "EditRequestEnabled") editRequestEnabled.value = value;
+      else if (field === "OverdueIndicatorEnabled") overdueIndicatorEnabled.value = value;
+      else if (field === "CommandPaletteEnabled") commandPaletteEnabled.value = value;
+      else if (field === "BookletEnabled") bookletEnabled.value = value;
+      else if (field === "ChequeCollectionEnabled") chequeCollectionEnabled.value = value;
+      else if (field === "TaxViewEnabled") taxViewEnabled.value = value;
+      else if (field === "VendorsViewEnabled") vendorsViewEnabled.value = value;
+      else if (field === "ApprovalEmailToOfficer") approvalEmailToOfficerEnabled.value = value;
+      else if (field === "OnboardingEnabled") onboardingEnabled.value = value;
+    }
+    return { error };
+  }
+
+  async function saveOverdueDays(value: number): Promise<{ error: string | null }> {
+    if (!isConnected.value || !settingsRecordId.value) {
+      return { error: "Not connected" };
+    }
+    const clamped = Math.max(1, Math.min(365, Math.round(value)));
+    const { error } = await updateRecord(
+      LAYOUTS.PAYABLES_SETTINGS,
+      settingsRecordId.value,
+      { OverdueDays: clamped },
+    );
+    if (!error) overdueDays.value = clamped;
+    return { error };
   }
 
   async function saveToFileMaker(): Promise<void> {
@@ -101,9 +201,41 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
     invoiceDownloadWhen.value = v;
   }
 
+  async function saveHodEmail(value: string): Promise<{ error: string | null }> {
+    if (!isConnected.value || !settingsRecordId.value) {
+      return { error: "Not connected" };
+    }
+    const trimmed = value.trim();
+    hodEmail.value = trimmed;
+    const { error } = await updateRecord(
+      LAYOUTS.PAYABLES_SETTINGS,
+      settingsRecordId.value,
+      { HODEmail: trimmed },
+      { allowEmptyStrings: true },
+    );
+    return { error };
+  }
+
   return {
     invoiceDownloadWhen,
+    hodEmail,
+    bulkApproveEnabled,
+    managerEditDraftEnabled,
+    sessionTimeoutWarningEnabled,
+    editRequestEnabled,
+    overdueDays,
+    overdueIndicatorEnabled,
+    commandPaletteEnabled,
+    bookletEnabled,
+    chequeCollectionEnabled,
+    taxViewEnabled,
+    vendorsViewEnabled,
+    approvalEmailToOfficerEnabled,
+    onboardingEnabled,
     setInvoiceDownloadWhen,
     loadFromFileMaker,
+    saveHodEmail,
+    saveFeatureFlag,
+    saveOverdueDays,
   };
 });

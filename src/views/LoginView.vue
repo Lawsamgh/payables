@@ -5,16 +5,17 @@
     @mouseenter="onMouseEnter"
     @mouseleave="onMouseLeave"
   >
-    <div class="login__bg" aria-hidden="true" />
-    <div class="login__bg-glow" aria-hidden="true" />
-    <div class="login__bg-shapes" aria-hidden="true">
+    <div class="login__bg-wrap" aria-hidden="true">
+      <div class="login__bg" />
+      <div class="login__bg-glow" />
+      <div class="login__bg-shapes">
       <div class="login__shape login__shape--1" />
       <div class="login__shape login__shape--2" />
       <div class="login__shape login__shape--3" />
       <div class="login__shape login__shape--4" />
       <div class="login__shape login__shape--5" />
-    </div>
-    <div class="login__bg-drops" aria-hidden="true">
+      </div>
+      <div class="login__bg-drops">
       <div class="login__drop login__drop--1" />
       <div class="login__drop login__drop--2" />
       <div class="login__drop login__drop--3" />
@@ -23,10 +24,11 @@
       <div class="login__drop login__drop--6" />
       <div class="login__drop login__drop--7" />
       <div class="login__drop login__drop--8" />
+      </div>
+      <div class="login__bg-grid" />
+      <div class="login__bg-dots" />
+      <div class="login__bg-noise" />
     </div>
-    <div class="login__bg-grid" aria-hidden="true" />
-    <div class="login__bg-dots" aria-hidden="true" />
-    <div class="login__bg-noise" aria-hidden="true" />
 
     <svg
       class="login__cursor-flame"
@@ -382,12 +384,19 @@ async function submit() {
   justify-content: center;
   padding: 2rem 1.5rem;
   position: relative;
+  isolation: isolate;
+}
+
+.login__bg-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
 }
 
 .login__bg {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: -5;
   background:
     radial-gradient(
       ellipse 120% 80% at 50% -30%,
@@ -403,9 +412,8 @@ async function submit() {
 }
 
 .login__bg-glow {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: -4;
   background: radial-gradient(
     ellipse 70% 50% at 50% 50%,
     rgba(59, 130, 246, 0.08) 0%,
@@ -414,9 +422,8 @@ async function submit() {
 }
 
 .login__bg-shapes {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: -3;
   overflow: hidden;
 }
 
@@ -497,9 +504,8 @@ async function submit() {
 }
 
 .login__bg-drops {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: -3;
   overflow: hidden;
 }
 
@@ -685,9 +691,8 @@ async function submit() {
 }
 
 .login__bg-grid {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: -2;
   background-image:
     linear-gradient(rgba(148, 163, 184, 0.04) 1px, transparent 1px),
     linear-gradient(90deg, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
@@ -705,9 +710,8 @@ async function submit() {
 }
 
 .login__bg-dots {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: -2;
   background-image: radial-gradient(
     rgba(148, 163, 184, 0.15) 1px,
     transparent 1px
@@ -726,9 +730,8 @@ async function submit() {
 }
 
 .login__bg-noise {
-  position: fixed;
+  position: absolute;
   inset: 0;
-  z-index: -1;
   opacity: 0.03;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }

@@ -140,7 +140,7 @@
           <span>Invoices</span>
         </router-link>
         <router-link
-          v-if="showForManager"
+          v-if="showForManager && documentSettings.chequeCollectionEnabled"
           to="/cheque-collection"
           class="sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--label-size)] font-medium no-underline transition-colors"
           :class="
@@ -165,6 +165,7 @@
           <span>Cheque collection</span>
         </router-link>
         <router-link
+          v-if="documentSettings.vendorsViewEnabled"
           to="/vendors"
           class="sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--label-size)] font-medium no-underline transition-colors"
           :class="
@@ -189,6 +190,7 @@
           <span>Vendors</span>
         </router-link>
         <router-link
+          v-if="documentSettings.taxViewEnabled"
           to="/tax"
           class="sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--label-size)] font-medium no-underline transition-colors"
           :class="
@@ -254,11 +256,13 @@ import { getHomeRoute } from "../utils/homeTab";
 import { usePayableStore } from "../stores/payableStore";
 import { useVendorStore } from "../stores/vendorStore";
 import { useUserRole } from "../composables/useUserRole";
+import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
 
 const route = useRoute();
 const payableStore = usePayableStore();
 const vendorStore = useVendorStore();
 const { showForManager } = useUserRole();
+const documentSettings = useDocumentSettingsStore();
 
 /** True when we're on the entry page with an existing entry (vendor) open. */
 const isEntryOpen = computed(

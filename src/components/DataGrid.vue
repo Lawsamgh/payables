@@ -329,13 +329,18 @@ import { useFileMaker } from '../composables/useFileMaker'
 import { LAYOUTS } from '../utils/filemakerApi'
 import { numberToWords } from '../utils/numberToWords'
 import { formatNumberDisplay } from '../utils/formatNumber'
+import { evaluateSimpleExpression } from '../utils/evaluateExpression'
 import type { TaxValueFieldData, PayableInvoiceFieldData } from '../utils/filemakerApi'
 import type { FindRecordWithId } from '../composables/useFileMaker'
 import { isFormula } from '../composables/useFormulas'
 import type { ColumnKey } from '../composables/useSpreadsheet'
+import { useUserRole } from '../composables/useUserRole'
+import { useDocumentSettingsStore } from '../stores/documentSettingsStore'
 import ContextMenu from './ContextMenu.vue'
 
 const spreadsheet = useSpreadsheet()
+const { isManager } = useUserRole()
+const documentSettings = useDocumentSettingsStore()
 const payableStore = usePayableStore()
 const vendorStore = useVendorStore()
 const toast = useToastStore()
@@ -403,8 +408,12 @@ watch(totalRows, () => {
 })
 
 const STATUS_OPTIONS = payableStore.STATUS_OPTIONS
-/** Editable except when Posted (Rejected entries stay editable; Tax, Tax Amount, Total cols are always read-only). */
-const readOnly = computed(() => payableStore.mainPosted && payableStore.mainStatus !== "Rejected")
+/** Editable except when Posted (Rejected stay editable for Officer). Manager cannot edit Draft/Rejected unless ManagerEditDraft is enabled. */
+const readOnly = computed(
+  () =>
+    (isManager.value && !documentSettings.managerEditDraftEnabled) ||
+    (payableStore.mainPosted && payableStore.mainStatus !== "Rejected"),
+)
 
 const TAX_COL_INDEX = COLUMN_KEYS.indexOf('tax')
 const REF_COL_INDEX = COLUMN_KEYS.indexOf('reference')
@@ -788,7 +797,12 @@ watch(selectedCellStoreValue, (val) => {
 })
 
 function commitEdit(): void {
-  const val = editingValue.value.trim()
+  let val = editingValue.value.trim()
+  const colKey = COLUMN_KEYS[selectedCol.value]
+  if (colKey === 'amount' || colKey === 'tax' || colKey === 'total') {
+    const evaluated = evaluateSimpleExpression(val)
+    if (evaluated !== null) val = String(evaluated)
+  }
   setCellValue(selectedRow.value, selectedCol.value, val)
   // Re-check duplicates after commit
   checkDuplicatesInGrid()

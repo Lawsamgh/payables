@@ -12,74 +12,20 @@ import {
 import { useVendorStore } from "./vendorStore";
 import { LAYOUTS } from "../utils/filemakerApi";
 import {
-  rowToPayablesMain,
   rowToPayablesDetails,
   formatDateForFileMaker,
 } from "../utils/filemakerMappers";
 import { writeActivityLog } from "../utils/activityLog";
 import type { PayableRow, PayableStatus } from "../types";
 import type { ColumnKey } from "../composables/useSpreadsheet";
+import {
+  getRowStr,
+  normalizeFileMakerError,
+  isRowEmptyByIndex,
+  emptyRow,
+} from "./payableStoreHelpers";
 
 const STATUS_OPTIONS: PayableStatus[] = ["Pending", "Paid", "Overdue"];
-
-/** Get string from row trying snake_case, camelCase, and PascalCase keys. */
-function getRowStr(row: Record<string, unknown>, ...keys: string[]): string {
-  for (const k of keys) {
-    const v = row[k];
-    if (v !== undefined && v !== null) {
-      const s = String(v).trim();
-      if (s !== "") return s;
-    }
-  }
-  return "";
-}
-
-/** Return a user-friendly message when the error is due to expired/invalid FileMaker session. */
-function normalizeFileMakerError(context: string, apiError: string): string {
-  const lower = apiError.toLowerCase();
-  if (
-    lower.includes("token") ||
-    lower.includes("unauthorized") ||
-    lower.includes("401") ||
-    lower.includes("session")
-  ) {
-    return "Session expired. Please connect to FileMaker again (click Connect in the status bar).";
-  }
-  return `${context}: ${apiError}`;
-}
-
-/** Check if row at index has data we send to FileMaker (read from current store state, same as grid). */
-function isRowEmptyByIndex(rowsSnapshot: PayableRow[], index: number): boolean {
-  const row = rowsSnapshot[index];
-  if (!row) return true;
-  const r = { ...row } as Record<string, unknown>;
-  const inv = getRowStr(r, "invoice_number", "invoiceNumber", "InvoiceNumber");
-  const amtStr = getRowStr(r, "amount", "Amount");
-  const totalStr = getRowStr(r, "total", "Total");
-  const hasInv = inv.length > 0;
-  const hasAmount = amtStr !== "" && !Number.isNaN(parseFloat(amtStr));
-  const hasTotal = totalStr !== "" && !Number.isNaN(parseFloat(totalStr));
-  return !hasInv && !hasAmount && !hasTotal;
-}
-
-function emptyRow(overrides: Partial<PayableRow> = {}): PayableRow {
-  return {
-    id: "",
-    vendor_id: "",
-    invoice_number: "",
-    vendor_name: "",
-    invoice_date: "",
-    due_date: "",
-    amount: "",
-    tax: "",
-    total: "",
-    status: "Pending",
-    payment_date: "",
-    reference: "",
-    created_date: "",
-    ...overrides,
-  };
-}
 
 export const usePayableStore = defineStore("payable", () => {
   const rows = ref<PayableRow[]>([emptyRow()]);
@@ -113,6 +59,8 @@ export const usePayableStore = defineStore("payable", () => {
   const mainCreatorFullName = ref<string | null>(null);
   /** FullName of the officer who posted the entry (PostedName field in Payables_Main). */
   const mainPostedName = ref<string | null>(null);
+  /** Posted date from Payables_Main (PostedDate field). */
+  const mainPostedDate = ref<string | null>(null);
   /** FullName of the manager who rejected the entry (when Status is Rejected). */
   const mainRejectedBy = ref<string | null>(null);
   /** True when any cell has been edited or a row added/removed since last load or save. */
@@ -125,7 +73,7 @@ export const usePayableStore = defineStore("payable", () => {
   const rowCount = computed(() => rows.value.length);
   /** Count of rows that have data (excludes empty placeholder row). */
   const filledRowCount = computed(
-    () => rows.value.filter((r, i) => !isRowEmptyByIndex(rows.value, i)).length,
+    () => rows.value.filter((_, i) => !isRowEmptyByIndex(rows.value, i)).length,
   );
   const hasUndoDelete = computed(() => lastDeleted.value != null);
 
@@ -246,6 +194,7 @@ export const usePayableStore = defineStore("payable", () => {
     mainTotalFromMain.value = null;
     mainCreatorFullName.value = null;
     mainPostedName.value = null;
+    mainPostedDate.value = null;
     mainRejectedBy.value = null;
   }
 
@@ -292,8 +241,6 @@ export const usePayableStore = defineStore("payable", () => {
   /** Load only Payables_Details records related to the given Main (TransRef), and populate VendorDetails and Posted state from that Main. */
   async function fetchDetailsByTransRef(transRef: string): Promise<void> {
     const {
-      findRecords,
-      findRecordsWithIds,
       findRecordsByQueryWithIds,
       isConnected,
     } = useFileMaker();
@@ -317,6 +264,7 @@ export const usePayableStore = defineStore("payable", () => {
       mainWhtExpiryCheck.value = null;
       mainCreatorFullName.value = null;
       mainPostedName.value = null;
+      mainPostedDate.value = null;
       mainRejectedBy.value = null;
       vendorStore.setFromMain(null);
       return;
@@ -439,7 +387,7 @@ export const usePayableStore = defineStore("payable", () => {
           typeof totalVal === "number"
             ? totalVal
             : parseFloat(String(totalVal));
-        mainTotalFromMain.value = Number.isNaN(num) ? totalVal : num;
+        mainTotalFromMain.value = Number.isNaN(num) ? null : num;
       } else {
         mainTotalFromMain.value = null;
       }
@@ -626,6 +574,14 @@ export const usePayableStore = defineStore("payable", () => {
         "postedName",
       );
       mainPostedName.value = postedName;
+      const postedDate = getFieldStr(
+        md,
+        "PostedDate",
+        "Posted date",
+        "postedDate",
+        "posted_date",
+      );
+      mainPostedDate.value = postedDate;
       const rejectedBy = getFieldStr(
         md,
         "RejectedBy",
@@ -656,6 +612,7 @@ export const usePayableStore = defineStore("payable", () => {
       mainWhtExpiryCheck.value = null;
       mainCreatorFullName.value = null;
       mainPostedName.value = null;
+      mainPostedDate.value = null;
       mainRejectedBy.value = null;
       vendorStore.setFromMain(null);
     }
@@ -740,7 +697,7 @@ export const usePayableStore = defineStore("payable", () => {
     let toPost = currentRows
       .map((row, index) => ({ row, index }))
       .filter(({ row }) => !row.id || String(row.id).trim() === "")
-      .filter(({ row, index }) => !isRowEmptyByIndex(currentRows, index));
+      .filter(({ index }) => !isRowEmptyByIndex(currentRows, index));
 
     // Always check for duplicate invoice numbers in the grid (before any early return)
     const seenInvoices = new Set<string>();
@@ -833,14 +790,18 @@ export const usePayableStore = defineStore("payable", () => {
           return { posted: 0, updated: 0, deleted: 0, error: updateErr };
         }
         const actor = postedName || (await resolvePostedName()) || "—";
-        await writeActivityLog(
-          createRecord,
-          currentTransRef.value,
-          clearRejected ? "Reposted" : "Posted",
-          actor,
-        );
+        const transRefForLog = currentTransRef.value;
+        if (transRefForLog) {
+          await writeActivityLog(
+            createRecord,
+            transRefForLog,
+            clearRejected ? "Reposted" : "Posted",
+            actor,
+          );
+        }
         mainPosted.value = true;
         if (postedName) mainPostedName.value = postedName;
+        mainPostedDate.value = postedDate;
         if (clearRejected) {
           mainStatus.value = null;
           mainRejectReason.value = null;
@@ -1093,10 +1054,12 @@ export const usePayableStore = defineStore("payable", () => {
         const fmDate = formatDateForFileMaker(v.payment_terms || undefined);
         if (fmDate) mainPayload.Date = fmDate;
         let postedNameVal = "";
+        let postedDateVal = "";
         if (markPosted) {
           const todayIso = new Date().toISOString().slice(0, 10);
+          postedDateVal = formatDateForFileMaker(todayIso) ?? todayIso;
           mainPayload.Posted = "Yes";
-          mainPayload.PostedDate = formatDateForFileMaker(todayIso) ?? todayIso;
+          mainPayload.PostedDate = postedDateVal;
           postedNameVal = await resolvePostedName();
           if (postedNameVal) mainPayload.PostedName = postedNameVal;
           if (clearRejected) {
@@ -1126,6 +1089,7 @@ export const usePayableStore = defineStore("payable", () => {
           didMarkPosted = true;
           mainPosted.value = true;
           if (postedNameVal) mainPostedName.value = postedNameVal;
+          mainPostedDate.value = postedDateVal || null;
           if (clearRejected) {
             mainStatus.value = null;
             mainRejectReason.value = null;
@@ -1164,6 +1128,7 @@ export const usePayableStore = defineStore("payable", () => {
           didMarkPosted = true;
           mainPosted.value = true;
           if (postedName) mainPostedName.value = postedName;
+          mainPostedDate.value = postedDate;
           if (clearRejected) {
             mainStatus.value = null;
             mainRejectReason.value = null;
@@ -1215,6 +1180,7 @@ export const usePayableStore = defineStore("payable", () => {
     mainWhtExpiryCheck: computed(() => mainWhtExpiryCheck.value),
     mainCreatorFullName: computed(() => mainCreatorFullName.value),
     mainPostedName: computed(() => mainPostedName.value),
+    mainPostedDate: computed(() => mainPostedDate.value),
     mainRejectedBy: computed(() => mainRejectedBy.value),
     setMainRejectedBy,
     entryTotal,

@@ -298,6 +298,8 @@ import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useVendorStore } from "../stores/vendorStore";
 import { usePayableStore } from "../stores/payableStore";
 import { useFileMaker } from "../composables/useFileMaker";
+import { useUserRole } from "../composables/useUserRole";
+import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
 import { LAYOUTS } from "../utils/filemakerApi";
 import type { Vendor } from "../types";
 import type { VendorTblFieldData } from "../utils/filemakerApi";
@@ -305,15 +307,19 @@ import type { FindRecordWithId } from "../composables/useFileMaker";
 
 const vendorStore = useVendorStore();
 const payableStore = usePayableStore();
+const { isManager } = useUserRole();
+const documentSettings = useDocumentSettingsStore();
 const { findRecordsWithIds, isConnected } = useFileMaker();
 const vendor = computed(() => vendorStore.vendor);
 const collapsed = ref(false);
 const vendorDropdownRef = ref<HTMLElement | null>(null);
 const vendorDropdownOpen = ref(false);
 const vendorSearch = ref("");
-/** Editable except when Posted (Rejected entries stay editable). */
+/** Editable except when Posted (Rejected stay editable for Officer). Manager cannot edit Draft/Rejected unless ManagerEditDraft is enabled. */
 const readOnly = computed(
-  () => payableStore.mainPosted && payableStore.mainStatus !== "Rejected",
+  () =>
+    (isManager.value && !documentSettings.managerEditDraftEnabled) ||
+    (payableStore.mainPosted && payableStore.mainStatus !== "Rejected"),
 );
 
 /** Vendor name is never editable in New Entry; must select from Vendor ID dropdown. */

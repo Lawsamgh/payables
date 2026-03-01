@@ -17,12 +17,23 @@ export interface TopVendorByCount {
   count: number
 }
 
+export interface OverdueEntry {
+  transRef: string
+  vendorName: string
+  total?: number
+  currency?: string
+  postedDate?: string
+  /** Days past the overdue threshold (e.g. 7 days since posted). */
+  daysOverdue?: number
+}
+
 export const useListSummaryStore = defineStore('listSummary', () => {
   const draftCount = ref(0)
   const postedCount = ref(0)
   const rejectedCount = ref(0)
   const approvedCount = ref(0)
   const overdueCount = ref(0)
+  const overdueEntries = ref<OverdueEntry[]>([])
   const draftTotalsByCurrency = ref<Record<string, number>>({})
   const postedTotalsByCurrency = ref<Record<string, number>>({})
   const rejectedTotalsByCurrency = ref<Record<string, number>>({})
@@ -53,6 +64,10 @@ export const useListSummaryStore = defineStore('listSummary', () => {
     overdueCount.value = count
   }
 
+  function setOverdueEntries(entries: OverdueEntry[]): void {
+    overdueEntries.value = [...entries]
+  }
+
   function setVendorStats(byVolume: TopVendorByVolume[], byEntryCount: TopVendorByCount[]): void {
     topVendorsByVolume.value = [...byVolume]
     topVendorsByEntryCount.value = [...byEntryCount]
@@ -68,6 +83,7 @@ export const useListSummaryStore = defineStore('listSummary', () => {
     rejectedCount: computed(() => rejectedCount.value),
     approvedCount: computed(() => approvedCount.value),
     overdueCount: computed(() => overdueCount.value),
+    overdueEntries: computed(() => overdueEntries.value),
     draftTotalsByCurrency: computed(() => draftTotalsByCurrency.value),
     postedTotalsByCurrency: computed(() => postedTotalsByCurrency.value),
     rejectedTotalsByCurrency: computed(() => rejectedTotalsByCurrency.value),
@@ -78,6 +94,7 @@ export const useListSummaryStore = defineStore('listSummary', () => {
     setCounts,
     setTotalsByCurrency,
     setOverdueCount,
+    setOverdueEntries,
     setVendorStats,
   }
 })

@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { isAuthenticated } from '../composables/useFileMaker'
 import { getHomeRoute } from '../utils/homeTab'
+import { getCachedRole } from '../utils/roleGuard'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -25,7 +26,7 @@ const router = createRouter({
       path: '/entry',
       name: 'entry',
       component: () => import('../views/EntryView.vue'),
-      meta: { title: 'New entry', requiresAuth: true },
+      meta: { title: 'New entry', requiresAuth: true, requireShowForManagerForNew: true },
     },
     {
       path: '/tax',
@@ -43,13 +44,13 @@ const router = createRouter({
       path: '/invoices',
       name: 'invoices',
       component: () => import('../views/InvoicesView.vue'),
-      meta: { title: 'Invoices', requiresAuth: true },
+      meta: { title: 'Invoices', requiresAuth: true, requireShowForManager: true },
     },
     {
       path: '/cheque-collection',
       name: 'cheque-collection',
       component: () => import('../views/ChequeCollectionView.vue'),
-      meta: { title: 'Cheque collection', requiresAuth: true },
+      meta: { title: 'Cheque collection', requiresAuth: true, requireShowForManager: true },
     },
     {
       path: '/settings',
@@ -61,19 +62,37 @@ const router = createRouter({
       path: '/settings/users',
       name: 'settings-users',
       component: () => import('../views/SettingsUsersView.vue'),
-      meta: { title: 'Manage Users', requiresAuth: true },
+      meta: { title: 'Manage Users', requiresAuth: true, requireAdmin: true },
     },
     {
       path: '/settings/documents',
       name: 'settings-documents',
       component: () => import('../views/SettingsDocumentsView.vue'),
-      meta: { title: 'Documents', requiresAuth: true },
+      meta: { title: 'Documents', requiresAuth: true, requireAdmin: true },
     },
     {
       path: '/settings/logs',
       name: 'settings-logs',
       component: () => import('../views/SettingsLogsView.vue'),
-      meta: { title: 'Activity Logs', requiresAuth: true },
+      meta: { title: 'Activity Logs', requiresAuth: true, requireCanViewLogs: true },
+    },
+    {
+      path: '/settings/emails',
+      name: 'settings-emails',
+      component: () => import('../views/SettingsEmailListView.vue'),
+      meta: { title: 'Notification emails', requiresAuth: true, requireAdmin: true },
+    },
+    {
+      path: '/settings/features',
+      name: 'settings-features',
+      component: () => import('../views/SettingsFeaturesView.vue'),
+      meta: { title: 'Features', requiresAuth: true, requireAdmin: true },
+    },
+    {
+      path: '/settings/shortcuts',
+      name: 'settings-shortcuts',
+      component: () => import('../views/SettingsShortcutsView.vue'),
+      meta: { title: 'Keyboard shortcuts', requiresAuth: true },
     },
   ],
 })
@@ -96,6 +115,24 @@ router.beforeEach((to) => {
       return { path: redirect, replace: true }
     }
     return { ...getHomeRoute(), replace: true }
+  }
+
+  // Role-based access: redirect if user lacks permission
+  if (to.meta?.requiresAuth && isAuthenticated()) {
+    const role = getCachedRole()
+    if (to.meta.requireShowForManager) {
+      if (role === 'manager') return { path: '/home', replace: true }
+      if (!role) return { path: '/home', replace: true } // cache empty, safe redirect
+    }
+    if (to.meta.requireShowForManagerForNew && to.name === 'entry') {
+      if (!to.query?.transRef && (role === 'manager' || !role)) return { path: '/home', replace: true }
+    }
+    if (to.meta.requireAdmin) {
+      if (role !== 'admin') return { path: '/settings', replace: true }
+    }
+    if (to.meta.requireCanViewLogs) {
+      if (role !== 'admin' && role !== 'manager') return { path: '/settings', replace: true }
+    }
   }
 })
 

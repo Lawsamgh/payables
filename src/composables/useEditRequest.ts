@@ -164,6 +164,38 @@ export function useEditRequest() {
   }
 
   /**
+   * Fetch all TransRefs that have a pending edit request (Status = Pending).
+   * Used for bulk approve to exclude/skip these entries.
+   */
+  async function fetchPendingEditRequestTransRefs(): Promise<
+    Set<string>
+  > {
+    const result = new Set<string>();
+    const { data, error } = await findRecordsByQueryWithIds<
+      PayablesEditRequestFieldData
+    >(LAYOUTS.PAYABLES_EDIT_REQUEST, { Status: "Pending" }, 500);
+    if (error || !data) return result;
+    const getStr = (fd: Record<string, unknown> | undefined, key: string): string | undefined => {
+      if (!fd) return undefined;
+      const v =
+        fd[key] ??
+        fd[key.replace(/([A-Z])/g, " $1").trim()] ??
+        fd[key.charAt(0).toLowerCase() + key.slice(1)];
+      if (v == null || v === "") return undefined;
+      return String(v).trim();
+    };
+    for (const row of data) {
+      const fd = (row as FindRecordWithId<PayablesEditRequestFieldData>)
+        ?.fieldData as Record<string, unknown> | undefined;
+      const status = getStr(fd, "Status");
+      if (status?.toLowerCase() !== "pending") continue;
+      const ref = getStr(fd, "TransRef");
+      if (ref) result.add(ref);
+    }
+    return result;
+  }
+
+  /**
    * Clear cached pending for a TransRef (e.g. after granting).
    */
   function clearCachedPending(transRef: string): void {
@@ -309,6 +341,7 @@ export function useEditRequest() {
 
   return {
     fetchPendingEditRequest,
+    fetchPendingEditRequestTransRefs,
     getCachedPending,
     clearCachedPending,
     createEditRequest,

@@ -41,6 +41,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { usePayableStore } from '../stores/payableStore'
+import { useUserRole } from '../composables/useUserRole'
+import { useDocumentSettingsStore } from '../stores/documentSettingsStore'
 
 withDefaults(
   defineProps<{ canDeleteRow?: boolean }>(),
@@ -52,5 +54,10 @@ defineEmits<{
 }>()
 
 const payableStore = usePayableStore()
-const readOnly = computed(() => payableStore.mainPosted)
+const { isManager } = useUserRole()
+const documentSettings = useDocumentSettingsStore()
+/** Hide Add/Delete row for Posted entries, or when Manager (unless ManagerEditDraft enabled). */
+const readOnly = computed(
+  () => payableStore.mainPosted || (isManager.value && !documentSettings.managerEditDraftEnabled),
+)
 </script>

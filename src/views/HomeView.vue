@@ -3,7 +3,7 @@
     class="content-area flex flex-col flex-1 min-h-0 w-full max-w-[1600px] mx-auto px-4 py-5 md:px-6 md:py-6 min-h-[400px]"
   >
     <!-- Hero: Apple-style large title + CTA -->
-    <header class="flex flex-wrap items-end justify-between gap-4 mb-8">
+    <header class="flex flex-wrap items-end justify-between gap-4 mb-6">
       <div>
         <h1
           class="text-[1.75rem] font-bold tracking-tight text-[var(--color-text)] md:text-[2rem]"
@@ -16,6 +16,7 @@
         </p>
       </div>
       <router-link
+        v-if="showDraftTab"
         to="/entry"
         class="pill-btn inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2.5 text-[var(--label-size)] font-semibold text-white no-underline shadow-md hover:bg-orange-600 transition-colors"
       >
@@ -37,7 +38,7 @@
     </header>
 
     <!-- Skeleton loader: list placeholder while loading -->
-    <div v-if="loading" class="flex flex-col gap-10">
+    <div v-if="loading" class="flex flex-col gap-6">
       <section class="flex flex-col gap-3">
         <header class="flex items-center gap-2 px-4">
           <Skeleton width="4rem" height="0.75rem" class="rounded" />
@@ -114,7 +115,7 @@
         >
       </div>
     </template>
-    <div v-else class="flex flex-col gap-10">
+    <div v-else class="flex flex-col gap-6">
       <!-- Overview skeleton: when role not yet loaded -->
       <div v-if="!roleLoaded" class="stats-dashboard" aria-busy="true">
         <div class="stats-dashboard__greeting-row">
@@ -294,7 +295,7 @@
           <Skeleton width="4.5rem" height="1.75rem" class="rounded mt-3" />
         </div>
         <div class="chart-calendar__chart">
-          <div class="daily-chart-section__toggle flex gap-2 mb-4">
+          <div class="daily-chart-section__toggle flex gap-2 mb-2">
             <Skeleton width="5rem" height="2.25rem" class="rounded" />
             <Skeleton width="5.5rem" height="2.25rem" class="rounded" />
           </div>
@@ -604,8 +605,8 @@
             >
               <span class="segment-control__label">Posted</span>
               <span class="segment-control__badge">{{
-                searchQuery
-                  ? `${filteredPostedList.length} of ${postedList.length}`
+                searchQuery || postedQuickFilter !== 'all'
+                  ? `${filteredPostedListFiltered.length} of ${postedList.length}`
                   : postedList.length
               }}</span>
             </button>
@@ -663,7 +664,7 @@
         >
           <!-- Open booklet bar -->
           <div
-            v-if="booklet.selectedCount > 0"
+            v-if="documentSettings.bookletEnabled && booklet.selectedCount > 0"
             class="flex flex-wrap items-center gap-3 rounded-2xl border border-orange-500/40 bg-orange-500/10 px-4 py-3"
           >
             <button
@@ -699,13 +700,15 @@
               v-for="(item, index) in draftListToShow"
               :key="item.recordId || `d-${index}`"
               class="list-view__row list-row list-row--draft group px-4 py-3.5"
-              :class="
+              :class="[
+                { 'list-row--draft-no-booklet': !documentSettings.bookletEnabled },
                 booklet.isSelected(item.fieldData.TransRef ?? '')
                   ? 'bg-orange-500/5 border-l-4 border-l-orange-500'
-                  : 'border-l-4 border-l-transparent'
-              "
+                  : 'border-l-4 border-l-transparent',
+              ]"
             >
               <button
+                v-if="documentSettings.bookletEnabled"
                 type="button"
                 class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:ring-offset-2 focus:ring-offset-[var(--color-bg)]"
                 :class="
@@ -776,7 +779,7 @@
                   query: { transRef: item.fieldData.TransRef ?? '' },
                 }"
                 class="pill-btn glass-input inline-flex items-center justify-end gap-1.5 px-3.5 py-2 text-[var(--label-size)] font-medium text-[var(--color-accent)] no-underline opacity-90 group-hover:opacity-100 transition-opacity justify-self-end"
-                @click="openInBooklet(item.fieldData.TransRef ?? '')"
+                @click="documentSettings.bookletEnabled && openInBooklet(item.fieldData.TransRef ?? '')"
               >
                 Open
                 <svg
@@ -865,12 +868,188 @@
           aria-labelledby="tab-posted"
           class="flex flex-col gap-3"
         >
-          <div v-if="filteredPostedList.length > 0" class="list-view--inset">
+          <!-- Quick filters (left) + Bulk approve (right) – same row -->
+          <div
+            v-if="showPostedTab"
+            class="flex flex-wrap items-center justify-between gap-2"
+          >
+            <div
+              class="flex flex-wrap items-center gap-2"
+              role="group"
+              aria-label="Filter Posted entries"
+            >
+              <button
+                type="button"
+                class="quick-filter-pill"
+                :class="{ 'quick-filter-pill--active': postedQuickFilter === 'all' }"
+                @click="postedQuickFilter = 'all'"
+              >
+                All
+              </button>
+              <button
+                v-if="documentSettings.overdueIndicatorEnabled"
+                type="button"
+                class="quick-filter-pill"
+                :class="{ 'quick-filter-pill--active': postedQuickFilter === 'overdue' }"
+                :title="`${overdueList.length} entries past due`"
+                @click="postedQuickFilter = 'overdue'"
+              >
+                Overdue
+                <span v-if="overdueList.length > 0" class="quick-filter-pill__count"
+                  >{{ overdueList.length }}</span
+                >
+              </button>
+              <button
+                type="button"
+                class="quick-filter-pill"
+                :class="{ 'quick-filter-pill--active': postedQuickFilter === 'this-week' }"
+                title="Posted in the current week"
+                @click="postedQuickFilter = 'this-week'"
+              >
+                This week
+              </button>
+            </div>
+            <div
+              v-if="filteredPostedListFiltered.length > 0 && documentSettings.bulkApproveEnabled"
+              class="flex flex-wrap items-center gap-2"
+            >
+              <button
+                type="button"
+                class="pill-btn glass-input inline-flex items-center rounded-lg border border-[var(--color-border)] px-3 py-2 text-[var(--label-size)] font-medium text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-text-muted)]/50 hover:bg-white/5 hover:text-[var(--color-text)] disabled:opacity-50 disabled:cursor-not-allowed"
+                :disabled="bulkApproving"
+                @click="allOnPageSelected ? deselectAllOnPage() : selectAllOnPage()"
+              >
+                {{ allOnPageSelected ? "Deselect page" : "Select page" }}
+              </button>
+              <button
+                type="button"
+                class="pill-btn glass-input inline-flex items-center rounded-lg border border-[var(--color-border)] px-3 py-2 text-[var(--label-size)] font-medium text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-text-muted)]/50 hover:bg-white/5 hover:text-[var(--color-text)] disabled:opacity-50 disabled:cursor-not-allowed"
+                :disabled="bulkApproving"
+                @click="clearPostedSelection"
+              >
+                Clear selection
+              </button>
+              <button
+                type="button"
+                class="pill-btn inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2.5 text-[var(--label-size)] font-semibold text-white shadow-md hover:bg-emerald-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                :disabled="bulkApproving || postedSelectedCount === 0"
+                @click="onBulkApprove"
+              >
+                <svg
+                  v-if="!bulkApproving"
+                  class="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                {{ bulkApproving ? "Approving…" : "Bulk approve" }}
+                <span v-if="postedSelectedCount > 0">({{ postedSelectedCount }})</span>
+              </button>
+            </div>
+          </div>
+          <div class="list-area--fixed-height flex flex-col">
+          <div v-if="filteredPostedListFiltered.length > 0" class="list-view--inset">
+            <!-- Header row: checkbox column only when bulk approve enabled -->
+            <div
+              v-if="showPostedTab && postedListToShow.length > 0"
+              class="list-view__header"
+              :class="{ 'list-view__header--no-bulk': !documentSettings.bulkApproveEnabled }"
+            >
+              <span
+                v-if="documentSettings.bulkApproveEnabled && postedSelectableOnPage.length > 0"
+                class="flex items-center justify-center"
+              >
+                <button
+                  type="button"
+                  class="flex h-5 w-5 items-center justify-center rounded border transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:ring-offset-1"
+                  :class="
+                    allOnPageSelected
+                      ? 'border-emerald-500 bg-emerald-500/30 text-emerald-400'
+                      : 'border-[var(--color-border)] text-[var(--color-text-muted)]/60 hover:border-[var(--color-text-muted)]'
+                  "
+                  :aria-label="allOnPageSelected ? 'Deselect all on page' : 'Select all on page'"
+                  @click="allOnPageSelected ? deselectAllOnPage() : selectAllOnPage()"
+                >
+                  <svg
+                    v-if="allOnPageSelected"
+                    class="h-3 w-3"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    viewBox="0 0 24 24"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                </button>
+              </span>
+              <span>Vendor</span>
+              <span aria-hidden="true"></span>
+              <span aria-hidden="true"></span>
+              <span aria-hidden="true"></span>
+              <span aria-hidden="true"></span>
+            </div>
             <div
               v-for="(item, index) in postedListToShow"
               :key="item.recordId || `p-${index}`"
-              class="list-view__row list-row group px-4 py-3.5"
+              class="list-view__row list-row list-row--posted group px-4 py-3.5"
+              :class="[
+                { 'list-row--posted-no-bulk': !documentSettings.bulkApproveEnabled },
+                isPostedSelected(item.fieldData.TransRef ?? '')
+                  ? 'bg-emerald-500/5 border-l-4 border-l-emerald-500'
+                  : 'border-l-4 border-l-transparent',
+              ]"
             >
+              <span
+                v-if="showPostedTab && documentSettings.bulkApproveEnabled"
+                class="flex h-6 w-6 shrink-0 items-center justify-center"
+              >
+                <button
+                  v-if="!pendingEditTransRefs.has((item.fieldData?.TransRef ?? '').trim())"
+                  type="button"
+                  class="flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:ring-offset-1"
+                  :class="
+                    isPostedSelected(item.fieldData.TransRef ?? '')
+                      ? 'border-emerald-500 bg-emerald-500/30 text-emerald-400'
+                      : 'border-[var(--color-border)]/80 bg-transparent text-transparent hover:border-emerald-500/50 hover:bg-white/5'
+                  "
+                  :aria-label="
+                    isPostedSelected(item.fieldData.TransRef ?? '')
+                      ? 'Remove from bulk approve'
+                      : 'Add to bulk approve'
+                  "
+                  @click.stop="togglePostedSelected(item.fieldData.TransRef ?? '')"
+                >
+                  <svg
+                    v-if="isPostedSelected(item.fieldData.TransRef ?? '')"
+                    class="h-3 w-3"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                </button>
+                <span
+                  v-else
+                  class="flex h-6 w-6 items-center justify-center rounded-full border-2 border-dashed border-amber-500/40 text-amber-500/60 cursor-not-allowed"
+                  title="Edit requested by officer – cannot bulk approve"
+                  aria-label="Edit requested – cannot bulk approve"
+                >
+                  —
+                </span>
+              </span>
               <span class="flex min-w-0 items-center gap-2">
                 <span
                   class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400"
@@ -893,6 +1072,20 @@
                 <span class="font-medium text-[var(--color-text)] truncate">{{
                   item.fieldData.VendorName || "—"
                 }}</span>
+                <span
+                  v-if="documentSettings.overdueIndicatorEnabled && overdueTransRefs.has((item.fieldData?.TransRef ?? '').trim())"
+                  class="shrink-0 rounded-full bg-amber-500/25 px-2 py-0.5 text-[10px] font-semibold text-amber-400"
+                  :title="`Overdue: awaiting approval for more than ${documentSettings.overdueDays} days`"
+                >
+                  Overdue
+                </span>
+                <span
+                  v-if="pendingEditTransRefs.has((item.fieldData?.TransRef ?? '').trim())"
+                  class="shrink-0 rounded-full bg-blue-500/25 px-2 py-0.5 text-[10px] font-semibold text-blue-400"
+                  title="Officer requested to edit this entry"
+                >
+                  Edit requested
+                </span>
               </span>
               <div class="list-row__meta">
                 <div class="list-row__meta-col">
@@ -1000,15 +1193,20 @@
             </button>
           </div>
           <p
-            v-if="filteredPostedList.length === 0"
-            class="rounded-2xl border border-dashed border-[var(--color-border)] py-8 px-4 text-center text-[var(--label-size)] text-[var(--color-text-muted)]"
+            v-if="filteredPostedListFiltered.length === 0"
+            class="flex-1 rounded-2xl border border-dashed border-[var(--color-border)] py-8 px-4 text-center text-[var(--label-size)] text-[var(--color-text-muted)]"
           >
             {{
-              searchQuery
-                ? "No matching posted entries."
-                : "No posted payables yet."
+              postedQuickFilter === 'overdue'
+                ? (searchQuery ? "No matching overdue entries." : "No overdue entries.")
+                : postedQuickFilter === 'this-week'
+                  ? (searchQuery ? "No matching entries posted this week." : "No entries posted this week.")
+                  : searchQuery
+                    ? "No matching posted entries."
+                    : "No posted payables yet."
             }}
           </p>
+          </div>
         </section>
 
         <!-- Rejected panel -->
@@ -1156,6 +1354,7 @@
           aria-labelledby="tab-approved"
           class="flex flex-col gap-3"
         >
+          <div class="list-area--fixed-height flex flex-col">
           <div v-if="filteredApprovedList.length > 0" class="list-view--inset">
             <div
               v-for="(item, index) in approvedListToShow"
@@ -1275,7 +1474,7 @@
           </div>
           <p
             v-if="filteredApprovedList.length === 0"
-            class="rounded-2xl border border-dashed border-[var(--color-border)] py-8 px-4 text-center text-[var(--label-size)] text-[var(--color-text-muted)]"
+            class="flex-1 rounded-2xl border border-dashed border-[var(--color-border)] py-8 px-4 text-center text-[var(--label-size)] text-[var(--color-text-muted)]"
           >
             {{
               searchQuery
@@ -1283,6 +1482,7 @@
                 : "No approved payables."
             }}
           </p>
+          </div>
         </section>
       </div>
     </div>
@@ -1296,14 +1496,29 @@ import { setHomeTab, getHomeTab, isValidHomeTab } from "../utils/homeTab";
 import Skeleton from "../components/Skeleton.vue";
 import DailyPostedChart from "../components/DailyPostedChart.vue";
 import { useFileMaker } from "../composables/useFileMaker";
+import { useEditRequest } from "../composables/useEditRequest";
+import { useApprovalNotification } from "../composables/useApprovalNotification";
+import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
 import { useListSummaryStore } from "../stores/listSummaryStore";
 import { useBookletStore } from "../stores/bookletStore";
 import { useToastStore } from "../stores/toastStore";
 import { LAYOUTS } from "../utils/filemakerApi";
-import type {
-  PayablesMainFieldData,
-  PayablesUsersFieldData,
-} from "../utils/filemakerApi";
+import { formatDateOnlyForFileMaker } from "../utils/filemakerMappers";
+import {
+  matchesSearch,
+  getCreationTimestamp,
+  getPostedDate,
+  getApprovedDate,
+  toDateKey,
+  filterByStatusAndSort,
+  animateValue,
+  loadPostedFilter,
+  savePostedFilter,
+  type PostedQuickFilter,
+} from "../utils/homeViewHelpers";
+import { useUserRole } from "../composables/useUserRole";
+import { writeActivityLog } from "../utils/activityLog";
+import type { PayablesMainFieldData } from "../utils/filemakerApi";
 import { formatNumberDisplay } from "../utils/formatNumber";
 import type { FindRecordWithId } from "../composables/useFileMaker";
 
@@ -1318,9 +1533,13 @@ function isValidTab(
 const {
   findRecordsWithIds,
   isConnected,
-  loggedInEmail,
-  findRecordsByQueryWithIds,
+  createRecord,
+  updateRecord,
 } = useFileMaker();
+const { fetchPendingEditRequestTransRefs } = useEditRequest();
+const { notifyApprovalToOfficer } = useApprovalNotification();
+const { userFullName, userRole, roleLoaded } = useUserRole();
+const documentSettings = useDocumentSettingsStore();
 const listSummary = useListSummaryStore();
 const booklet = useBookletStore();
 const toast = useToastStore();
@@ -1379,84 +1598,64 @@ const currentPagePosted = ref(1);
 const currentPageRejected = ref(1);
 const currentPageApproved = ref(1);
 
-const userFullName = ref<string | null>(null);
-const userRole = ref<string | null>(null);
-const roleLoaded = ref(false);
+/** Bulk approve (Posted tab): selection state. */
+const postedSelectedTransRefs = ref<Set<string>>(new Set());
+const pendingEditTransRefs = ref<Set<string>>(new Set());
+const bulkApproving = ref(false);
 
-/** Resolve a field from layout fieldData (handles FullName / Full Name / fullName etc.). */
-function getFieldValue(
-  fd: Record<string, unknown> | undefined,
-  key: string,
-): string {
-  if (!fd) return "";
-  const v =
-    fd[key] ??
-    fd[key.replace(/([A-Z])/g, " $1").trim()] ?? // "FullName" -> " Full Name" then trim
-    fd[key.charAt(0).toLowerCase() + key.slice(1)];
-  if (v == null || v === "") return "";
-  return String(v).trim();
+function togglePostedSelected(transRef: string) {
+  const ref = (transRef ?? "").trim();
+  if (!ref || pendingEditTransRefs.value.has(ref)) return;
+  const next = new Set(postedSelectedTransRefs.value);
+  if (next.has(ref)) next.delete(ref);
+  else next.add(ref);
+  postedSelectedTransRefs.value = next;
 }
 
-async function loadUserFullName(): Promise<void> {
-  const email = loggedInEmail.value;
-  if (!email || !isConnected.value) {
-    userFullName.value = null;
-    userRole.value = null;
-    roleLoaded.value = true;
-    return;
-  }
-  const normalizedEmail = String(email).trim().toLowerCase();
-  const { data } = await findRecordsByQueryWithIds<PayablesUsersFieldData>(
-    LAYOUTS.PAYABLES_USERS,
-    { Email: email },
-    1,
-  );
-  if (data?.length) {
-    const fd = data[0]?.fieldData as Record<string, unknown> | undefined;
-    const fullName =
-      getFieldValue(fd, "FullName") ||
-      (fd ? String(fd["Full Name"] ?? "").trim() : "");
-    userFullName.value = fullName || null;
-    const role = getFieldValue(fd, "Role");
-    userRole.value = role || null;
-  } else {
-    // Fallback: if exact `_find` didn't match, fetch a list and match client-side.
-    // This avoids issues like trailing spaces / collation / strict exact-match behavior.
-    const { data: users } = await findRecordsWithIds<
-      PayablesUsersFieldData | Record<string, unknown>
-    >(LAYOUTS.PAYABLES_USERS, { limit: 500 });
-    const match = users.find((r) => {
-      const fd = r?.fieldData as Record<string, unknown> | undefined;
-      const rowEmail = getFieldValue(fd, "Email");
-      return rowEmail.trim().toLowerCase() === normalizedEmail;
-    });
-    const fd = match?.fieldData as Record<string, unknown> | undefined;
-    const fullName =
-      getFieldValue(fd, "FullName") ||
-      (fd ? String(fd["Full Name"] ?? "").trim() : "");
-    userFullName.value = fullName || null;
-    const role = getFieldValue(fd, "Role");
-    userRole.value = role || null;
-  }
-  roleLoaded.value = true;
+function isPostedSelected(transRef: string) {
+  return postedSelectedTransRefs.value.has((transRef ?? "").trim());
 }
 
-watch(
-  [isConnected, loggedInEmail],
-  () => {
-    if (isConnected.value && loggedInEmail.value) {
-      roleLoaded.value = false;
-      loadUserFullName();
-    } else {
-      userFullName.value = null;
-      userRole.value = null;
-      roleLoaded.value = false;
-    }
-  },
-  { immediate: true },
+function clearPostedSelection() {
+  postedSelectedTransRefs.value = new Set();
+}
+
+const postedSelectedCount = computed(() => postedSelectedTransRefs.value.size);
+
+/** Selectable items on current page (exclude those with pending edit request). */
+const postedSelectableOnPage = computed(() =>
+  postedListToShow.value
+    .map((item) => (item.fieldData?.TransRef ?? "").trim())
+    .filter((ref) => ref && !pendingEditTransRefs.value.has(ref)),
 );
 
-/** Greeting with user's FullName from Payables_Users (time-based). Falls back to email local part if no record. */
+const allOnPageSelected = computed(() => {
+  const selectable = postedSelectableOnPage.value;
+  if (selectable.length === 0) return false;
+  return selectable.every((ref) => postedSelectedTransRefs.value.has(ref));
+});
+
+function selectAllOnPage() {
+  const selectable = postedSelectableOnPage.value;
+  if (selectable.length === 0) return;
+  const next = new Set(postedSelectedTransRefs.value);
+  for (const ref of selectable) next.add(ref);
+  postedSelectedTransRefs.value = next;
+}
+
+function deselectAllOnPage() {
+  const selectable = postedSelectableOnPage.value;
+  if (selectable.length === 0) return;
+  const next = new Set(postedSelectedTransRefs.value);
+  for (const ref of selectable) next.delete(ref);
+  postedSelectedTransRefs.value = next;
+}
+
+/** Quick filter for Posted tab (Manager/Admin). Persisted to sessionStorage. */
+const postedQuickFilter = ref<PostedQuickFilter>(loadPostedFilter());
+watch(postedQuickFilter, (v) => savePostedFilter(v));
+
+/** Greeting with user's FullName from Payables_Users (time-based). Falls back to "there" if no record. */
 const greeting = computed(() => {
   const name = userFullName.value || "there";
   const h = new Date().getHours();
@@ -1482,6 +1681,20 @@ const showRejectedTab = computed(() => {
   return roleLower.value !== "manager";
 });
 
+/** Fetch pending edit-request TransRefs when Posted tab is active (for bulk approve). */
+watch(
+  [() => activeSegment.value, showPostedTab],
+  async ([tab, show]) => {
+    if (tab !== "posted" || !show) {
+      pendingEditTransRefs.value = new Set();
+      return;
+    }
+    const set = await fetchPendingEditRequestTransRefs();
+    pendingEditTransRefs.value = set;
+  },
+  { immediate: true },
+);
+
 /** Redirect to first visible tab when current tab becomes hidden (role change). Only when role is loaded to avoid overriding saved tab on initial mount. */
 watch(
   [showDraftTab, showPostedTab, showRejectedTab, activeSegment, roleLoaded],
@@ -1506,129 +1719,6 @@ const displayedRejected = ref(0);
 const displayedApproved = ref(0);
 const displayedVendors = ref(0);
 
-function animateValue(ref: { value: number }, target: number, duration = 500) {
-  const start = ref.value;
-  const startTime = performance.now();
-  function step(now: number) {
-    const elapsed = now - startTime;
-    const t = Math.min(elapsed / duration, 1);
-    const ease = 1 - Math.pow(1 - t, 2);
-    ref.value = Math.round(start + (target - start) * ease);
-    if (t < 1) requestAnimationFrame(step);
-  }
-  requestAnimationFrame(step);
-}
-
-/** Match item by search (vendor name, ID, invoice #, ref). */
-function matchesSearch(
-  item: FindRecordWithId<PayablesMainFieldData>,
-  q: string,
-): boolean {
-  if (!q.trim()) return true;
-  const s = q.trim().toLowerCase();
-  const name = String(item.fieldData?.VendorName ?? "").toLowerCase();
-  const vendorId = String(item.fieldData?.VendorID ?? "").toLowerCase();
-  const invoice = String(item.fieldData?.InvoiceNumber ?? "").toLowerCase();
-  const ref = String(item.fieldData?.TransRef ?? "").toLowerCase();
-  return (
-    name.includes(s) ||
-    vendorId.includes(s) ||
-    invoice.includes(s) ||
-    ref.includes(s)
-  );
-}
-
-/** Get creation timestamp from record (FileMaker CreationTimestamp, any casing). */
-function getCreationTimestamp(
-  item: FindRecordWithId<PayablesMainFieldData>,
-): string {
-  const fd = item?.fieldData as Record<string, unknown> | undefined;
-  if (!fd) return "";
-  const raw =
-    fd.CreationTimestamp ??
-    fd["Creation timestamp"] ??
-    fd.creationTimestamp ??
-    fd.creation_timestamp ??
-    "";
-  return String(raw ?? "").trim();
-}
-
-/** Get PostedDate for posted chart (FileMaker PostedDate field). Fallback to Date. */
-function getPostedDate(item: FindRecordWithId<PayablesMainFieldData>): string {
-  const fd = item?.fieldData as Record<string, unknown> | undefined;
-  if (!fd) return "";
-  const raw =
-    fd.PostedDate ??
-    fd["Posted date"] ??
-    fd.postedDate ??
-    fd.posted_date ??
-    fd.Date ??
-    fd.date ??
-    "";
-  return String(raw ?? "").trim();
-}
-
-/** Get ApprovedDate for approved chart (FileMaker ApprovedDate field). Fallback to Date. */
-function getApprovedDate(
-  item: FindRecordWithId<PayablesMainFieldData>,
-): string {
-  const fd = item?.fieldData as Record<string, unknown> | undefined;
-  if (!fd) return "";
-  const raw =
-    fd.ApprovedDate ??
-    fd["Approved date"] ??
-    fd.approvedDate ??
-    fd.approved_date ??
-    fd.Date ??
-    fd.date ??
-    "";
-  return String(raw ?? "").trim();
-}
-
-/** Resolve Status from record: Status field, or derived from Approved/Rejected/Posted (Draft if none). */
-function getStatus(item: FindRecordWithId<PayablesMainFieldData>): string {
-  const fd = item?.fieldData as Record<string, unknown> | undefined;
-  if (!fd) return "Draft";
-  const status = fd.Status ?? fd.status;
-  if (status != null && String(status).trim()) return String(status).trim();
-  const approved = fd.Approved ?? fd.approved;
-  const rejected = fd.Rejected ?? fd.rejected;
-  const posted = fd.Posted ?? fd.posted;
-  if (approved != null && String(approved).trim()) return "Approved";
-  if (rejected != null && String(rejected).trim()) return "Rejected";
-  if (posted != null && String(posted).trim() === "Yes") return "Posted";
-  return "Draft";
-}
-
-/** Sort by CreationTimestamp (recent first). Fallback to recordId when timestamp is missing. */
-function sortByCreationTimestamp(
-  items: FindRecordWithId<PayablesMainFieldData>[],
-): FindRecordWithId<PayablesMainFieldData>[] {
-  return [...items].sort((a, b) => {
-    const tsA = getCreationTimestamp(a);
-    const tsB = getCreationTimestamp(b);
-    if (!tsA && !tsB) {
-      const idA = Number(a.recordId) || 0;
-      const idB = Number(b.recordId) || 0;
-      return idB - idA;
-    }
-    if (!tsA) return 1;
-    if (!tsB) return -1;
-    const dateA = new Date(tsA).getTime();
-    const dateB = new Date(tsB).getTime();
-    return dateB - dateA;
-  });
-}
-
-/** Filter and sort by Status (Draft, Posted, Rejected, Approved) then by date. */
-function filterByStatusAndSort(
-  items: FindRecordWithId<PayablesMainFieldData>[],
-  status: string,
-): FindRecordWithId<PayablesMainFieldData>[] {
-  const filtered = items.filter((item) => getStatus(item) === status);
-  return sortByCreationTimestamp(filtered);
-}
-
 const draftList = computed(() => filterByStatusAndSort(list.value, "Draft"));
 const postedList = computed(() => filterByStatusAndSort(list.value, "Posted"));
 const rejectedList = computed(() =>
@@ -1638,13 +1728,11 @@ const approvedList = computed(() =>
   filterByStatusAndSort(list.value, "Approved"),
 );
 
-/** Days threshold: Posted entries older than this are considered overdue for approval. */
-const OVERDUE_DAYS = 7;
-
-/** Posted entries awaiting approval for more than OVERDUE_DAYS (based on PostedDate or CreationTimestamp). */
+/** Posted entries awaiting approval for more than overdueDays (based on PostedDate or CreationTimestamp). */
 const overdueList = computed(() => {
+  const days = documentSettings.overdueDays;
   const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - OVERDUE_DAYS);
+  cutoff.setDate(cutoff.getDate() - days);
   const cutoffKey = toDateKey(cutoff.toISOString().slice(0, 10));
   if (!cutoffKey) return [];
   return postedList.value.filter((item) => {
@@ -1717,25 +1805,12 @@ const rejectedRefsInOrder = computed(() =>
 function openRejectedCard() {
   const refs = rejectedRefsInOrder.value;
   if (refs.length === 0) return;
-  if (refs.length === 1) {
+  if (refs.length === 1 || !documentSettings.bookletEnabled) {
     router.push({ name: "entry", query: { transRef: refs[0] } });
     return;
   }
   booklet.openBookletWithRefs(refs, "rejected");
   router.push({ name: "entry", query: { transRef: refs[0] } });
-}
-
-/** Normalize any date/timestamp to YYYY-MM-DD for grouping. */
-function toDateKey(raw: string | undefined): string | null {
-  if (!raw || typeof raw !== "string") return null;
-  const s = raw.trim();
-  if (!s) return null;
-  const d = new Date(s);
-  if (Number.isNaN(d.getTime())) return null;
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
 }
 
 /** Daily totals for posted entries, grouped by currency (never sum USD + GHS). Group by PostedDate. */
@@ -2079,6 +2154,64 @@ const filteredDraftList = computed(() =>
 const filteredPostedList = computed(() =>
   postedList.value.filter((item) => matchesSearch(item, searchQuery.value)),
 );
+
+/** Check if a YYYY-MM-DD date key falls within the current calendar week (Mon–Sun). */
+function isInCurrentWeek(dateKey: string | null): boolean {
+  if (!dateKey) return false;
+  const d = new Date(dateKey + "T12:00:00");
+  if (Number.isNaN(d.getTime())) return false;
+  const now = new Date();
+  const day = now.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const mon = new Date(now);
+  mon.setDate(now.getDate() + diffToMonday);
+  mon.setHours(0, 0, 0, 0);
+  const sun = new Date(mon);
+  sun.setDate(mon.getDate() + 6);
+  sun.setHours(23, 59, 59, 999);
+  return d >= mon && d <= sun;
+}
+
+/** Apply quick filter (Overdue / This week) to Posted list. Only when showPostedTab (Manager/Admin). */
+const filteredPostedListFiltered = computed(() => {
+  const filtered = filteredPostedList.value;
+  if (!showPostedTab.value) return filtered;
+  const filter = postedQuickFilter.value;
+  if (filter === "all") return filtered;
+  const overdueRefs = new Set(
+    overdueList.value.map((i) => (i.fieldData?.TransRef ?? "").trim()),
+  );
+  if (filter === "overdue") {
+    return filtered.filter((i) =>
+      overdueRefs.has((i.fieldData?.TransRef ?? "").trim()),
+    );
+  }
+  if (filter === "this-week") {
+    return filtered.filter((i) =>
+      isInCurrentWeek(toDateKey(getPostedDate(i))),
+    );
+  }
+  return filtered;
+});
+
+/** Posted list with overdue entries first (for visibility in Posted tab). */
+const filteredPostedListSorted = computed(() => {
+  const filtered = filteredPostedListFiltered.value;
+  const overdueRefs = new Set(
+    overdueList.value.map((i) => (i.fieldData?.TransRef ?? "").trim()),
+  );
+  const overdue = filtered.filter((i) =>
+    overdueRefs.has((i.fieldData?.TransRef ?? "").trim()),
+  );
+  const rest = filtered.filter(
+    (i) => !overdueRefs.has((i.fieldData?.TransRef ?? "").trim()),
+  );
+  return [...overdue, ...rest];
+});
+/** TransRefs of overdue entries (for row badge). */
+const overdueTransRefs = computed(() =>
+  new Set(overdueList.value.map((i) => (i.fieldData?.TransRef ?? "").trim())),
+);
 const filteredRejectedList = computed(() =>
   rejectedList.value.filter((item) => matchesSearch(item, searchQuery.value)),
 );
@@ -2089,7 +2222,7 @@ const filteredApprovedList = computed(() =>
 const hasResultsInAnyTab = computed(
   () =>
     filteredDraftList.value.length > 0 ||
-    filteredPostedList.value.length > 0 ||
+    filteredPostedListFiltered.value.length > 0 ||
     filteredRejectedList.value.length > 0 ||
     filteredApprovedList.value.length > 0,
 );
@@ -2106,7 +2239,7 @@ const currentTabHasNoResults = computed(() => {
   if (!searchQuery.value) return false;
   const t = activeSegment.value;
   if (t === "draft") return filteredDraftList.value.length === 0;
-  if (t === "posted") return filteredPostedList.value.length === 0;
+  if (t === "posted") return filteredPostedListFiltered.value.length === 0;
   if (t === "rejected") return filteredRejectedList.value.length === 0;
   return filteredApprovedList.value.length === 0;
 });
@@ -2115,7 +2248,7 @@ const totalPagesDraft = computed(() =>
   Math.max(1, Math.ceil(filteredDraftList.value.length / PAGE_SIZE)),
 );
 const totalPagesPosted = computed(() =>
-  Math.max(1, Math.ceil(filteredPostedList.value.length / PAGE_SIZE)),
+  Math.max(1, Math.ceil(filteredPostedListFiltered.value.length / PAGE_SIZE)),
 );
 const totalPagesRejected = computed(() =>
   Math.max(1, Math.ceil(filteredRejectedList.value.length / PAGE_SIZE)),
@@ -2130,7 +2263,7 @@ const draftListToShow = computed(() => {
 });
 const postedListToShow = computed(() => {
   const start = (currentPagePosted.value - 1) * PAGE_SIZE;
-  return filteredPostedList.value.slice(start, start + PAGE_SIZE);
+  return filteredPostedListSorted.value.slice(start, start + PAGE_SIZE);
 });
 const rejectedListToShow = computed(() => {
   const start = (currentPageRejected.value - 1) * PAGE_SIZE;
@@ -2147,6 +2280,9 @@ watch(searchQuery, () => {
   currentPagePosted.value = 1;
   currentPageRejected.value = 1;
   currentPageApproved.value = 1;
+});
+watch(postedQuickFilter, () => {
+  currentPagePosted.value = 1;
 });
 
 /** Clamp page when total pages shrinks (e.g. after filter). */
@@ -2216,7 +2352,7 @@ const approvedTotalsByCurrency = computed(() => {
 });
 
 watch(
-  [draftList, postedList, rejectedList, approvedList],
+  [draftList, postedList, rejectedList, approvedList, overdueList],
   () => {
     listSummary.setCounts(
       draftList.value.length,
@@ -2225,6 +2361,26 @@ watch(
       approvedList.value.length,
     );
     listSummary.setOverdueCount(overdueList.value.length);
+    listSummary.setOverdueEntries(
+      overdueList.value.map((item) => {
+        const posted = getPostedDate(item);
+        const postedKey = toDateKey(posted);
+        let daysOverdue: number | undefined;
+        if (postedKey) {
+          const postedTime = new Date(postedKey + "T12:00:00").getTime();
+          const todayTime = new Date().setHours(12, 0, 0, 0);
+          daysOverdue = Math.max(0, Math.floor((todayTime - postedTime) / 86400000) - documentSettings.overdueDays);
+        }
+        return {
+          transRef: String(item.fieldData?.TransRef ?? "").trim(),
+          vendorName: String(item.fieldData?.VendorName ?? "").trim() || "—",
+          total: Number(item.fieldData?.Total),
+          currency: String(item.fieldData?.Currency ?? "").trim() || undefined,
+          postedDate: posted || undefined,
+          daysOverdue,
+        };
+      }),
+    );
     listSummary.setVendorStats(
       topVendorsByVolume.value,
       topVendorsByEntryCount.value,
@@ -2249,6 +2405,96 @@ watch(
   },
   { immediate: true },
 );
+
+async function onBulkApprove() {
+  const selected = [...postedSelectedTransRefs.value];
+  if (selected.length === 0 || !isConnected.value) return;
+  const pending = pendingEditTransRefs.value;
+  const toApprove = selected.filter((ref) => !pending.has(ref));
+  const skipped = selected.length - toApprove.length;
+  if (toApprove.length === 0) {
+    toast.error(
+      skipped > 0
+        ? "None of the selected entries can be approved. They have pending edit requests."
+        : "No entries selected.",
+    );
+    return;
+  }
+  const listItems = filteredPostedListFiltered.value;
+  const itemByRef = new Map(
+    listItems.map((item) => [
+      (item.fieldData?.TransRef ?? "").trim(),
+      item,
+    ]),
+  );
+  bulkApproving.value = true;
+  let approved = 0;
+  let failed = 0;
+  const approvedBy = (userFullName.value || "").trim() || "Manager";
+  try {
+    for (const transRef of toApprove) {
+      const item = itemByRef.get(transRef);
+      if (!item?.recordId) {
+        failed++;
+        continue;
+      }
+      const { error: updateErr } = await updateRecord(
+        LAYOUTS.PAYABLES_MAIN,
+        item.recordId,
+        {
+          Approved: "Yes",
+          ApprovedDate: formatDateOnlyForFileMaker(),
+          ApprovedBy: approvedBy,
+        },
+      );
+      if (updateErr) {
+        toast.error(`Approve failed for ${transRef}: ${updateErr}`);
+        failed++;
+        continue;
+      }
+      const activityErr = await writeActivityLog(
+        createRecord,
+        transRef,
+        "Approved",
+        approvedBy,
+      );
+      if (activityErr) {
+        toast.error(`Approved ${transRef} but activity log failed: ${activityErr}`);
+      }
+      if (documentSettings.approvalEmailToOfficerEnabled) {
+        const fd = item.fieldData as Record<string, unknown> | undefined;
+        const postedName =
+          (fd?.PostedName ?? fd?.["Posted Name"] ?? "").toString().trim() || "";
+        const vendorName =
+          (fd?.VendorName ?? fd?.["Vendor Name"] ?? "").toString().trim() || "—";
+        const { error: notifyErr } = await notifyApprovalToOfficer({
+          transRef,
+          postedName,
+          approvedBy,
+          vendorName,
+        });
+        if (notifyErr) {
+          toast.info(`Approval notification for ${transRef} could not be sent: ${notifyErr}`);
+        }
+      }
+      approved++;
+    }
+    clearPostedSelection();
+    await load();
+    if (skipped > 0) {
+      toast.success(
+        `Approved ${approved}. Skipped ${skipped} (officer requested to edit).`,
+      );
+    } else {
+      toast.success(`Approved ${approved} ${approved === 1 ? "entry" : "entries"}.`);
+    }
+    if (failed > 0) {
+      toast.error(`${failed} ${failed === 1 ? "entry" : "entries"} failed.`);
+    }
+  } finally {
+    bulkApproving.value = false;
+  }
+}
 
 async function load() {
   if (!isConnected.value) {

@@ -6,6 +6,7 @@ import { ref, computed } from 'vue'
 import axios from 'axios'
 import type { ConnectionStatus, FileMakerCredentials, FindOptions } from '../types'
 import { getBaseUrl, getAuthHeaders, parseFileMakerError } from '../utils/filemakerApi'
+import { recordActivity } from '../utils/sessionActivity'
 
 const STORAGE_KEY_TOKEN = 'fm_session_token'
 const STORAGE_KEY_EMAIL = 'fm_logged_in_email'
@@ -57,11 +58,19 @@ function createApi(token: string) {
     'Content-Type': 'application/json',
     ...getAuthHeaders(token),
   }
-  return axios.create({
+  const api = axios.create({
     baseURL: getBaseUrl(),
     headers,
     timeout: 15000,
   })
+  api.interceptors.response.use(
+    (res) => {
+      recordActivity()
+      return res
+    },
+    (err) => Promise.reject(err)
+  )
+  return api
 }
 
 export interface FileMakerFieldData {
@@ -104,6 +113,7 @@ export async function login(credentials: FileMakerCredentials): Promise<boolean>
       sessionToken.value = token
       connectionStatus.value = 'connected'
       loggedInEmail.value = credentials.username
+      recordActivity()
       try {
         localStorage.setItem(STORAGE_KEY_TOKEN, token)
         localStorage.setItem(STORAGE_KEY_EMAIL, credentials.username)
@@ -299,6 +309,59 @@ export async function findRecordsByQuery<T = FileMakerFieldData>(
       return { data: [], error: null }
     }
     return { data: [], error: handleApiError(err) }
+  }
+}
+
+/** Find records using raw FileMaker find query (supports contains *, range >=, <=, etc.). */
+export async function findRecordsByFindRequest<T = FileMakerFieldData>(
+  layout: string,
+  query: Array<Record<string, string>>,
+  limit = 1000
+): Promise<FindResultWithIds<T>> {
+  const token = sessionToken.value
+  if (!token) {
+    lastError.value = 'Not authenticated'
+    return { data: [], error: lastError.value }
+  }
+  if (!query || query.length === 0) {
+    return { data: [], error: null }
+  }
+  const api = createApi(token)
+  try {
+    const res = await api.post<{
+      response?: { data?: Array<{ recordId?: string | number; fieldData?: T }> }
+      messages?: Array<{ code?: string; message?: string }>
+    }>(`/layouts/${layout}/_find`, {
+      query,
+      limit: String(limit),
+    })
+    const list = res.data?.response?.data ?? []
+    const msg = res.data?.messages?.[0]
+    if (msg && msg.code !== undefined && String(msg.code) !== '0' && String(msg.code) !== '401') {
+      lastError.value = msg.message ?? `Error ${msg.code}`
+      return { data: [], error: lastError.value }
+    }
+    const data: FindRecordWithId<T>[] = list.map((r) => ({
+      recordId: r?.recordId != null ? String(r.recordId) : '',
+      fieldData: (r && typeof r === 'object' && 'fieldData' in r ? r.fieldData : r) as T,
+    }))
+    return { data, error: null }
+  } catch (err) {
+    const errObj = err as { response?: { data?: { messages?: Array<{ code?: string; message?: string }> } } }
+    const messages = errObj.response?.data?.messages
+    if (messages && messages.length > 0) {
+      const code = String(messages[0].code ?? '')
+      const msg = messages[0].message ?? ''
+      if (code === '401' || code === '0' || msg.toLowerCase().includes('no records match')) {
+        return { data: [], error: null }
+      }
+    }
+    const errorMsg = parseFileMakerError(err)
+    if (errorMsg?.toLowerCase().includes('no records match') || errorMsg?.includes('401')) {
+      return { data: [], error: null }
+    }
+    lastError.value = errorMsg
+    return { data: [], error: lastError.value }
   }
 }
 
@@ -531,6 +594,7 @@ export function useFileMaker() {
     findRecordsWithIds,
     findRecordsByQuery,
     findRecordsByQueryWithIds,
+    findRecordsByFindRequest,
     getRecord,
     createRecord,
     updateRecord,

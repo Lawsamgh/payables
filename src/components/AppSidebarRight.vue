@@ -78,17 +78,21 @@
 
       <!-- Home: Overdue / Pending approval indicators + Draft & Posted with counts + totals -->
       <div v-else-if="route.name === 'home'" class="overview-cards space-y-3">
-        <!-- Overdue / Pending approval badges -->
+        <!-- Overdue / Pending approval badges (Manager and Admin only - they can approve) -->
         <div
           v-if="
             roleLoaded &&
+            canViewLogs &&
             (listSummary.overdueCount > 0 || listSummary.postedCount > 0)
           "
           class="overview-alerts flex flex-col gap-2"
         >
-          <div
-            v-if="listSummary.overdueCount > 0"
-            class="overview-badge-card overview-badge-card--overdue rounded-xl border border-amber-500/40 bg-amber-500/15 px-3.5 py-2.5"
+          <button
+            v-if="documentSettings.overdueIndicatorEnabled && listSummary.overdueCount > 0"
+            type="button"
+            class="overview-badge-card overview-badge-card--overdue overview-badge-card--clickable w-full text-left rounded-xl border border-amber-500/40 bg-amber-500/15 px-3.5 py-2.5 transition-colors hover:bg-amber-500/25 cursor-pointer"
+            :aria-label="`View ${listSummary.overdueCount} overdue entries awaiting approval`"
+            @click="showOverdueModal = true"
           >
             <span class="overview-badge-card__icon" aria-hidden="true">
               <svg
@@ -109,10 +113,12 @@
             <span class="overview-badge-card__value"
               >{{ listSummary.overdueCount }} awaiting approval</span
             >
-          </div>
-          <div
+          </button>
+          <router-link
             v-if="listSummary.postedCount > 0"
-            class="overview-badge-card overview-badge-card--pending rounded-xl border border-slate-500/40 bg-slate-500/15 px-3.5 py-2.5"
+            :to="{ path: '/home', query: { tab: 'posted' } }"
+            class="overview-badge-card overview-badge-card--pending overview-badge-card--clickable block no-underline rounded-xl border border-slate-500/40 bg-slate-500/15 px-3.5 py-2.5 transition-colors hover:bg-slate-500/25 cursor-pointer"
+            :aria-label="`View ${listSummary.postedCount} entries pending approval`"
           >
             <span class="overview-badge-card__icon" aria-hidden="true">
               <svg
@@ -133,7 +139,7 @@
             <span class="overview-badge-card__value">{{
               listSummary.postedCount
             }}</span>
-          </div>
+          </router-link>
         </div>
         <div
           v-if="roleLoaded && !isManager"
@@ -430,22 +436,35 @@
         </div>
         <div
           v-if="
-            payableStore.mainPostedName &&
-            (payableStore.mainStatus === 'Approved' ||
-              payableStore.mainStatus === 'Posted')
+            payableStore.mainStatus === 'Posted' &&
+            (payableStore.mainPostedDate || payableStore.mainPostedName)
           "
           class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
         >
           <p
+            v-if="payableStore.mainPostedDate"
             class="text-[11px] font-medium text-[var(--color-text-muted)] mb-1"
           >
-            Posted by
+            Posted
           </p>
           <p
-            class="text-[17px] font-medium text-[var(--color-text)] tracking-tight leading-snug"
+            v-if="payableStore.mainPostedDate"
+            class="text-[17px] font-medium tabular-nums text-[var(--color-text)] tracking-tight leading-snug"
           >
-            {{ payableStore.mainPostedName }}
+            {{ formatPostedDate(payableStore.mainPostedDate) }}
           </p>
+          <template v-if="payableStore.mainPostedName">
+            <p
+              class="text-[11px] font-medium text-[var(--color-text-muted)] mb-1 mt-2"
+            >
+              Posted by
+            </p>
+            <p
+              class="text-[17px] font-medium text-[var(--color-text)] tracking-tight leading-snug"
+            >
+              {{ payableStore.mainPostedName }}
+            </p>
+          </template>
         </div>
         <div
           v-if="payableStore.mainStatus === 'Rejected'"
@@ -784,16 +803,23 @@
       @confirm="onLogoutConfirm"
       @cancel="showLogoutModal = false"
     />
+    <OverdueEntriesModal
+      :visible="showOverdueModal && documentSettings.overdueIndicatorEnabled"
+      :entries="listSummary.overdueEntries"
+      @close="(payload) => onOverdueModalClose(payload)"
+    />
   </aside>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import LogoutConfirmModal from "./LogoutConfirmModal.vue";
+import OverdueEntriesModal from "./OverdueEntriesModal.vue";
 import Skeleton from "./Skeleton.vue";
 import { useFileMaker } from "../composables/useFileMaker";
 import { useUserRole } from "../composables/useUserRole";
+import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
 import { useListSummaryStore } from "../stores/listSummaryStore";
 import { usePayableStore } from "../stores/payableStore";
 import { useVendorStore } from "../stores/vendorStore";
@@ -807,7 +833,27 @@ const route = useRoute();
 const router = useRouter();
 const { logout } = useFileMaker();
 const { isManager, roleLoaded, canViewLogs } = useUserRole();
+const documentSettings = useDocumentSettingsStore();
 const showLogoutModal = ref(false);
+const showOverdueModal = ref(false);
+
+watch(
+  () => route.query.openOverdue,
+  (val) => {
+    if (route.name === "home" && val === "1" && documentSettings.overdueIndicatorEnabled) showOverdueModal.value = true;
+  },
+  { immediate: true },
+);
+
+function onOverdueModalClose(payload?: { navigating?: boolean }) {
+  showOverdueModal.value = false;
+  if (payload?.navigating) return;
+  if (route.name === "home" && route.query.openOverdue === "1") {
+    const q = { ...route.query };
+    delete q.openOverdue;
+    router.replace({ path: "/home", query: q });
+  }
+}
 
 function onLogout() {
   showLogoutModal.value = true;
@@ -847,6 +893,15 @@ const vendorOverview = useVendorOverviewStore();
 const chequeOverview = useChequeOverviewStore();
 const taxOverview = useTaxOverviewStore();
 const activityLogOverview = useActivityLogOverviewStore();
+
+/** Format posted date for display (e.g. "Jan 15, 2025"). */
+function formatPostedDate(dateStr: string | null | undefined): string {
+  if (!dateStr?.trim()) return "—";
+  const d = new Date(dateStr + "T12:00:00");
+  if (isNaN(d.getTime())) return dateStr;
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
 
 /** One line per currency for a cleaner list (currency label + amount). */
 function totalsByCurrencyLines(

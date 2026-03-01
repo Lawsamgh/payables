@@ -86,6 +86,7 @@ export const LAYOUTS = {
   PAYABLES_SETTINGS: "Payables_Settings",
   CHEQUE_COLLECTION: "Cheque_Collection",
   PAYABLES_EDIT_REQUEST: "Payables_Edit_Request",
+  EMAIL_LIST: "EmailList",
 } as const;
 
 /**
@@ -110,6 +111,7 @@ export interface PayablesMainFieldData {
   Approved?: string;
   ApprovedBy?: string;
   Rejected?: string;
+  RejectedBy?: string;
   RejectReason?: string;
   /** Set when cheque is collected (e.g. "Yes") */
   ChequeIssued?: string;
@@ -202,13 +204,14 @@ export interface VendorTblFieldData {
 
 /**
  * Payables_Users fields (from schema):
- * Email, FullName, Role, Status
+ * Email, FullName, Role, Status, Onboarded
  */
 export interface PayablesUsersFieldData {
   Email?: string;
   FullName?: string;
   Role?: string;
   Status?: string;
+  Onboarded?: string;
 }
 
 function getFieldValue(
@@ -414,11 +417,50 @@ export async function checkEmailExistsInPayablesUsers(
 }
 
 /**
+ * EmailList fields: Email, Label, Active (all Text).
+ * Used for notification recipient dropdown.
+ */
+export interface EmailListFieldData {
+  Email?: string;
+  Label?: string;
+  /** "Yes" / "1" = active, shown in dropdown. */
+  Active?: string;
+}
+
+/**
  * Payables_Settings fields (from schema):
  * DocOption: "Don't Show" | "Approved" | "Posted"
+ * HODEmail: email address of recipient for notification mails (Head of Department)
+ * BulkApprove: "Yes" | "No" – enable bulk approve in Posted tab
+ * ManagerEditDraft: "Yes" | "No" – allow managers to edit Draft/Rejected entries
+ * SessionTimeoutWarning: "Yes" | "No" – show session expiry warning modal
+ * EditRequestEnabled: "Yes" | "No" – enable edit request (mistake posted) flow
+ * OverdueDays: number – days threshold for overdue (default 7)
+ * OverdueIndicatorEnabled: "Yes" | "No" – show overdue badges and modal
+ * CommandPaletteEnabled: "Yes" | "No" – enable ⌘K command palette
+ * BookletEnabled: "Yes" | "No" – enable multi-entry booklet view
+ * ChequeCollectionEnabled: "Yes" | "No" – show Cheque collection section
+ * TaxViewEnabled: "Yes" | "No" – show Tax section
+ * VendorsViewEnabled: "Yes" | "No" – show Vendors section
+ * ApprovalEmailToOfficer: "Yes" | "No" – email poster + CC officers when entry approved
+ * OnboardingEnabled: "Yes" | "No" – show onboarding modal for new users
  */
 export interface PayablesSettingsFieldData {
   DocOption?: string;
+  HODEmail?: string;
+  BulkApprove?: string;
+  ApprovalEmailToOfficer?: string;
+  ManagerEditDraft?: string;
+  SessionTimeoutWarning?: string;
+  EditRequestEnabled?: string;
+  OverdueDays?: string | number;
+  OverdueIndicatorEnabled?: string;
+  CommandPaletteEnabled?: string;
+  BookletEnabled?: string;
+  ChequeCollectionEnabled?: string;
+  TaxViewEnabled?: string;
+  VendorsViewEnabled?: string;
+  OnboardingEnabled?: string;
 }
 
 /**
