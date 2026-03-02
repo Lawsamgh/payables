@@ -1241,7 +1241,9 @@ async function loadCollections() {
   }
 }
 
-onMounted(loadCollections);
+onMounted(() => {
+  loadCollections();
+});
 watch(isConnected, (connected) => {
   if (connected) loadCollections();
 });

@@ -66,7 +66,10 @@ export function parseFileMakerError(error: unknown): string {
   const data = err.response?.data;
   if (data?.messages?.[0]) {
     const msg = data.messages[0];
-    return msg.message ?? `${msg.code}: ${JSON.stringify(msg)}`;
+    const raw = msg.message?.trim();
+    if (raw && raw !== "OK") return raw;
+    const code = msg.code != null ? String(msg.code) : "unknown";
+    return `Request failed (code ${code})`;
   }
   if (typeof data === "string") return data;
   if (err.message) return err.message;
@@ -118,6 +121,7 @@ export interface PayablesMainFieldData {
   ChequeIssuedDate?: string;
   BankName?: string;
   ChequeNo?: string;
+  Code?: string;
 }
 
 /**
@@ -250,11 +254,8 @@ export interface CheckEmailResult {
  *   { exists: false, error: '…' } — connection or unexpected error
  *
  * Strategy:
- *   1. Try FileMaker _find with Email + Status=Active (exact match)
- *   2. Try _find with lowercase field name variant
- *   3. Try _find for email only (to detect inactive accounts)
- *   4. Fall back to fetching all records and matching client-side
- *      (handles field name / case differences in older FM layouts)
+ *   Uses GET /records (not POST /_find) to avoid 500 errors when the _find
+ *   endpoint fails. Fetches up to 500 records and matches by email client-side.
  */
 export async function checkEmailExistsInPayablesUsers(
   email: string,
@@ -297,78 +298,8 @@ export async function checkEmailExistsInPayablesUsers(
       Authorization: `Bearer ${token}`,
     };
 
-    // ── 2. Helper: run a _find query, returns matching records ─────────────
-    const runFind = async (
-      query: Record<string, string>,
-    ): Promise<Array<{ fieldData?: Record<string, unknown> }>> => {
-      try {
-        const res = await axios.post<{
-          response?: {
-            data?: Array<{ fieldData?: Record<string, unknown> }>;
-          };
-        }>(
-          `${urlBase}/layouts/Payables_Users/_find`,
-          { query: [query], limit: "5" },
-          { headers, timeout: 15000 },
-        );
-        return res.data?.response?.data ?? [];
-      } catch (e) {
-        const err = e as {
-          response?: {
-            data?: { messages?: Array<{ code?: string; message?: string }> };
-          };
-        };
-        const code = String(err.response?.data?.messages?.[0]?.code ?? "");
-        const msg = String(
-          err.response?.data?.messages?.[0]?.message ?? "",
-        ).toLowerCase();
-        // FM error 401 = no records match the request — not a real error
-        if (code === "401" || msg.includes("no records match")) {
-          return [];
-        }
-        throw e;
-      }
-    };
-
-    // ── 3. Try _find: email AND Status = Active ────────────────────────────
-    let activeRecords = await runFind({
-      Email: `=${exactEmail}`,
-      Status: "Active",
-    });
-
-    // Retry with lowercase field name variant
-    if (activeRecords.length === 0) {
-      activeRecords = await runFind({
-        email: `=${exactEmail}`,
-        Status: "Active",
-      });
-    }
-
-    if (activeRecords.length > 0) {
-      return { exists: true };
-    }
-
-    // ── 4. Try _find: email only (no Status filter) to detect inactive ─────
-    let emailOnlyRecords = await runFind({ Email: `=${exactEmail}` });
-    if (emailOnlyRecords.length === 0) {
-      emailOnlyRecords = await runFind({ email: `=${exactEmail}` });
-    }
-
-    if (emailOnlyRecords.length > 0) {
-      // Email exists — check whether all matching records are Inactive
-      const allInactive = emailOnlyRecords.every((r) => {
-        const status = getFieldValue(r?.fieldData, "Status").toLowerCase();
-        return status === "inactive";
-      });
-      if (allInactive) {
-        return { exists: false, inactive: true };
-      }
-      // Found but not inactive and not active — treat as active to be safe
-      return { exists: true };
-    }
-
-    // ── 5. Fallback: fetch all records and match client-side ───────────────
-    //    (handles layouts where _find field names differ from actual names)
+    // Use GET /records instead of POST /_find to avoid 500 when _find endpoint fails.
+    // Fetch all records and match client-side (same logic as previous fallback).
     const listRes = await axios.get<{
       response?: {
         data?: Array<{ fieldData?: Record<string, unknown> }>;
@@ -461,6 +392,8 @@ export interface PayablesSettingsFieldData {
   TaxViewEnabled?: string;
   VendorsViewEnabled?: string;
   OnboardingEnabled?: string;
+  /** Admin-configured URL for vendor cheque collection QR code (Settings > Generate QR Code). */
+  VendorCollectURL?: string;
 }
 
 /**

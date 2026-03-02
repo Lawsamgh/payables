@@ -44,6 +44,40 @@ export function useEditRequest() {
     return String(v).trim();
   }
 
+  function getStr(fd: Record<string, unknown> | undefined, key: string): string | undefined {
+    const v = getFieldValue(fd, key);
+    return v || undefined;
+  }
+
+  /**
+   * Find Payables_Edit_Request records. Falls back to GET + client filter when _find returns 500.
+   */
+  async function findEditRequests(
+    query: { TransRef?: string; Status?: string },
+    limit: number
+  ): Promise<{ data: FindRecordWithId<PayablesEditRequestFieldData>[]; error: string | null }> {
+    const { data, error } = await findRecordsByQueryWithIds<PayablesEditRequestFieldData>(
+      LAYOUTS.PAYABLES_EDIT_REQUEST,
+      query,
+      limit
+    );
+    if (!error && data) {
+      return { data, error: null };
+    }
+    const { data: all } = await findRecordsWithIds<
+      PayablesEditRequestFieldData | Record<string, unknown>
+    >(LAYOUTS.PAYABLES_EDIT_REQUEST, { limit: Math.max(limit, 500) });
+    const filtered: FindRecordWithId<PayablesEditRequestFieldData>[] = [];
+    for (const row of all ?? []) {
+      const fd = row?.fieldData as Record<string, unknown> | undefined;
+      if (query.TransRef && getStr(fd, "TransRef")?.trim() !== query.TransRef.trim()) continue;
+      if (query.Status && getStr(fd, "Status")?.toLowerCase() !== query.Status.toLowerCase()) continue;
+      filtered.push(row as FindRecordWithId<PayablesEditRequestFieldData>);
+      if (filtered.length >= limit) break;
+    }
+    return { data: filtered, error: null };
+  }
+
   /** Get officer email from Payables_Users by FullName (for NotifyEditRequestGranted). */
   async function getOfficerEmailByFullName(fullName: string): Promise<string | null> {
     const name = (fullName || "").trim();
@@ -123,19 +157,8 @@ export function useEditRequest() {
       return { data: null, error: null };
     }
     const trimmedRef = transRef.trim();
-    const { data, error } = await findRecordsByQueryWithIds<
-      PayablesEditRequestFieldData
-    >(LAYOUTS.PAYABLES_EDIT_REQUEST, { TransRef: trimmedRef }, 20);
+    const { data, error } = await findEditRequests({ TransRef: trimmedRef }, 20);
     if (error) return { data: null, error };
-    const getStr = (fd: Record<string, unknown> | undefined, key: string): string | undefined => {
-      if (!fd) return undefined;
-      const v =
-        fd[key] ??
-        fd[key.replace(/([A-Z])/g, " $1").trim()] ??
-        fd[key.charAt(0).toLowerCase() + key.slice(1)];
-      if (v == null || v === "") return undefined;
-      return String(v).trim();
-    };
     for (const row of data ?? []) {
       const r = row as FindRecordWithId<PayablesEditRequestFieldData>;
       if (!r?.recordId) continue;
@@ -171,19 +194,8 @@ export function useEditRequest() {
     Set<string>
   > {
     const result = new Set<string>();
-    const { data, error } = await findRecordsByQueryWithIds<
-      PayablesEditRequestFieldData
-    >(LAYOUTS.PAYABLES_EDIT_REQUEST, { Status: "Pending" }, 500);
+    const { data, error } = await findEditRequests({ Status: "Pending" }, 500);
     if (error || !data) return result;
-    const getStr = (fd: Record<string, unknown> | undefined, key: string): string | undefined => {
-      if (!fd) return undefined;
-      const v =
-        fd[key] ??
-        fd[key.replace(/([A-Z])/g, " $1").trim()] ??
-        fd[key.charAt(0).toLowerCase() + key.slice(1)];
-      if (v == null || v === "") return undefined;
-      return String(v).trim();
-    };
     for (const row of data) {
       const fd = (row as FindRecordWithId<PayablesEditRequestFieldData>)
         ?.fieldData as Record<string, unknown> | undefined;
@@ -278,19 +290,11 @@ export function useEditRequest() {
     }
 
     const trimmedRef = transRef.trim();
-    const { data: pendingList, error: findErr } = await findRecordsByQueryWithIds<
-      PayablesEditRequestFieldData
-    >(LAYOUTS.PAYABLES_EDIT_REQUEST, { TransRef: trimmedRef }, 20);
+    const { data: pendingList, error: findErr } = await findEditRequests(
+      { TransRef: trimmedRef },
+      20
+    );
     if (findErr) return { error: findErr };
-    const getStr = (fd: Record<string, unknown> | undefined, key: string): string | undefined => {
-      if (!fd) return undefined;
-      const v =
-        fd[key] ??
-        fd[key.replace(/([A-Z])/g, " $1").trim()] ??
-        fd[key.charAt(0).toLowerCase() + key.slice(1)];
-      if (v == null || v === "") return undefined;
-      return String(v).trim();
-    };
     let first: FindRecordWithId<PayablesEditRequestFieldData> | undefined;
     for (const row of pendingList ?? []) {
       const r = row as FindRecordWithId<PayablesEditRequestFieldData>;

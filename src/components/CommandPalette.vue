@@ -11,7 +11,7 @@
       @click.self="paletteStore.close()"
     >
       <div
-        class="command-palette glass w-full max-w-xl rounded-2xl border border-[var(--color-border)] shadow-2xl overflow-hidden"
+        class="command-palette glass w-full max-w-3xl rounded-2xl border border-[var(--color-border)] shadow-2xl overflow-hidden"
         @click.stop
       >
         <div

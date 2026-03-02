@@ -115,6 +115,7 @@ watch(fmError, (e) => {
 })
 
 async function submit() {
+  if (connecting.value) return
   const effectiveBaseUrl = hasBaseUrl.value ? null : baseUrlInput.value?.trim()
   if (!effectiveBaseUrl && !hasBaseUrl.value) {
     toast.error('Enter FileMaker base URL (e.g. https://host/fmi/data/v1/databases/PGH_Item_Distribution)')

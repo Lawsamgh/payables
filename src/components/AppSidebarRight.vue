@@ -435,6 +435,21 @@
           </p>
         </div>
         <div
+          v-if="payableStore.mainStatus === 'Approved' && payableStore.mainCode"
+          class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
+        >
+          <p
+            class="text-[11px] font-medium text-[var(--color-text-muted)] mb-1"
+          >
+            Code
+          </p>
+          <p
+            class="text-[17px] font-medium text-[var(--color-text)] tracking-tight leading-snug"
+          >
+            {{ payableStore.mainCode }}
+          </p>
+        </div>
+        <div
           v-if="
             payableStore.mainStatus === 'Posted' &&
             (payableStore.mainPostedDate || payableStore.mainPostedName)
@@ -806,6 +821,7 @@
     <OverdueEntriesModal
       :visible="showOverdueModal && documentSettings.overdueIndicatorEnabled"
       :entries="listSummary.overdueEntries"
+      :loading="listSummary.overdueLoading"
       @close="(payload) => onOverdueModalClose(payload)"
     />
   </aside>

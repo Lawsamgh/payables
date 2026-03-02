@@ -1,6 +1,7 @@
 <template>
   <section
-    class="vendor-details glass overflow-hidden rounded-2xl border border-[var(--color-border)] shadow-sm"
+    class="vendor-details glass rounded-2xl border border-[var(--color-border)] shadow-sm"
+    :class="{ 'vendor-details--dropdown-open': vendorDropdownOpen && !readOnly }"
   >
     <button
       type="button"
@@ -37,13 +38,20 @@
             v-if="displayExpiryCheck"
             class="vendor-details__expiry-item"
             :class="{
-              'vendor-details__expiry-item--invalid': isExpiryCheckInvalid(displayExpiryCheckStatus),
-              'vendor-details__expiry-item--valid': displayExpiryCheckStatus && !isExpiryCheckInvalid(displayExpiryCheckStatus),
+              'vendor-details__expiry-item--invalid': isExpiryCheckInvalid(
+                displayExpiryCheckStatus,
+              ),
+              'vendor-details__expiry-item--valid':
+                displayExpiryCheckStatus &&
+                !isExpiryCheckInvalid(displayExpiryCheckStatus),
             }"
           >
             <span class="vendor-details__expiry-icon" aria-hidden="true">
               <svg
-                v-if="displayExpiryCheckStatus && isExpiryCheckInvalid(displayExpiryCheckStatus)"
+                v-if="
+                  displayExpiryCheckStatus &&
+                  isExpiryCheckInvalid(displayExpiryCheckStatus)
+                "
                 class="vendor-details__expiry-icon-svg"
                 fill="none"
                 stroke="currentColor"
@@ -51,7 +59,11 @@
                 viewBox="0 0 24 24"
               >
                 <circle cx="12" cy="12" r="10" />
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 9l-6 6M9 9l6 6" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15 9l-6 6M9 9l6 6"
+                />
               </svg>
               <svg
                 v-else-if="displayExpiryCheckStatus"
@@ -61,24 +73,37 @@
                 stroke-width="2.5"
                 viewBox="0 0 24 24"
               >
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
               <span v-else class="vendor-details__expiry-icon-placeholder" />
             </span>
             <strong class="vendor-details__expiry-label">GRA Expiry:</strong>
-            <span class="vendor-details__expiry-value">{{ displayExpiryCheck }}</span>
+            <span class="vendor-details__expiry-value">{{
+              displayExpiryCheck
+            }}</span>
           </div>
           <div
             v-if="displayWhtExpiryCheck"
             class="vendor-details__expiry-item"
             :class="{
-              'vendor-details__expiry-item--invalid': isExpiryCheckInvalid(displayWhtExpiryCheckStatus),
-              'vendor-details__expiry-item--valid': displayWhtExpiryCheckStatus && !isExpiryCheckInvalid(displayWhtExpiryCheckStatus),
+              'vendor-details__expiry-item--invalid': isExpiryCheckInvalid(
+                displayWhtExpiryCheckStatus,
+              ),
+              'vendor-details__expiry-item--valid':
+                displayWhtExpiryCheckStatus &&
+                !isExpiryCheckInvalid(displayWhtExpiryCheckStatus),
             }"
           >
             <span class="vendor-details__expiry-icon" aria-hidden="true">
               <svg
-                v-if="displayWhtExpiryCheckStatus && isExpiryCheckInvalid(displayWhtExpiryCheckStatus)"
+                v-if="
+                  displayWhtExpiryCheckStatus &&
+                  isExpiryCheckInvalid(displayWhtExpiryCheckStatus)
+                "
                 class="vendor-details__expiry-icon-svg"
                 fill="none"
                 stroke="currentColor"
@@ -86,7 +111,11 @@
                 viewBox="0 0 24 24"
               >
                 <circle cx="12" cy="12" r="10" />
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 9l-6 6M9 9l6 6" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15 9l-6 6M9 9l6 6"
+                />
               </svg>
               <svg
                 v-else-if="displayWhtExpiryCheckStatus"
@@ -96,12 +125,18 @@
                 stroke-width="2.5"
                 viewBox="0 0 24 24"
               >
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
               <span v-else class="vendor-details__expiry-icon-placeholder" />
             </span>
             <strong class="vendor-details__expiry-label">WHT Expiry:</strong>
-            <span class="vendor-details__expiry-value">{{ displayWhtExpiryCheck }}</span>
+            <span class="vendor-details__expiry-value">{{
+              displayWhtExpiryCheck
+            }}</span>
           </div>
         </div>
         <div class="vendor-details__grid">
@@ -237,15 +272,9 @@
             <input
               :value="vendor.contact_email"
               type="email"
-              class="vendor-details__input"
+              class="vendor-details__input opacity-75 cursor-not-allowed"
               placeholder="vendor@example.com"
-              :readonly="readOnly"
-              @input="
-                onVendorFieldChange(
-                  'contact_email',
-                  ($event.target as HTMLInputElement).value,
-                )
-              "
+              readonly
             />
           </label>
           <label class="vendor-details__field">
@@ -329,12 +358,20 @@ const vendorNameReadOnly = computed(
 
 /** Don't show expiry for Approved/Posted. New entry: VendorDetails. Existing Draft/Rejected: EntryView banner. */
 const displayExpiryCheck = computed(() => {
-  if (payableStore.mainStatus === "Approved" || payableStore.mainStatus === "Posted") return null;
+  if (
+    payableStore.mainStatus === "Approved" ||
+    payableStore.mainStatus === "Posted"
+  )
+    return null;
   if (payableStore.currentTransRef) return null;
   return vendorStore.selectedVendorExpiryCheckDis;
 });
 const displayWhtExpiryCheck = computed(() => {
-  if (payableStore.mainStatus === "Approved" || payableStore.mainStatus === "Posted") return null;
+  if (
+    payableStore.mainStatus === "Approved" ||
+    payableStore.mainStatus === "Posted"
+  )
+    return null;
   if (payableStore.currentTransRef) return null;
   return vendorStore.selectedVendorWhtExpiryCheckDis;
 });
@@ -349,11 +386,13 @@ function isExpiryCheckInvalid(check: string | null): boolean {
 }
 
 const displayExpiryCheckStatus = computed(() => {
-  if (!payableStore.currentTransRef) return vendorStore.selectedVendorExpiryCheck;
+  if (!payableStore.currentTransRef)
+    return vendorStore.selectedVendorExpiryCheck;
   return payableStore.mainExpiryCheck;
 });
 const displayWhtExpiryCheckStatus = computed(() => {
-  if (!payableStore.currentTransRef) return vendorStore.selectedVendorWhtExpiryCheck;
+  if (!payableStore.currentTransRef)
+    return vendorStore.selectedVendorWhtExpiryCheck;
   return payableStore.mainWhtExpiryCheck;
 });
 
@@ -374,6 +413,13 @@ function getVendorName(
 ): string {
   const fd = row.fieldData as Record<string, unknown>;
   return String(fd.Vendor_Name ?? fd["Vendor Name"] ?? "").trim();
+}
+
+function getVendorEmail(
+  row: FindRecordWithId<VendorTblFieldData | Record<string, unknown>>,
+): string {
+  const fd = row.fieldData as Record<string, unknown>;
+  return String(fd.Vendor_Email ?? fd["Vendor Email"] ?? "").trim();
 }
 
 function isVendorSelected(
@@ -399,11 +445,28 @@ async function loadVendors() {
     return;
   }
   vendorListLoading.value = true;
-  const { data, error } = await findRecordsWithIds<
-    VendorTblFieldData | Record<string, unknown>
-  >(LAYOUTS.VENDOR_TBL, { limit: 500 });
-  vendorListLoading.value = false;
-  vendorList.value = error ? [] : data;
+  const BATCH = 1000;
+  let offset = 0;
+  const all: typeof vendorList.value = [];
+  try {
+    while (true) {
+      const options: { limit: number; offset?: number } = { limit: BATCH };
+      if (offset > 0) options.offset = offset;
+      const { data, error } = await findRecordsWithIds<
+        VendorTblFieldData | Record<string, unknown>
+      >(LAYOUTS.VENDOR_TBL, options);
+      if (error) {
+        vendorList.value = [];
+        return;
+      }
+      all.push(...data);
+      if (data.length < BATCH) break;
+      offset += data.length;
+    }
+    vendorList.value = all;
+  } finally {
+    vendorListLoading.value = false;
+  }
 }
 
 function onVendorIdInput(value: string) {
@@ -419,9 +482,13 @@ function onVendorSelect(
 ) {
   const id = getVendorId(row);
   const name = getVendorName(row);
+  const email = getVendorEmail(row);
   vendorStore.setField("vendor_id", id);
   vendorStore.setField("vendor_name", name);
-  vendorStore.setExpiryFromVendorRecord(row.fieldData as Record<string, unknown>);
+  vendorStore.setField("contact_email", email);
+  vendorStore.setExpiryFromVendorRecord(
+    row.fieldData as Record<string, unknown>,
+  );
   vendorSearch.value = "";
   vendorDropdownOpen.value = false;
   if (!readOnly.value) payableStore.markDirty();
@@ -456,6 +523,11 @@ watch(isConnected, (connected) => {
 <style scoped>
 .vendor-details {
   --vd-ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.vendor-details--dropdown-open {
+  position: relative;
+  z-index: 100;
 }
 
 .vendor-details__header {
@@ -503,7 +575,11 @@ watch(isConnected, (connected) => {
   margin-bottom: 1.25rem;
   padding: 1rem 1.25rem;
   border-radius: 10px;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.08) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.2) 0%,
+    rgba(59, 130, 246, 0.08) 100%
+  );
   border: 1px solid rgba(59, 130, 246, 0.4);
 }
 .vendor-details__expiry-item {
@@ -547,10 +623,16 @@ watch(isConnected, (connected) => {
 .vendor-details__expiry-item--valid {
   color: rgb(134, 239, 172);
 }
-.vendor-details__expiry-item:not(.vendor-details__expiry-item--invalid):not(.vendor-details__expiry-item--valid) .vendor-details__expiry-label {
+.vendor-details__expiry-item:not(.vendor-details__expiry-item--invalid):not(
+    .vendor-details__expiry-item--valid
+  )
+  .vendor-details__expiry-label {
   color: rgb(191, 219, 254);
 }
-.vendor-details__expiry-item:not(.vendor-details__expiry-item--invalid):not(.vendor-details__expiry-item--valid) .vendor-details__expiry-value {
+.vendor-details__expiry-item:not(.vendor-details__expiry-item--invalid):not(
+    .vendor-details__expiry-item--valid
+  )
+  .vendor-details__expiry-value {
   color: var(--color-text);
 }
 .vendor-details__expiry-value {

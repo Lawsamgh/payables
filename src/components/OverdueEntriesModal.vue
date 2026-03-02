@@ -29,7 +29,8 @@
                 Overdue entries
               </h2>
               <p class="text-sm text-[var(--color-text-muted)] mt-0.5">
-                {{ entries.length }} {{ entries.length === 1 ? 'entry' : 'entries' }} awaiting approval
+                <template v-if="loading && entries.length === 0">Loading…</template>
+                <template v-else>{{ entries.length }} {{ entries.length === 1 ? 'entry' : 'entries' }} awaiting approval</template>
               </p>
             </div>
           </div>
@@ -47,7 +48,13 @@
 
         <!-- Content -->
         <div class="flex-1 overflow-hidden flex flex-col min-h-0">
-          <div v-if="entries.length === 0" class="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
+          <div v-if="loading && entries.length === 0" class="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
+            <div class="overdue-modal-loading flex flex-col items-center gap-3">
+              <div class="overdue-modal-spinner w-10 h-10 rounded-full border-2 border-[var(--color-accent)] border-t-transparent animate-spin" aria-hidden="true" />
+              <p class="text-[var(--color-text-muted)] text-sm">Loading overdue entries…</p>
+            </div>
+          </div>
+          <div v-else-if="entries.length === 0" class="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center">
             <div class="rounded-2xl p-6 mb-4" style="background: rgba(148, 163, 184, 0.08);">
               <svg class="h-12 w-12 text-[var(--color-text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -149,6 +156,7 @@ import { formatNumberDisplay } from '../utils/formatNumber'
 const props = defineProps<{
   visible: boolean
   entries: OverdueEntry[]
+  loading?: boolean
 }>()
 
 const emit = defineEmits<{ close: [payload?: { navigating?: boolean }] }>()

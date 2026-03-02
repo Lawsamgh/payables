@@ -34,6 +34,7 @@ export const useListSummaryStore = defineStore('listSummary', () => {
   const approvedCount = ref(0)
   const overdueCount = ref(0)
   const overdueEntries = ref<OverdueEntry[]>([])
+  const overdueLoading = ref(false)
   const draftTotalsByCurrency = ref<Record<string, number>>({})
   const postedTotalsByCurrency = ref<Record<string, number>>({})
   const rejectedTotalsByCurrency = ref<Record<string, number>>({})
@@ -68,6 +69,10 @@ export const useListSummaryStore = defineStore('listSummary', () => {
     overdueEntries.value = [...entries]
   }
 
+  function setOverdueLoading(value: boolean): void {
+    overdueLoading.value = value
+  }
+
   function setVendorStats(byVolume: TopVendorByVolume[], byEntryCount: TopVendorByCount[]): void {
     topVendorsByVolume.value = [...byVolume]
     topVendorsByEntryCount.value = [...byEntryCount]
@@ -84,6 +89,7 @@ export const useListSummaryStore = defineStore('listSummary', () => {
     approvedCount: computed(() => approvedCount.value),
     overdueCount: computed(() => overdueCount.value),
     overdueEntries: computed(() => overdueEntries.value),
+    overdueLoading: computed(() => overdueLoading.value),
     draftTotalsByCurrency: computed(() => draftTotalsByCurrency.value),
     postedTotalsByCurrency: computed(() => postedTotalsByCurrency.value),
     rejectedTotalsByCurrency: computed(() => rejectedTotalsByCurrency.value),
@@ -95,6 +101,7 @@ export const useListSummaryStore = defineStore('listSummary', () => {
     setTotalsByCurrency,
     setOverdueCount,
     setOverdueEntries,
+    setOverdueLoading,
     setVendorStats,
   }
 })

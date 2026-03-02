@@ -9,21 +9,21 @@
       <div class="login__bg" />
       <div class="login__bg-glow" />
       <div class="login__bg-shapes">
-      <div class="login__shape login__shape--1" />
-      <div class="login__shape login__shape--2" />
-      <div class="login__shape login__shape--3" />
-      <div class="login__shape login__shape--4" />
-      <div class="login__shape login__shape--5" />
+        <div class="login__shape login__shape--1" />
+        <div class="login__shape login__shape--2" />
+        <div class="login__shape login__shape--3" />
+        <div class="login__shape login__shape--4" />
+        <div class="login__shape login__shape--5" />
       </div>
       <div class="login__bg-drops">
-      <div class="login__drop login__drop--1" />
-      <div class="login__drop login__drop--2" />
-      <div class="login__drop login__drop--3" />
-      <div class="login__drop login__drop--4" />
-      <div class="login__drop login__drop--5" />
-      <div class="login__drop login__drop--6" />
-      <div class="login__drop login__drop--7" />
-      <div class="login__drop login__drop--8" />
+        <div class="login__drop login__drop--1" />
+        <div class="login__drop login__drop--2" />
+        <div class="login__drop login__drop--3" />
+        <div class="login__drop login__drop--4" />
+        <div class="login__drop login__drop--5" />
+        <div class="login__drop login__drop--6" />
+        <div class="login__drop login__drop--7" />
+        <div class="login__drop login__drop--8" />
       </div>
       <div class="login__bg-grid" />
       <div class="login__bg-dots" />

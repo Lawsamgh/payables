@@ -53,6 +53,12 @@ const router = createRouter({
       meta: { title: 'Cheque collection', requiresAuth: true, requireShowForManager: true },
     },
     {
+      path: '/vendor-collect',
+      name: 'vendor-collect',
+      component: () => import('../views/VendorCollectView.vue'),
+      meta: { title: 'Collect cheque', layout: 'login', requiresAuth: false },
+    },
+    {
       path: '/settings',
       name: 'settings',
       component: () => import('../views/SettingsView.vue'),
@@ -87,6 +93,12 @@ const router = createRouter({
       name: 'settings-features',
       component: () => import('../views/SettingsFeaturesView.vue'),
       meta: { title: 'Features', requiresAuth: true, requireAdmin: true },
+    },
+    {
+      path: '/settings/qr-code',
+      name: 'settings-qr-code',
+      component: () => import('../views/SettingsQrCodeView.vue'),
+      meta: { title: 'Generate QR Code', requiresAuth: true, requireAdmin: true },
     },
     {
       path: '/settings/shortcuts',

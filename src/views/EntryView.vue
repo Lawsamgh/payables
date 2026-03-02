@@ -1109,6 +1109,7 @@ function dismissEditRequestModal() {
 }
 
 async function onProceedAllowEdit() {
+  if (grantingEditRequest.value) return;
   const transRef = payableStore.currentTransRef;
   const mainRecordId = payableStore.currentMainRecordId;
   const requestedBy = pendingEditRequestForModal.value?.RequestedBy;
@@ -1166,6 +1167,7 @@ function onRejectSubmit(reason: string) {
 }
 
 async function performReject(reason: string) {
+  if (rejecting.value) return;
   const transRef = payableStore.currentTransRef;
   const mainRecordId = payableStore.currentMainRecordId;
   if (!transRef || !mainRecordId || !isConnected.value) return;
@@ -1216,6 +1218,7 @@ async function performReject(reason: string) {
 }
 
 async function onApprove() {
+  if (approving.value) return;
   const mainRecordId = payableStore.currentMainRecordId;
   const transRef = payableStore.currentTransRef;
   if (!mainRecordId || !isConnected.value || !transRef) return;
@@ -1351,6 +1354,7 @@ function amountInWords(amount: number, currencyCode = ""): string {
 
 /** Build and download PDF with pdfmake (invoice-style layout, B&W friendly). */
 async function downloadApprovedPdf() {
+  if (downloadingPdf.value) return;
   const status = payableStore.mainStatus;
   const when = documentSettings.invoiceDownloadWhen;
   const ok =

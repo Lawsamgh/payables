@@ -1,6 +1,6 @@
 <template>
   <div
-    class="h-screen flex overflow-hidden"
+    class="app-root flex overflow-hidden"
     :class="{ 'app--loading': !routerReady }"
   >
     <div v-if="!routerReady" class="app__loader" aria-hidden="true" />
@@ -20,7 +20,7 @@
       <AppSidebarRight />
     </template>
     <template v-else>
-      <div class="flex-1 min-w-0 min-h-0 flex">
+      <div class="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
         <RouterView />
       </div>
     </template>
@@ -200,6 +200,13 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 100svh = visible viewport when address bar shown; avoids "half view" on mobile */
+.app-root {
+  height: 100vh;
+  height: 100svh;
+  min-height: 0;
+}
+
 .app__loader {
   position: fixed;
   inset: 0;

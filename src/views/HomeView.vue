@@ -1564,7 +1564,7 @@ function openBookletWithSelected() {
 
 const list = ref<FindRecordWithId<PayablesMainFieldData>[]>([]);
 const vendorCount = ref(0);
-const loading = ref(false);
+const loading = ref(true);
 const error = ref<string | null>(null);
 
 const PAGE_SIZE = 5;
@@ -2352,7 +2352,7 @@ const approvedTotalsByCurrency = computed(() => {
 });
 
 watch(
-  [draftList, postedList, rejectedList, approvedList, overdueList],
+  [draftList, postedList, rejectedList, approvedList, overdueList, loading],
   () => {
     listSummary.setCounts(
       draftList.value.length,
@@ -2360,9 +2360,10 @@ watch(
       rejectedList.value.length,
       approvedList.value.length,
     );
-    listSummary.setOverdueCount(overdueList.value.length);
-    listSummary.setOverdueEntries(
-      overdueList.value.map((item) => {
+    if (!loading.value) {
+      listSummary.setOverdueCount(overdueList.value.length);
+      listSummary.setOverdueEntries(
+        overdueList.value.map((item) => {
         const posted = getPostedDate(item);
         const postedKey = toDateKey(posted);
         let daysOverdue: number | undefined;
@@ -2380,7 +2381,8 @@ watch(
           daysOverdue,
         };
       }),
-    );
+      );
+    }
     listSummary.setVendorStats(
       topVendorsByVolume.value,
       topVendorsByEntryCount.value,
@@ -2407,6 +2409,7 @@ watch(
 );
 
 async function onBulkApprove() {
+  if (bulkApproving.value) return;
   const selected = [...postedSelectedTransRefs.value];
   if (selected.length === 0 || !isConnected.value) return;
   const pending = pendingEditTransRefs.value;
@@ -2500,9 +2503,11 @@ async function load() {
   if (!isConnected.value) {
     list.value = [];
     vendorCount.value = 0;
+    loading.value = false;
     return;
   }
   loading.value = true;
+  listSummary.setOverdueLoading(true);
   error.value = null;
   try {
     const [mainRes, vendorRes] = await Promise.all([
@@ -2528,6 +2533,7 @@ async function load() {
     }
   } finally {
     loading.value = false;
+    listSummary.setOverdueLoading(false);
   }
 }
 

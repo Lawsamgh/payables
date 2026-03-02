@@ -566,7 +566,11 @@ export async function runScript(
     const msg = res.data?.messages?.[0]
     const messageCode = msg?.code != null ? String(msg.code) : undefined
     if (scriptError !== '0') {
-      const errMsg = msg?.message ?? `Script error: ${scriptError}`
+      const rawMsg = msg?.message?.trim()
+      const errMsg =
+        rawMsg && rawMsg !== 'OK' && rawMsg.length > 2
+          ? rawMsg
+          : `Script error (code ${scriptError})`
       lastError.value = errMsg
       return { error: errMsg, scriptResult, scriptError, messageCode }
     }

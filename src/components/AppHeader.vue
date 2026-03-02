@@ -472,6 +472,7 @@ async function notifyManagerOnPost(): Promise<void> {
 }
 
 async function onSave() {
+  if (payableStore.syncing) return;
   if (!hasBaseUrl.value) {
     toast.error(
       "FileMaker URL not set. Add VITE_FILEMAKER_BASE_URL to your .env and restart.",
@@ -504,6 +505,7 @@ async function onSave() {
 }
 
 async function onPost() {
+  if (payableStore.syncing) return;
   if (!hasBaseUrl.value) {
     toast.error(
       "FileMaker URL not set. Add VITE_FILEMAKER_BASE_URL to your .env and restart.",
@@ -554,6 +556,7 @@ async function onPost() {
 }
 
 async function onRepost() {
+  if (payableStore.syncing) return;
   if (!hasBaseUrl.value) {
     toast.error(
       "FileMaker URL not set. Add VITE_FILEMAKER_BASE_URL to your .env and restart.",

@@ -27,36 +27,42 @@
           Vendors
         </h1>
       </div>
-      <button
-        type="button"
-        class="pill-btn inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2.5 text-[var(--label-size)] font-semibold text-white shadow-md hover:bg-orange-600 transition-colors"
-        @click="showAddModal = true"
-      >
-        <svg
-          class="h-4 w-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          class="pill-btn inline-flex items-center gap-2 rounded-full glass-input px-4 py-2.5 text-[var(--label-size)] font-medium text-[var(--color-text)] hover:bg-white/5 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+          :disabled="refreshing || !isConnected"
+          aria-label="Refresh vendors from BCPS"
+          @click="onRefreshFromBCPS"
         >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M12 4v16m8-8H4"
-          />
-        </svg>
-        Add Vendor
-      </button>
+          <svg
+            class="h-4 w-4"
+            :class="{ 'animate-spin': refreshing }"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
+          </svg>
+          {{ refreshing ? "Refreshing…" : "Refresh Data" }}
+        </button>
+      </div>
     </header>
 
     <p class="text-[var(--label-size)] text-[var(--color-text-muted)] mb-4">
-      Manage vendors here. View, add, and edit vendor details.
+      Manage vendors here. View and edit vendor details.
     </p>
 
     <!-- Search -->
     <div
       v-if="!loading && !loadError && vendorList.length > 0"
       class="tax-search-bar"
+      :class="{ 'opacity-70 pointer-events-none': refreshing }"
     >
       <div class="tax-search-bar__row">
         <div
@@ -190,18 +196,15 @@
       </div>
       <div v-else-if="vendorList.length === 0" class="tax-table-empty">
         <p>No vendors yet.</p>
-        <button
-          type="button"
-          class="pill-btn mt-2 inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2.5 text-[var(--label-size)] font-semibold text-white shadow-md hover:bg-orange-600 transition-colors"
-          @click="showAddModal = true"
-        >
-          Add your first vendor
-        </button>
       </div>
-      <div v-else-if="filteredVendorList.length === 0" class="tax-table-empty">
+      <div
+        v-else-if="filteredVendorList.length === 0"
+        class="tax-table-empty"
+        :class="{ 'opacity-75 pointer-events-none': refreshing }"
+      >
         <p>{{ searchQuery ? "No matching vendors." : "No vendors yet." }}</p>
         <button
-          v-if="searchQuery"
+          v-if="searchQuery && !refreshing"
           type="button"
           class="pill-btn mt-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
           @click="searchQuery = ''"
@@ -209,7 +212,10 @@
           Clear search
         </button>
       </div>
-      <div v-else>
+      <div
+        v-else
+        :class="{ 'opacity-75 pointer-events-none': refreshing }"
+      >
         <div class="tax-table-scroll">
           <table class="tax-table">
             <thead>
@@ -309,7 +315,8 @@
                   type="button"
                   class="tax-table__edit-btn"
                   aria-label="Edit"
-                  @click="openEdit(row)"
+                  :disabled="refreshing"
+                  @click="!refreshing && openEdit(row)"
                 >
                   <svg
                     width="16"
@@ -336,7 +343,7 @@
           <button
             type="button"
             class="pagination__btn"
-            :disabled="currentPageVendor <= 1"
+            :disabled="currentPageVendor <= 1 || refreshing"
             aria-label="Previous page"
             @click="currentPageVendor = Math.max(1, currentPageVendor - 1)"
           >
@@ -350,7 +357,7 @@
           <button
             type="button"
             class="pagination__btn"
-            :disabled="currentPageVendor >= totalPagesVendor"
+            :disabled="currentPageVendor >= totalPagesVendor || refreshing"
             aria-label="Next page"
             @click="currentPageVendor = Math.min(totalPagesVendor, currentPageVendor + 1)"
           >
@@ -368,17 +375,15 @@
         <div
           class="tax-modal vendor-modal"
           role="dialog"
-          :aria-labelledby="
-            editingRecordId ? 'edit-vendor-title' : 'add-vendor-title'
-          "
+          aria-labelledby="edit-vendor-title"
           aria-modal="true"
         >
           <header class="tax-modal__header">
             <h2
-              :id="editingRecordId ? 'edit-vendor-title' : 'add-vendor-title'"
+              id="edit-vendor-title"
               class="tax-modal__title"
             >
-              {{ editingRecordId ? "Edit Vendor" : "Add Vendor" }}
+              Edit Vendor
             </h2>
             <button
               type="button"
@@ -427,7 +432,9 @@
                   v-model="form.Vendor_ID"
                   type="text"
                   class="glass-input w-full px-3 py-2.5 rounded-lg"
+                  :class="{ 'opacity-75 cursor-not-allowed': editingRecordId }"
                   placeholder="Vendor ID"
+                  :readonly="!!editingRecordId"
                 />
               </label>
               <label class="tax-modal__label">
@@ -436,8 +443,10 @@
                   v-model="form.Vendor_Name"
                   type="text"
                   class="glass-input w-full px-3 py-2.5 rounded-lg"
+                  :class="{ 'opacity-75 cursor-not-allowed': editingRecordId }"
                   placeholder="Vendor name"
                   required
+                  :readonly="!!editingRecordId"
                 />
               </label>
               <label class="tax-modal__label">
@@ -455,7 +464,9 @@
                   v-model="form.Vendor_Email"
                   type="email"
                   class="glass-input w-full px-3 py-2.5 rounded-lg"
+                  :class="{ 'opacity-75 cursor-not-allowed': editingRecordId }"
                   placeholder="email@example.com"
+                  :readonly="!!editingRecordId"
                 />
               </label>
               <label class="tax-modal__label">
@@ -520,9 +531,7 @@
                 class="tax-modal__btn-submit"
                 :disabled="saving"
               >
-                {{
-                  saving ? "Saving…" : editingRecordId ? "Save" : "Add Vendor"
-                }}
+                {{ saving ? "Saving…" : "Save" }}
               </button>
             </div>
           </form>
@@ -543,7 +552,7 @@ import { useToastStore } from "../stores/toastStore";
 import { useVendorOverviewStore } from "../stores/vendorOverviewStore";
 import { formatDateForFileMaker } from "../utils/filemakerMappers";
 
-const { createRecord, updateRecord, findRecordsWithIds, isConnected } =
+const { updateRecord, findRecordsWithIds, runScript, isConnected } =
   useFileMaker();
 const toast = useToastStore();
 const vendorOverview = useVendorOverviewStore();
@@ -569,6 +578,7 @@ const form = ref<VendorTblFieldData>({
 });
 const formError = ref<string | null>(null);
 const saving = ref(false);
+const refreshing = ref(false);
 
 function getField(
   row: FindRecordWithId<VendorTblFieldData | Record<string, unknown>>,
@@ -616,7 +626,7 @@ const filteredVendorList = computed(() => {
   });
 });
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 15;
 const currentPageVendor = ref(1);
 const totalPagesVendor = computed(() =>
   Math.max(1, Math.ceil(filteredVendorList.value.length / PAGE_SIZE)),
@@ -744,27 +754,18 @@ async function submit() {
       WHT_Expiry_Date: toFileMakerDate(form.value.WHT_Expiry_Date),
       Received_WHT_Date: toFileMakerDate(form.value.Received_WHT_Date),
     };
-    if (idToUpdate) {
-      const { error } = await updateRecord(
-        LAYOUTS.VENDOR_TBL,
-        idToUpdate,
-        fieldData,
-      );
-      if (error) {
-        toast.error(error);
-        formError.value = null;
-        return;
-      }
-      toast.success("Vendor updated successfully.");
-    } else {
-      const { error } = await createRecord(LAYOUTS.VENDOR_TBL, fieldData);
-      if (error) {
-        toast.error(error);
-        formError.value = null;
-        return;
-      }
-      toast.success("Vendor added successfully.");
+    if (!idToUpdate) return;
+    const { error } = await updateRecord(
+      LAYOUTS.VENDOR_TBL,
+      idToUpdate,
+      fieldData,
+    );
+    if (error) {
+      toast.error(error);
+      formError.value = null;
+      return;
     }
+    toast.success("Vendor updated successfully.");
     closeModal();
     resetForm();
     await loadVendors();
@@ -773,26 +774,59 @@ async function submit() {
   }
 }
 
-async function loadVendors() {
+async function loadVendors(opts?: { silent?: boolean }) {
   if (!isConnected.value) {
     vendorList.value = [];
     loading.value = false;
     return;
   }
-  loading.value = true;
+  if (!opts?.silent) loading.value = true;
   loadError.value = null;
-  const { data, error } = await findRecordsWithIds<
-    VendorTblFieldData | Record<string, unknown>
-  >(LAYOUTS.VENDOR_TBL, { limit: 500 });
-  loading.value = false;
-  if (error) {
-    toast.error(error);
-    loadError.value = null;
-    vendorList.value = [];
-    vendorOverview.setVendorCount(0);
-  } else {
-    vendorList.value = data;
-    vendorOverview.setVendorCount(data.length);
+  const BATCH = 1000;
+  let offset = 0;
+  const all: typeof vendorList.value = [];
+  try {
+    while (true) {
+      const options: { limit: number; offset?: number } = { limit: BATCH };
+      if (offset > 0) options.offset = offset;
+      const { data, error } = await findRecordsWithIds<
+        VendorTblFieldData | Record<string, unknown>
+      >(LAYOUTS.VENDOR_TBL, options);
+      if (error) {
+        toast.error(error);
+        loadError.value = null;
+        vendorList.value = [];
+        vendorOverview.setVendorCount(0);
+        return;
+      }
+      all.push(...data);
+      if (data.length < BATCH) break;
+      offset += data.length;
+    }
+    vendorList.value = all;
+    vendorOverview.setVendorCount(all.length);
+  } finally {
+    if (!opts?.silent) loading.value = false;
+  }
+}
+
+async function onRefreshFromBCPS() {
+  if (refreshing.value || !isConnected.value) return;
+  refreshing.value = true;
+  showAddModal.value = false;
+  try {
+    const { error, scriptError } = await runScript(
+      LAYOUTS.VENDOR_TBL,
+      "GetVendorsFromBCPSOS" // PSOS – script error 3 can be returned even on success
+    );
+    if (error && scriptError !== "3") {
+      toast.error("Refresh failed: " + error);
+      return;
+    }
+    toast.success("Refresh completed. Reloading vendors…");
+    await loadVendors({ silent: true });
+  } finally {
+    refreshing.value = false;
   }
 }
 

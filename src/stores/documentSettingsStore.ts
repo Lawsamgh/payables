@@ -69,6 +69,8 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
   const vendorsViewEnabled = ref(true);
   const approvalEmailToOfficerEnabled = ref(true);
   const onboardingEnabled = ref(true);
+  /** Admin-configured URL for vendor cheque collection QR code. Empty = use default /vendor-collect. */
+  const vendorCollectQrUrl = ref("");
 
   const { findRecordsWithIds, updateRecord, isConnected } = useFileMaker();
 
@@ -109,6 +111,8 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
     vendorsViewEnabled.value = parseYesNo(fd?.VendorsViewEnabled, true);
     approvalEmailToOfficerEnabled.value = parseYesNo(fd?.ApprovalEmailToOfficer, true);
     onboardingEnabled.value = parseYesNo(fd?.OnboardingEnabled, true);
+    const qrUrl = fd?.VendorCollectURL ?? (fd as Record<string, unknown>)?.["Vendor Collect URL"] ?? fd?.URL ?? "";
+    vendorCollectQrUrl.value = typeof qrUrl === "string" ? qrUrl.trim() : "";
     try {
       localStorage.setItem(STORAGE_KEY, invoiceDownloadWhen.value);
     } catch {
@@ -201,6 +205,21 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
     invoiceDownloadWhen.value = v;
   }
 
+  async function saveVendorCollectQrUrl(value: string): Promise<{ error: string | null }> {
+    if (!isConnected.value || !settingsRecordId.value) {
+      return { error: "Not connected" };
+    }
+    const trimmed = value.trim();
+    vendorCollectQrUrl.value = trimmed;
+    const { error } = await updateRecord(
+      LAYOUTS.PAYABLES_SETTINGS,
+      settingsRecordId.value,
+      { VendorCollectURL: trimmed },
+      { allowEmptyStrings: true },
+    );
+    return { error };
+  }
+
   async function saveHodEmail(value: string): Promise<{ error: string | null }> {
     if (!isConnected.value || !settingsRecordId.value) {
       return { error: "Not connected" };
@@ -234,6 +253,8 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
     onboardingEnabled,
     setInvoiceDownloadWhen,
     loadFromFileMaker,
+    vendorCollectQrUrl,
+    saveVendorCollectQrUrl,
     saveHodEmail,
     saveFeatureFlag,
     saveOverdueDays,

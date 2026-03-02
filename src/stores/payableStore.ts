@@ -49,6 +49,8 @@ export const usePayableStore = defineStore("payable", () => {
   const mainChequeIssuedDate = ref<string | null>(null);
   const mainBankName = ref<string | null>(null);
   const mainChequeNo = ref<string | null>(null);
+  /** Code from Payables_Main (shown on Approved entry only). */
+  const mainCode = ref<string | null>(null);
   /** Vendor expiry check display text (from Vendor_TBL). */
   const mainExpiryCheckDis = ref<string | null>(null);
   const mainWhtExpiryCheckDis = ref<string | null>(null);
@@ -258,6 +260,7 @@ export const usePayableStore = defineStore("payable", () => {
       mainChequeIssuedDate.value = null;
       mainBankName.value = null;
       mainChequeNo.value = null;
+      mainCode.value = null;
       mainExpiryCheckDis.value = null;
       mainWhtExpiryCheckDis.value = null;
       mainExpiryCheck.value = null;
@@ -574,6 +577,8 @@ export const usePayableStore = defineStore("payable", () => {
         "postedName",
       );
       mainPostedName.value = postedName;
+      const code = getFieldStr(md, "Code", "code");
+      mainCode.value = code;
       const postedDate = getFieldStr(
         md,
         "PostedDate",
@@ -606,6 +611,7 @@ export const usePayableStore = defineStore("payable", () => {
       mainChequeIssuedDate.value = null;
       mainBankName.value = null;
       mainChequeNo.value = null;
+      mainCode.value = null;
       mainExpiryCheckDis.value = null;
       mainWhtExpiryCheckDis.value = null;
       mainExpiryCheck.value = null;
@@ -693,6 +699,9 @@ export const usePayableStore = defineStore("payable", () => {
         error: "Not connected to FileMaker",
       };
     }
+    syncing.value = true;
+    error.value = null;
+    try {
     const currentRows = rows.value;
     let toPost = currentRows
       .map((row, index) => ({ row, index }))
@@ -764,8 +773,6 @@ export const usePayableStore = defineStore("payable", () => {
       markPosted &&
       currentMainRecordId.value
     ) {
-      syncing.value = true;
-      error.value = null;
       try {
         const todayIso = new Date().toISOString().slice(0, 10);
         const postedDate = formatDateForFileMaker(todayIso) ?? todayIso;
@@ -852,8 +859,6 @@ export const usePayableStore = defineStore("payable", () => {
       }
     }
 
-    syncing.value = true;
-    error.value = null;
     let posted = 0;
     let updated = 0;
     let deleted = 0;
@@ -1153,6 +1158,9 @@ export const usePayableStore = defineStore("payable", () => {
     } finally {
       syncing.value = false;
     }
+    } finally {
+      syncing.value = false;
+    }
   }
 
   return {
@@ -1174,6 +1182,7 @@ export const usePayableStore = defineStore("payable", () => {
     mainChequeIssuedDate: computed(() => mainChequeIssuedDate.value),
     mainBankName: computed(() => mainBankName.value),
     mainChequeNo: computed(() => mainChequeNo.value),
+    mainCode: computed(() => mainCode.value),
     mainExpiryCheckDis: computed(() => mainExpiryCheckDis.value),
     mainWhtExpiryCheckDis: computed(() => mainWhtExpiryCheckDis.value),
     mainExpiryCheck: computed(() => mainExpiryCheck.value),
