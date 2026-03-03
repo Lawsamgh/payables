@@ -422,6 +422,14 @@ function getVendorEmail(
   return String(fd.Vendor_Email ?? fd["Vendor Email"] ?? "").trim();
 }
 
+function getVendorCurrency(
+  row: FindRecordWithId<VendorTblFieldData | Record<string, unknown>>,
+): string {
+  const fd = row.fieldData as Record<string, unknown>;
+  const c = String(fd.Currency ?? fd["Currency"] ?? "").trim();
+  return c || "GHS";
+}
+
 function isVendorSelected(
   row: FindRecordWithId<VendorTblFieldData | Record<string, unknown>>,
 ): boolean {
@@ -483,9 +491,11 @@ function onVendorSelect(
   const id = getVendorId(row);
   const name = getVendorName(row);
   const email = getVendorEmail(row);
+  const currency = getVendorCurrency(row);
   vendorStore.setField("vendor_id", id);
   vendorStore.setField("vendor_name", name);
   vendorStore.setField("contact_email", email);
+  vendorStore.setField("currency", currency);
   vendorStore.setExpiryFromVendorRecord(
     row.fieldData as Record<string, unknown>,
   );

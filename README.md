@@ -35,6 +35,7 @@ npm run preview
 - **Payables_Details** layout: CreationTimestamp, InvoiceNumber, Amount, Tax, Total.
 - Each grid row is inserted as one **Payables_Main** record (vendor + invoice) and one **Payables_Details** record (amounts). VendorEmail is taken from the Vendor section if filled.
 - Click **Connect** in the status bar, then **Save** to insert unsaved rows into FileMaker.
+- **Vendor cheque collection**: Officers write the Code (from Payables_Main) and give it to the vendor at the desk. The vendor scans the QR, enters that Code, and fills the collection form.
 
 ## Tech stack
 

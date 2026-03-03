@@ -100,6 +100,7 @@ export const LAYOUTS = {
  */
 export interface PayablesMainFieldData {
   CreationTimestamp?: string;
+  ModificationTimestamp?: string;
   VendorID?: string;
   VendorName?: string;
   VendorEmail?: string;

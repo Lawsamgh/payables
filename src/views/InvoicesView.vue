@@ -287,23 +287,12 @@
         No invoices match your {{ hasActiveFilters ? "filters" : "search" }}.
       </p>
       <div v-else class="pdf-grid">
-        <router-link
+        <div
           v-for="item in filteredList"
           :key="item.recordId"
-          :to="{
-            name: 'entry',
-            query: {
-              transRef:
-                (item.fieldData as PayablesMainFieldData).TransRef ?? '',
-              from: 'invoices',
-            },
-          }"
           class="pdf-tile"
         >
-          <div
-            class="pdf-thumb"
-            :aria-label="`Open invoice ${String((item.fieldData as PayablesMainFieldData).TransRef ?? '').trim()}`"
-          >
+          <div class="pdf-thumb">
             <div class="pdf-thumb__page">
               <div class="pdf-thumb__top">
                 <span class="pdf-thumb__tag">PDF</span>
@@ -419,39 +408,77 @@
               </div>
 
               <div class="pdf-thumb__footer">
-                <div
-                  class="pdf-thumb__icon"
-                  :class="
-                    statusIconClass(
-                      (item.fieldData as PayablesMainFieldData).Status,
-                    )
-                  "
-                  aria-hidden="true"
-                >
-                  <svg
-                    class="h-5 w-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                <div class="pdf-thumb__footer-row">
+                  <div
+                    class="pdf-thumb__icon"
+                    :class="
+                      statusIconClass(
+                        (item.fieldData as PayablesMainFieldData).Status,
+                      )
+                    "
+                    aria-hidden="true"
                   >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
+                    <svg
+                      class="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
+                    </svg>
+                  </div>
+                  <div class="pdf-thumb__lines">
+                    <div class="pdf-thumb__line pdf-thumb__line--w1" />
+                    <div class="pdf-thumb__line pdf-thumb__line--w2" />
+                    <div class="pdf-thumb__line pdf-thumb__line--w3" />
+                    <div class="pdf-thumb__line pdf-thumb__line--w4" />
+                  </div>
                 </div>
-                <div class="pdf-thumb__lines">
-                  <div class="pdf-thumb__line pdf-thumb__line--w1" />
-                  <div class="pdf-thumb__line pdf-thumb__line--w2" />
-                  <div class="pdf-thumb__line pdf-thumb__line--w3" />
-                  <div class="pdf-thumb__line pdf-thumb__line--w4" />
+                <div class="pdf-thumb__actions">
+                  <button
+                    v-if="canSelectForMail(item)"
+                    type="button"
+                    class="pdf-thumb__mail-select"
+                    :class="{ 'pdf-thumb__mail-select--selected': invoiceMailSelection.isSelected((item.fieldData as PayablesMainFieldData).TransRef ?? '') }"
+                    :title="invoiceMailSelection.isSelected((item.fieldData as PayablesMainFieldData).TransRef ?? '') ? 'Remove from send mail' : 'Select for send mail'"
+                    :aria-label="invoiceMailSelection.isSelected((item.fieldData as PayablesMainFieldData).TransRef ?? '') ? 'Remove from send mail' : 'Select for send mail'"
+                    @click.stop="invoiceMailSelection.toggle((item.fieldData as PayablesMainFieldData).TransRef ?? '')"
+                  >
+                    <span v-if="invoiceMailSelection.isSelected((item.fieldData as PayablesMainFieldData).TransRef ?? '')" class="pdf-thumb__mail-select-check">
+                      <svg class="pdf-thumb__mail-select-icon" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </span>
+                    <span v-else class="pdf-thumb__mail-select-box" />
+                    <span class="pdf-thumb__mail-select-label">Send mail</span>
+                  </button>
+                  <router-link
+                  :to="{
+                    name: 'entry',
+                    query: {
+                      transRef:
+                        (item.fieldData as PayablesMainFieldData).TransRef ?? '',
+                      from: 'invoices',
+                    },
+                  }"
+                  class="pdf-thumb__open-btn"
+                  :aria-label="`Open invoice ${String((item.fieldData as PayablesMainFieldData).TransRef ?? '').trim()}`"
+                >
+                  View
+                  <svg class="pdf-thumb__open-btn-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </router-link>
                 </div>
               </div>
             </div>
           </div>
-        </router-link>
+        </div>
       </div>
     </template>
     </div>
@@ -462,6 +489,7 @@
 import { ref, computed, onMounted, watch } from "vue";
 import { useFileMaker } from "../composables/useFileMaker";
 import { useListSummaryStore } from "../stores/listSummaryStore";
+import { useInvoiceMailSelectionStore } from "../stores/invoiceMailSelectionStore";
 import { LAYOUTS } from "../utils/filemakerApi";
 import type { PayablesMainFieldData } from "../utils/filemakerApi";
 import type { FindRecordWithId } from "../composables/useFileMaker";
@@ -470,9 +498,11 @@ import { useToastStore } from "../stores/toastStore";
 import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
 import { usePayableStore } from "../stores/payableStore";
 import { usePdfDownload } from "../composables/usePdfDownload";
+import { useLoadingOverlayStore } from "../stores/loadingOverlayStore";
 
 const { findRecordsWithIds, isConnected } = useFileMaker();
 const listSummary = useListSummaryStore();
+const invoiceMailSelection = useInvoiceMailSelectionStore();
 const documentSettings = useDocumentSettingsStore();
 const toast = useToastStore();
 const payableStore = usePayableStore();
@@ -674,26 +704,34 @@ async function onDownloadAll() {
   const refs = downloadableTransRefs.value;
   if (refs.length === 0 || !isConnected.value) return;
   downloadingCombined.value = true;
+  const loadingOverlay = useLoadingOverlayStore();
+  loadingOverlay.show("Preparing combined PDF…");
   try {
     await buildAndDownloadCombinedPdf(refs);
   } finally {
     downloadingCombined.value = false;
+    loadingOverlay.hide();
   }
 }
 
 /** Load entry and download PDF directly from Invoices (no navigation). */
 async function onDownloadPdf(transRef: string | undefined) {
   const ref = (transRef ?? "").trim();
-  if (!ref || !isConnected.value) return;
+  if (!ref) {
+    toast.error("Invalid invoice reference.");
+    return;
+  }
+  if (!isConnected.value) {
+    toast.error("Not connected. Please check your connection.");
+    return;
+  }
   downloadingTransRef.value = ref;
+  const loadingOverlay = useLoadingOverlayStore();
+  loadingOverlay.show("Preparing PDF…");
   try {
     await payableStore.fetchDetailsByTransRef(ref);
     if (payableStore.error) {
       toast.error(payableStore.error);
-      return;
-    }
-    if (!payableStore.mainPosted) {
-      toast.error("Entry not found or not available for PDF download.");
       return;
     }
     const status = payableStore.mainStatus;
@@ -710,12 +748,20 @@ async function onDownloadPdf(transRef: string | undefined) {
       );
       return;
     }
-    await buildAndDownloadPdf();
+    if (!payableStore.currentTransRef?.trim()) {
+      toast.error("Entry not found or could not load data for PDF.");
+      return;
+    }
+    const downloaded = await buildAndDownloadPdf();
+    if (!downloaded) {
+      toast.error("PDF download failed. Please try again.");
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Download failed.";
     toast.error(msg);
   } finally {
     downloadingTransRef.value = null;
+    loadingOverlay.hide();
   }
 }
 
@@ -790,6 +836,17 @@ function getItemStatus(item: FindRecordWithId<PayablesMainFieldData>): string {
   return "Draft";
 }
 
+/** Approved, not issued, with vendor email and Code – can select for sending mail. */
+function canSelectForMail(item: FindRecordWithId<PayablesMainFieldData>): boolean {
+  const fd = item?.fieldData as PayablesMainFieldData;
+  if (!fd) return false;
+  if (getItemStatus(item) !== "Approved") return false;
+  if (getChequeIssued(fd) === "Yes") return false;
+  const email = String(fd.VendorEmail ?? (fd as Record<string, unknown>)?.["Vendor Email"] ?? "").trim();
+  const code = String(fd.Code ?? (fd as Record<string, unknown>)?.["Code"] ?? "").trim();
+  return email.length > 0 && email.includes("@") && code.length > 0;
+}
+
 function updateListSummaryForInvoices() {
   const items = list.value;
   let draftCount = 0;
@@ -857,6 +914,26 @@ watch(isConnected, (connected) => {
   if (connected) load();
 });
 watch(list, updateListSummaryForInvoices, { immediate: true });
+watch(
+  filteredList,
+  (items) => {
+    const mailable = items
+      .filter(canSelectForMail)
+      .map((item) => {
+        const fd = item.fieldData as PayablesMainFieldData;
+        const transRef = String(fd?.TransRef ?? "").trim();
+        const vendorEmail = String(fd?.VendorEmail ?? (fd as Record<string, unknown>)?.["Vendor Email"] ?? "").trim();
+        const vendorName = String(fd?.VendorName ?? (fd as Record<string, unknown>)?.["Vendor Name"] ?? "").trim();
+        const code = String(fd?.Code ?? (fd as Record<string, unknown>)?.["Code"] ?? "").trim();
+        const totalRaw = fd?.Total ?? (fd as Record<string, unknown>)?.["Total"];
+        const total = typeof totalRaw === "number" && Number.isFinite(totalRaw) ? totalRaw : parseFloat(String(totalRaw ?? "")) || 0;
+        return { transRef, vendorEmail, vendorName, code, total };
+      })
+      .filter((m) => m.transRef && m.vendorEmail && m.code);
+    invoiceMailSelection.setMailableItems(mailable);
+  },
+  { immediate: true },
+);
 </script>
 
 <style scoped>
@@ -1202,9 +1279,9 @@ watch(list, updateListSummaryForInvoices, { immediate: true });
 }
 
 .pdf-tile {
-  text-decoration: none;
-  color: inherit;
   display: block;
+  color: inherit;
+  cursor: default;
 }
 
 /* PDF thumbnail-style preview (tile) */
@@ -1227,18 +1304,38 @@ watch(list, updateListSummaryForInvoices, { immediate: true });
     background 0.2s var(--ease);
 }
 
-.pdf-tile:hover .pdf-thumb {
-  transform: translateY(-3px);
-  border-color: rgba(148, 163, 184, 0.22);
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+.pdf-thumb__open-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  margin-left: auto;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  border: 1px solid rgba(var(--color-accent-rgb, 59, 130, 246), 0.3);
+  border-radius: 10px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
 
-.pdf-tile:focus-visible .pdf-thumb {
+.pdf-thumb__open-btn:hover {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.pdf-thumb__open-btn:focus-visible {
   outline: none;
-  box-shadow:
-    var(--focus-ring),
-    0 18px 44px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 0 0 2px var(--color-accent-soft);
+}
+
+.pdf-thumb__open-btn-icon {
+  width: 1rem;
+  height: 1rem;
 }
 
 .pdf-thumb__page {
@@ -1247,7 +1344,7 @@ watch(list, updateListSummaryForInvoices, { immediate: true });
   background: rgba(248, 250, 252, 0.92);
   border: 1px solid rgba(15, 23, 42, 0.12);
   overflow: hidden;
-  padding: 14px;
+  padding: 14px 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1305,6 +1402,78 @@ watch(list, updateListSummaryForInvoices, { immediate: true });
   to {
     transform: rotate(360deg);
   }
+}
+
+/* Actions row: Send mail + View */
+.pdf-thumb__actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 12px 0 0;
+  border-top: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+.pdf-thumb__mail-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.625rem;
+  border: 1.5px solid rgba(15, 23, 42, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  color: #475569;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  transition: border-color 0.2s, color 0.2s, background 0.2s, box-shadow 0.2s;
+}
+
+.pdf-thumb__mail-select:hover {
+  border-color: #3b82f6;
+  color: #2563eb;
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.pdf-thumb__mail-select--selected {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.12);
+  color: #2563eb;
+}
+
+.pdf-thumb__mail-select-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  min-width: 1.125rem;
+  border-radius: 4px;
+  background: #3b82f6;
+  color: white;
+}
+
+.pdf-thumb__mail-select-box {
+  display: block;
+  width: 1.125rem;
+  height: 1.125rem;
+  min-width: 1.125rem;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.pdf-thumb__mail-select-icon {
+  width: 0.7rem;
+  height: 0.7rem;
+  color: white;
+}
+
+.pdf-thumb__mail-select-label {
+  white-space: nowrap;
 }
 
 .pdf-thumb__tag {
@@ -1393,11 +1562,17 @@ watch(list, updateListSummaryForInvoices, { immediate: true });
 
 .pdf-thumb__footer {
   margin-top: auto;
-  padding-top: 8px;
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.pdf-thumb__footer-row {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  min-height: 0;
 }
 
 .pdf-thumb__lines {

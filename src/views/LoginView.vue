@@ -182,6 +182,7 @@ import {
   checkEmailExistsInPayablesUsers,
 } from "../utils/filemakerApi";
 import { useToastStore } from "../stores/toastStore";
+import { useLoadingOverlayStore } from "../stores/loadingOverlayStore";
 
 const router = useRouter();
 const route = useRoute();
@@ -285,6 +286,8 @@ async function proceed() {
   }
 
   loading.value = true;
+  const loadingOverlay = useLoadingOverlayStore();
+  loadingOverlay.show("Checking email…");
   try {
     if (!hasBaseUrlEnv.value && baseUrl.value.trim()) {
       setSessionBaseUrl(baseUrl.value.trim());
@@ -319,6 +322,7 @@ async function proceed() {
     step.value = "password";
   } finally {
     loading.value = false;
+    loadingOverlay.hide();
   }
 }
 
@@ -342,6 +346,8 @@ async function submit() {
   }
 
   loading.value = true;
+  const loadingOverlay = useLoadingOverlayStore();
+  loadingOverlay.show("Signing in…", "Please wait");
   try {
     if (!hasBaseUrlEnv.value && baseUrl.value.trim()) {
       setSessionBaseUrl(baseUrl.value.trim());
@@ -369,6 +375,7 @@ async function submit() {
     }
   } finally {
     loading.value = false;
+    loadingOverlay.hide();
   }
 }
 </script>

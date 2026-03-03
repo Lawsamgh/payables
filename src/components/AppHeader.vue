@@ -203,6 +203,7 @@ import { useFileMaker } from "../composables/useFileMaker";
 import { useEditRequest } from "../composables/useEditRequest";
 import { useUserRole } from "../composables/useUserRole";
 import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
+import { useLoadingOverlayStore } from "../stores/loadingOverlayStore";
 import { LAYOUTS } from "../utils/filemakerApi";
 import { formatNumberDisplay } from "../utils/formatNumber";
 
@@ -319,15 +320,21 @@ async function onRequestEditForMistakePosted() {
     return;
   }
   editRequestSending.value = true;
-  const officerName = (userFullName.value || "").trim() || "Officer";
-  const { error } = await createEditRequest(transRef.trim(), officerName);
-  if (error) {
-    toast.error("Request failed: " + error);
-  } else {
-    await fetchPendingEditRequest(transRef.trim());
-    toast.success("Request sent to manager. They will be prompted when they open this entry.");
+  const loadingOverlay = useLoadingOverlayStore();
+  loadingOverlay.show("Requesting edit…", "Please don't navigate away");
+  try {
+    const officerName = (userFullName.value || "").trim() || "Officer";
+    const { error } = await createEditRequest(transRef.trim(), officerName);
+    if (error) {
+      toast.error("Request failed: " + error);
+    } else {
+      await fetchPendingEditRequest(transRef.trim());
+      toast.success("Request sent to manager. They will be prompted when they open this entry.");
+    }
+  } finally {
+    editRequestSending.value = false;
+    loadingOverlay.hide();
   }
-  editRequestSending.value = false;
 }
 
 /** Get FullName from Payables_Users fieldData (handles FullName / Full Name etc.). */

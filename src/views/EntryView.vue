@@ -13,7 +13,14 @@
       @cancel="showRejectModal = false"
     />
     <EditRequestModal
-      :visible="!!(documentSettings.editRequestEnabled && showEditRequestModal && pendingEditRequestForModal && editRequestModalTransRef === (route.query.transRef as string)?.trim())"
+      :visible="
+        !!(
+          documentSettings.editRequestEnabled &&
+          showEditRequestModal &&
+          pendingEditRequestForModal &&
+          editRequestModalTransRef === (route.query.transRef as string)?.trim()
+        )
+      "
       :requested-by="pendingEditRequestForModal?.RequestedBy"
       :proceeding="grantingEditRequest"
       @dismiss="dismissEditRequestModal"
@@ -415,7 +422,10 @@
 
     <div
       class="booklet-flip-view"
-      :class="{ 'booklet-flip-view--swipeable': documentSettings.bookletEnabled && booklet.count > 1 }"
+      :class="{
+        'booklet-flip-view--swipeable':
+          documentSettings.bookletEnabled && booklet.count > 1,
+      }"
       @touchstart="onSwipeStart"
       @touchend="onSwipeEnd"
     >
@@ -704,7 +714,10 @@ import { useVendorStore } from "../stores/vendorStore";
 import { useBookletStore } from "../stores/bookletStore";
 import { useFileMaker } from "../composables/useFileMaker";
 import { useUserRole } from "../composables/useUserRole";
-import { useEditRequest, type PendingEditRequest } from "../composables/useEditRequest";
+import {
+  useEditRequest,
+  type PendingEditRequest,
+} from "../composables/useEditRequest";
 import { useApprovalNotification } from "../composables/useApprovalNotification";
 import { LAYOUTS, type PayableInvoiceFieldData } from "../utils/filemakerApi";
 import {
@@ -714,6 +727,7 @@ import {
 import { writeActivityLog } from "../utils/activityLog";
 import { useToastStore } from "../stores/toastStore";
 import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
+import { useLoadingOverlayStore } from "../stores/loadingOverlayStore";
 
 const route = useRoute();
 const router = useRouter();
@@ -725,7 +739,8 @@ const isMac =
 const backToListRoute = computed(() => {
   const from = route.query.from;
   if (from === "invoices") return { name: "invoices" as const };
-  if (from === "cheque-collection") return { name: "cheque-collection" as const };
+  if (from === "cheque-collection")
+    return { name: "cheque-collection" as const };
   if (from === "settings-logs") return { name: "settings-logs" as const };
   if (from === "overdue")
     return { path: "/home", query: { tab: "posted", openOverdue: "1" } };
@@ -736,12 +751,8 @@ const spreadsheet = useSpreadsheet();
 const payableStore = usePayableStore();
 const vendorStore = useVendorStore();
 const booklet = useBookletStore();
-const {
-  isConnected,
-  updateRecord,
-  createRecord,
-  findRecordsByQueryWithIds,
-} = useFileMaker();
+const { isConnected, updateRecord, createRecord, findRecordsByQueryWithIds } =
+  useFileMaker();
 const toast = useToastStore();
 const documentSettings = useDocumentSettingsStore();
 const { roleLower, userFullName, roleLoaded } = useUserRole();
@@ -754,7 +765,8 @@ const pendingEditRequestForModal = ref<PendingEditRequest | null>(null);
 const editRequestModalTransRef = ref<string | null>(null);
 const editRequestModalDismissedForTransRef = ref<string | null>(null);
 
-const { fetchPendingEditRequest, grantEditRequest, notifyEditRequestGranted } = useEditRequest();
+const { fetchPendingEditRequest, grantEditRequest, notifyEditRequestGranted } =
+  useEditRequest();
 const { notifyApprovalToOfficer } = useApprovalNotification();
 
 const canDeleteRow = computed(() => spreadsheet.rowCount.value > 1);
@@ -862,6 +874,7 @@ function loadForRoute() {
   } else {
     payableStore.clearAll();
     vendorStore.reset();
+    vendorStore.setField("currency", "GHS");
     const today = new Date();
     const yyyy = today.getFullYear();
     const mm = String(today.getMonth() + 1).padStart(2, "0");
@@ -886,7 +899,13 @@ function syncBookletToDraftsOnly() {
 function entryQuery(transRef: string) {
   const q: { transRef: string; from?: string } = { transRef };
   const from = route.query.from;
-  if (from === "invoices" || from === "cheque-collection" || from === "settings-logs" || from === "overdue") q.from = from;
+  if (
+    from === "invoices" ||
+    from === "cheque-collection" ||
+    from === "settings-logs" ||
+    from === "overdue"
+  )
+    q.from = from;
   return { name: "entry" as const, query: q };
 }
 
@@ -928,7 +947,9 @@ const rejectionHistory = ref<RejectionHistoryItem[]>([]);
 const rejectionHistoryLoading = ref(false);
 
 /** Get "Rejected by" value from raw fieldData trying common FileMaker key variants. */
-function getRejectedByFromRaw(raw: Record<string, unknown> | undefined): string {
+function getRejectedByFromRaw(
+  raw: Record<string, unknown> | undefined,
+): string {
   if (!raw) return "";
   const keys = [
     "RejectedBy",
@@ -964,13 +985,16 @@ async function fetchRejectionHistory() {
   if (error || !data?.length) {
     rejectionHistory.value = [];
   } else {
-    const rawRecords = data.map((r) => r.fieldData as Record<string, unknown> | undefined);
+    const rawRecords = data.map(
+      (r) => r.fieldData as Record<string, unknown> | undefined,
+    );
     const items: RejectionHistoryItem[] = rawRecords
       .filter((raw): raw is Record<string, unknown> => !!raw)
       .map((raw) => {
         const rejectedBy = getRejectedByFromRaw(raw);
-        const rejectedDate =
-          (raw.RejectedDate ?? raw["Rejected date"] ?? raw["Rejected Date"]) as string | undefined;
+        const rejectedDate = (raw.RejectedDate ??
+          raw["Rejected date"] ??
+          raw["Rejected Date"]) as string | undefined;
         const reason = (raw.Reason ?? raw["Reason"]) as string | undefined;
         return {
           RejectedDate: rejectedDate,
@@ -986,8 +1010,11 @@ async function fetchRejectionHistory() {
     rejectionHistory.value = items;
     // Populate sidebar "Rejected by" from most recent rejection when entry is Rejected
     if (payableStore.mainStatus === "Rejected") {
-      const firstRaw = data[0]?.fieldData as Record<string, unknown> | undefined;
-      const rejectedByName = getRejectedByFromRaw(firstRaw) || items[0]?.RejectedBy?.trim() || "";
+      const firstRaw = data[0]?.fieldData as
+        | Record<string, unknown>
+        | undefined;
+      const rejectedByName =
+        getRejectedByFromRaw(firstRaw) || items[0]?.RejectedBy?.trim() || "";
       if (rejectedByName) payableStore.setMainRejectedBy(rejectedByName);
     }
   }
@@ -1044,9 +1071,7 @@ watch(
     ] as const,
   ([transRef, mainPosted, mainStatus, loading]) => {
     const shouldFetch =
-      !loading &&
-      !!transRef &&
-      (mainPosted || mainStatus === "Rejected");
+      !loading && !!transRef && (mainPosted || mainStatus === "Rejected");
     if (shouldFetch) {
       fetchRejectionHistory();
     } else {
@@ -1056,12 +1081,15 @@ watch(
   { immediate: true },
 );
 
-watch(() => route.query.transRef, () => {
-  editRequestModalDismissedForTransRef.value = null;
-  showEditRequestModal.value = false;
-  pendingEditRequestForModal.value = null;
-  editRequestModalTransRef.value = null;
-});
+watch(
+  () => route.query.transRef,
+  () => {
+    editRequestModalDismissedForTransRef.value = null;
+    showEditRequestModal.value = false;
+    pendingEditRequestForModal.value = null;
+    editRequestModalTransRef.value = null;
+  },
+);
 
 watch(
   () =>
@@ -1073,7 +1101,14 @@ watch(
       canApproveOrReject.value,
       roleLoaded.value,
     ] as const,
-  async ([transRef, mainPosted, mainStatus, loading, canApprove, roleLoadedVal]) => {
+  async ([
+    transRef,
+    mainPosted,
+    mainStatus,
+    loading,
+    canApprove,
+    roleLoadedVal,
+  ]) => {
     if (
       loading ||
       !transRef ||
@@ -1126,11 +1161,16 @@ async function onProceedAllowEdit() {
       toast.error("Could not allow edit: " + error);
       return;
     }
-    const { error: notifyErr } = await notifyEditRequestGranted(transRef, requestedBy ?? "Officer");
+    const { error: notifyErr } = await notifyEditRequestGranted(
+      transRef,
+      requestedBy ?? "Officer",
+    );
     if (notifyErr) {
       toast.warning("Officer notification could not be sent: " + notifyErr);
     }
-    toast.success("Entry returned to draft. Officer can now edit and post again.");
+    toast.success(
+      "Entry returned to draft. Officer can now edit and post again.",
+    );
     showEditRequestModal.value = false;
     pendingEditRequestForModal.value = null;
     editRequestModalTransRef.value = null;
@@ -1366,6 +1406,8 @@ async function downloadApprovedPdf() {
         : false);
   if (!ok) return;
   downloadingPdf.value = true;
+  const loadingOverlay = useLoadingOverlayStore();
+  loadingOverlay.show("Preparing PDF…");
   try {
     const [pdfMakeModule, vfsModule] = await Promise.all([
       import("pdfmake/build/pdfmake"),
@@ -1703,6 +1745,7 @@ async function downloadApprovedPdf() {
     toast.error(msg);
   } finally {
     downloadingPdf.value = false;
+    loadingOverlay.hide();
   }
 }
 </script>

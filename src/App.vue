@@ -53,6 +53,7 @@
       :role="onboarding.userRole.value"
       @dismiss="onOnboardingDismiss"
     />
+    <LoadingOverlay />
     <Toast />
   </div>
 </template>
@@ -70,6 +71,7 @@ import ShortcutsCheatsheetModal from "./components/ShortcutsCheatsheetModal.vue"
 import ConnectionModal from "./components/ConnectionModal.vue";
 import SessionTimeoutModal from "./components/SessionTimeoutModal.vue";
 import OnboardingModal from "./components/OnboardingModal.vue";
+import LoadingOverlay from "./components/LoadingOverlay.vue";
 import { useCommandPaletteStore } from "./stores/commandPaletteStore";
 import { useShortcutsCheatsheetStore } from "./stores/shortcutsCheatsheetStore";
 import { useFileMaker } from "./composables/useFileMaker";
@@ -80,6 +82,8 @@ import { useRecentEntriesStore } from "./stores/recentEntriesStore";
 import { useUserRole } from "./composables/useUserRole";
 import { useOnboarding } from "./composables/useOnboarding";
 import { useToastStore } from "./stores/toastStore";
+import { useLoadingOverlayStore } from "./stores/loadingOverlayStore";
+import { usePayableStore } from "./stores/payableStore";
 
 const route = useRoute();
 const router = useRouter();
@@ -96,6 +100,16 @@ const sessionTimeout = useSessionTimeout();
 const onboarding = useOnboarding();
 const onboardingSaving = ref(false);
 const toast = useToastStore();
+const loadingOverlay = useLoadingOverlayStore();
+const payableStore = usePayableStore();
+
+watch(
+  () => payableStore.syncing,
+  (syncing) => {
+    if (syncing) loadingOverlay.show(payableStore.syncMessage);
+    else loadingOverlay.hide();
+  },
+);
 
 const showAppLayout = computed(() => route.meta?.layout !== "login");
 

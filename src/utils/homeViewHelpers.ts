@@ -54,6 +54,43 @@ export function getCreationTimestamp(
   return String(raw ?? '').trim()
 }
 
+/** Get modification timestamp from record (FileMaker ModificationTimestamp, includes date+time). Fallback to CreationTimestamp. */
+export function getModificationTimestamp(
+  item: FindRecordWithId<PayablesMainFieldData>,
+): string {
+  const fd = item?.fieldData as Record<string, unknown> | undefined
+  if (!fd) return ''
+  const modKeys = [
+    'ModificationTimestamp',
+    'Modification Timestamp',
+    'modificationTimestamp',
+    'modification_timestamp',
+    'ModificationDate',
+    'Modification Date',
+    'DateModified',
+    'Date Modified',
+  ]
+  for (const key of modKeys) {
+    const v = fd[key]
+    if (v != null && String(v).trim()) return String(v).trim()
+  }
+  for (const [key, val] of Object.entries(fd)) {
+    if (val != null && String(val).trim() && /modification|modified|date\s*modified/i.test(key)) {
+      return String(val).trim()
+    }
+  }
+  return getCreationTimestamp(item)
+}
+
+/** Extract numeric part from TransRef (e.g. RF100042 -> 100042) for sort fallback. */
+function getTransRefSortKey(item: FindRecordWithId<PayablesMainFieldData>): number {
+  const fd = item?.fieldData as Record<string, unknown> | undefined
+  const ref = fd?.TransRef ?? fd?.['Trans Ref'] ?? ''
+  const s = String(ref ?? '').trim()
+  const match = s.match(/\d+/)
+  return match ? parseInt(match[0], 10) : 0
+}
+
 /** Get PostedDate for posted chart (FileMaker PostedDate field). Fallback to Date. */
 export function getPostedDate(
   item: FindRecordWithId<PayablesMainFieldData>,
@@ -118,33 +155,67 @@ export function toDateKey(raw: string | undefined): string | null {
   return `${y}-${m}-${day}`
 }
 
-/** Sort by CreationTimestamp (recent first). Fallback to recordId when timestamp is missing. */
-export function sortByCreationTimestamp(
+/** Parse timestamp to epoch ms. Handles FileMaker formats (MM/DD/YYYY HH:MM:SS, ISO, etc.). */
+function parseTimestampToEpoch(ts: string): number {
+  const s = ts.trim()
+  if (!s) return 0
+  const d = new Date(s)
+  if (!Number.isNaN(d.getTime())) return d.getTime()
+  const m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i)
+  if (m) {
+    let h = parseInt(m[4], 10)
+    const min = parseInt(m[5], 10)
+    const sec = parseInt(m[6] || '0', 10)
+    const ampm = (m[7] || '').toUpperCase()
+    if (ampm === 'PM' && h < 12) h += 12
+    if (ampm === 'AM' && h === 12) h = 0
+    const y = parseInt(m[3], 10)
+    const month = parseInt(m[1], 10) - 1
+    const day = parseInt(m[2], 10)
+    const alt = new Date(y, month, day, h, min, sec)
+    if (!Number.isNaN(alt.getTime())) return alt.getTime()
+  }
+  const iso = s.replace(/\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?/i, (_, h, min, sec, ampm) => {
+    let hr = parseInt(h, 10)
+    if (ampm) {
+      if (ampm.toUpperCase() === 'PM' && hr < 12) hr += 12
+      if (ampm.toUpperCase() === 'AM' && hr === 12) hr = 0
+    }
+    return `T${String(hr).padStart(2, '0')}:${min}:${sec || '00'}`
+  })
+  const d2 = new Date(iso)
+  return Number.isNaN(d2.getTime()) ? 0 : d2.getTime()
+}
+
+/** Sort by ModificationTimestamp (recent first). Fallback: CreationTimestamp, then TransRef numeric, then recordId. */
+export function sortByModificationTimestamp(
   items: FindRecordWithId<PayablesMainFieldData>[],
 ): FindRecordWithId<PayablesMainFieldData>[] {
   return [...items].sort((a, b) => {
-    const tsA = getCreationTimestamp(a)
-    const tsB = getCreationTimestamp(b)
-    if (!tsA && !tsB) {
-      const idA = Number(a.recordId) || 0
-      const idB = Number(b.recordId) || 0
-      return idB - idA
+    const tsA = getModificationTimestamp(a)
+    const tsB = getModificationTimestamp(b)
+    const epochA = parseTimestampToEpoch(tsA)
+    const epochB = parseTimestampToEpoch(tsB)
+    if (epochA > 0 || epochB > 0) {
+      const cmp = epochB - epochA
+      if (cmp !== 0) return cmp
     }
-    if (!tsA) return 1
-    if (!tsB) return -1
-    const dateA = new Date(tsA).getTime()
-    const dateB = new Date(tsB).getTime()
-    return dateB - dateA
+    const refA = getTransRefSortKey(a)
+    const refB = getTransRefSortKey(b)
+    if (refA > 0 || refB > 0) return refB - refA
+    const idA = Number(a.recordId) || 0
+    const idB = Number(b.recordId) || 0
+    return idB - idA
   })
 }
 
-/** Filter and sort by Status (Draft, Posted, Rejected, Approved) then by date. */
+/** Filter and sort by Status (Draft, Posted, Rejected, Approved) then by ModificationTimestamp (recent first). */
 export function filterByStatusAndSort(
   items: FindRecordWithId<PayablesMainFieldData>[],
   status: string,
 ): FindRecordWithId<PayablesMainFieldData>[] {
   const filtered = items.filter((item) => getStatus(item) === status)
-  return sortByCreationTimestamp(filtered)
+  return sortByModificationTimestamp(filtered)
 }
 
 /** Animate a ref's value from current to target over duration. */

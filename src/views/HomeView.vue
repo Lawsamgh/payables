@@ -1521,6 +1521,7 @@ import { writeActivityLog } from "../utils/activityLog";
 import type { PayablesMainFieldData } from "../utils/filemakerApi";
 import { formatNumberDisplay } from "../utils/formatNumber";
 import type { FindRecordWithId } from "../composables/useFileMaker";
+import { useLoadingOverlayStore } from "../stores/loadingOverlayStore";
 
 const router = useRouter();
 const route = useRoute();
@@ -2431,6 +2432,8 @@ async function onBulkApprove() {
     ]),
   );
   bulkApproving.value = true;
+  const loadingOverlay = useLoadingOverlayStore();
+  loadingOverlay.show("Approving…", "Please don't navigate away");
   let approved = 0;
   let failed = 0;
   const approvedBy = (userFullName.value || "").trim() || "Manager";
@@ -2496,6 +2499,7 @@ async function onBulkApprove() {
     }
   } finally {
     bulkApproving.value = false;
+    loadingOverlay.hide();
   }
 }
 
@@ -2513,6 +2517,7 @@ async function load() {
     const [mainRes, vendorRes] = await Promise.all([
       findRecordsWithIds<PayablesMainFieldData>(LAYOUTS.PAYABLES_MAIN, {
         limit: 500,
+        sort: JSON.stringify([{ fieldName: "CreationTimestamp", sortOrder: "descend" }]),
       }),
       findRecordsWithIds<Record<string, unknown>>(LAYOUTS.VENDOR_TBL, {
         limit: 5000,

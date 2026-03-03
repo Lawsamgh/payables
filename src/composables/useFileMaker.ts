@@ -2,79 +2,87 @@
  * FileMaker Data API integration composable.
  */
 
-import { ref, computed } from 'vue'
-import axios from 'axios'
-import type { ConnectionStatus, FileMakerCredentials, FindOptions } from '../types'
-import { getBaseUrl, getAuthHeaders, parseFileMakerError } from '../utils/filemakerApi'
-import { recordActivity } from '../utils/sessionActivity'
+import { ref, computed } from "vue";
+import axios from "axios";
+import type {
+  ConnectionStatus,
+  FileMakerCredentials,
+  FindOptions,
+} from "../types";
+import {
+  getBaseUrl,
+  getAuthHeaders,
+  parseFileMakerError,
+} from "../utils/filemakerApi";
+import { recordActivity } from "../utils/sessionActivity";
 
-const STORAGE_KEY_TOKEN = 'fm_session_token'
-const STORAGE_KEY_EMAIL = 'fm_logged_in_email'
+const STORAGE_KEY_TOKEN = "fm_session_token";
+const STORAGE_KEY_EMAIL = "fm_logged_in_email";
 
 function loadStoredToken(): string | null {
   try {
-    return localStorage.getItem(STORAGE_KEY_TOKEN)
+    return localStorage.getItem(STORAGE_KEY_TOKEN);
   } catch {
-    return null
+    return null;
   }
 }
 
 function loadStoredEmail(): string | null {
   try {
-    return localStorage.getItem(STORAGE_KEY_EMAIL)
+    return localStorage.getItem(STORAGE_KEY_EMAIL);
   } catch {
-    return null
+    return null;
   }
 }
 
-const storedToken = loadStoredToken()
-const storedEmail = loadStoredEmail()
-const sessionToken = ref<string | null>(storedToken)
+const storedToken = loadStoredToken();
+const storedEmail = loadStoredEmail();
+const sessionToken = ref<string | null>(storedToken);
 const connectionStatus = ref<ConnectionStatus>(
-  storedToken && getBaseUrl()?.trim() ? 'connected' : 'idle'
-)
-const lastError = ref<string | null>(null)
-const loggedInEmail = ref<string | null>(storedEmail)
+  storedToken && getBaseUrl()?.trim() ? "connected" : "idle",
+);
+const lastError = ref<string | null>(null);
+const loggedInEmail = ref<string | null>(storedEmail);
 
 /** Detect invalid/expired token errors and auto-logout. Returns user-friendly message. */
 function handleApiError(err: unknown): string {
-  const msg = parseFileMakerError(err)
-  const errObj = err as { response?: { status?: number } }
+  const msg = parseFileMakerError(err);
+  const errObj = err as { response?: { status?: number } };
   const isTokenError =
     errObj.response?.status === 401 ||
-    (typeof msg === 'string' &&
-      msg.toLowerCase().includes('invalid') &&
-      msg.toLowerCase().includes('token'))
+    (typeof msg === "string" &&
+      msg.toLowerCase().includes("invalid") &&
+      msg.toLowerCase().includes("token"));
   if (isTokenError) {
-    logout()
-    return 'Session expired. Please sign in again.'
+    logout();
+    return "Session expired. Please sign in again.";
   }
-  lastError.value = msg
-  return msg
+  lastError.value = msg;
+  return msg;
 }
 
 function createApi(token: string) {
   const headers = {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
     ...getAuthHeaders(token),
-  }
+  };
   const api = axios.create({
     baseURL: getBaseUrl(),
     headers,
     timeout: 15000,
-  })
+  });
   api.interceptors.response.use(
     (res) => {
-      recordActivity()
-      return res
+      recordActivity();
+      return res;
     },
-    (err) => Promise.reject(err)
-  )
-  return api
+    (err) => Promise.reject(err),
+  );
+  return api;
 }
 
 export interface FileMakerFieldData {
-  [key: string]: string | number | null | undefined
+  [key: string]: string | number | null | undefined;
 }
 
 /**
@@ -83,16 +91,19 @@ export interface FileMakerFieldData {
  * and credentials (VITE_FILEMAKER_USER, VITE_FILEMAKER_PASSWORD). The token is stored
  * and sent as Bearer on all subsequent API calls.
  */
-export async function login(credentials: FileMakerCredentials): Promise<boolean> {
-  const baseUrl = getBaseUrl()
+export async function login(
+  credentials: FileMakerCredentials,
+): Promise<boolean> {
+  const baseUrl = getBaseUrl();
   if (!baseUrl?.trim()) {
-    connectionStatus.value = 'error'
-    lastError.value = 'FileMaker base URL not set. Add VITE_FILEMAKER_BASE_URL to .env (e.g. https://your-server/fmi/data/v1/databases/YourDB).'
-    return false
+    connectionStatus.value = "error";
+    lastError.value =
+      "FileMaker base URL not set. Add VITE_FILEMAKER_BASE_URL to .env (e.g. https://your-server/fmi/data/v1/databases/YourDB).";
+    return false;
   }
-  const url = baseUrl.replace(/\/$/, '') + '/sessions'
-  connectionStatus.value = 'connecting'
-  lastError.value = null
+  const url = baseUrl.replace(/\/$/, "") + "/sessions";
+  connectionStatus.value = "connecting";
+  lastError.value = null;
   try {
     const res = await axios.post<{ response?: { token?: string } }>(
       url,
@@ -100,47 +111,55 @@ export async function login(credentials: FileMakerCredentials): Promise<boolean>
       {
         auth: {
           username: credentials.username,
-          password: String(credentials.password ?? ''),
+          password: String(credentials.password ?? ""),
         },
-        headers: { 'Content-Type': 'application/json' },
+        headers: { "Content-Type": "application/json" },
         timeout: 15000,
-      }
-    )
-    const tokenFromBody = res.data?.response?.token
-    const tokenFromHeader = res.headers?.['x-fm-data-access-token'] ?? res.headers?.['X-FM-Data-Access-Token']
-    const token = typeof tokenFromBody === 'string' ? tokenFromBody : typeof tokenFromHeader === 'string' ? tokenFromHeader : null
+      },
+    );
+    const tokenFromBody = res.data?.response?.token;
+    const tokenFromHeader =
+      res.headers?.["x-fm-data-access-token"] ??
+      res.headers?.["X-FM-Data-Access-Token"];
+    const token =
+      typeof tokenFromBody === "string"
+        ? tokenFromBody
+        : typeof tokenFromHeader === "string"
+          ? tokenFromHeader
+          : null;
     if (token) {
-      sessionToken.value = token
-      connectionStatus.value = 'connected'
-      loggedInEmail.value = credentials.username
-      recordActivity()
+      sessionToken.value = token;
+      connectionStatus.value = "connected";
+      loggedInEmail.value = credentials.username;
+      recordActivity();
       try {
-        localStorage.setItem(STORAGE_KEY_TOKEN, token)
-        localStorage.setItem(STORAGE_KEY_EMAIL, credentials.username)
+        localStorage.setItem(STORAGE_KEY_TOKEN, token);
+        localStorage.setItem(STORAGE_KEY_EMAIL, credentials.username);
       } catch {
         /* ignore */
       }
-      return true
+      return true;
     }
-    lastError.value = 'FileMaker did not return a session token. Ensure the account has the fmapi extended privilege in FileMaker.'
-    connectionStatus.value = 'error'
-    return false
+    lastError.value =
+      "FileMaker did not return a session token. Ensure the account has the fmapi extended privilege in FileMaker.";
+    connectionStatus.value = "error";
+    return false;
   } catch (err) {
-    const msg = parseFileMakerError(err)
-    lastError.value = msg
-    connectionStatus.value = 'error'
-    return false
+    const msg = parseFileMakerError(err);
+    lastError.value = msg;
+    connectionStatus.value = "error";
+    return false;
   }
 }
 
 export function logout(): void {
-  sessionToken.value = null
-  connectionStatus.value = 'idle'
-  lastError.value = null
-  loggedInEmail.value = null
+  sessionToken.value = null;
+  connectionStatus.value = "idle";
+  lastError.value = null;
+  loggedInEmail.value = null;
   try {
-    localStorage.removeItem(STORAGE_KEY_TOKEN)
-    localStorage.removeItem(STORAGE_KEY_EMAIL)
+    localStorage.removeItem(STORAGE_KEY_TOKEN);
+    localStorage.removeItem(STORAGE_KEY_EMAIL);
   } catch {
     /* ignore */
   }
@@ -148,102 +167,119 @@ export function logout(): void {
 
 /** Check if user is authenticated (has valid session token). Used by router guard. */
 export function isAuthenticated(): boolean {
-  return connectionStatus.value === 'connected'
+  return connectionStatus.value === "connected";
 }
 
 export interface FindResult<T = FileMakerFieldData> {
-  data: T[]
-  error: string | null
+  data: T[];
+  error: string | null;
 }
 
 /** Record with id returned by FileMaker list endpoint */
 export interface FindRecordWithId<T = FileMakerFieldData> {
-  recordId: string
-  fieldData: T
+  recordId: string;
+  fieldData: T;
 }
 
 export interface FindResultWithIds<T = FileMakerFieldData> {
-  data: FindRecordWithId<T>[]
-  error: string | null
+  data: FindRecordWithId<T>[];
+  error: string | null;
 }
 
 export async function findRecords<T = FileMakerFieldData>(
   layout: string,
-  options: FindOptions = {}
+  options: FindOptions = {},
 ): Promise<FindResult<T>> {
-  const token = sessionToken.value
+  const token = sessionToken.value;
   if (!token) {
-    lastError.value = 'Not authenticated'
-    return { data: [], error: lastError.value }
+    lastError.value = "Not authenticated";
+    return { data: [], error: lastError.value };
   }
-  const api = createApi(token)
+  const api = createApi(token);
   try {
-    const params: Record<string, string> = {}
-    if (options.limit != null) params._limit = String(options.limit)
-    if (options.offset != null) params._offset = String(options.offset)
-    if (options.sort != null) params._sort = String(options.sort)
-    const res = await api.get<{ response?: { data?: Array<{ fieldData?: T }> }; messages?: Array<{ code?: string }> }>(
-      `/layouts/${layout}/records`,
-      { params }
-    )
-    const list = res.data?.response?.data ?? []
-    const data = list.map((r) => (r && typeof r === 'object' && 'fieldData' in r ? r.fieldData : r) as T)
-    const msg = res.data?.messages?.[0]
-    if (msg && msg.code !== undefined && String(msg.code) !== '0') {
-      const errMsg = (res.data as { messages?: Array<{ message?: string }> }).messages?.[0]?.message ?? `Error ${msg.code}`
-      if (typeof errMsg === 'string' && errMsg.toLowerCase().includes('invalid') && errMsg.toLowerCase().includes('token')) {
-        logout()
-        return { data: [], error: 'Session expired. Please sign in again.' }
+    const params: Record<string, string> = {};
+    if (options.limit != null) params._limit = String(options.limit);
+    if (options.offset != null) params._offset = String(options.offset);
+    if (options.sort != null) params._sort = String(options.sort);
+    const res = await api.get<{
+      response?: { data?: Array<{ fieldData?: T }> };
+      messages?: Array<{ code?: string }>;
+    }>(`/layouts/${layout}/records`, { params });
+    const list = res.data?.response?.data ?? [];
+    const data = list.map(
+      (r) =>
+        (r && typeof r === "object" && "fieldData" in r ? r.fieldData : r) as T,
+    );
+    const msg = res.data?.messages?.[0];
+    if (msg && msg.code !== undefined && String(msg.code) !== "0") {
+      const errMsg =
+        (res.data as { messages?: Array<{ message?: string }> }).messages?.[0]
+          ?.message ?? `Error ${msg.code}`;
+      if (
+        typeof errMsg === "string" &&
+        errMsg.toLowerCase().includes("invalid") &&
+        errMsg.toLowerCase().includes("token")
+      ) {
+        logout();
+        return { data: [], error: "Session expired. Please sign in again." };
       }
-      lastError.value = errMsg
-      return { data: [], error: lastError.value }
+      lastError.value = errMsg;
+      return { data: [], error: lastError.value };
     }
-    return { data, error: null }
+    return { data, error: null };
   } catch (err) {
-    return { data: [], error: handleApiError(err) }
+    return { data: [], error: handleApiError(err) };
   }
 }
 
 /** Like findRecords but returns recordId with each record (for list views / navigation). */
 export async function findRecordsWithIds<T = FileMakerFieldData>(
   layout: string,
-  options: FindOptions = {}
+  options: FindOptions = {},
 ): Promise<FindResultWithIds<T>> {
-  const token = sessionToken.value
+  const token = sessionToken.value;
   if (!token) {
-    lastError.value = 'Not authenticated'
-    return { data: [], error: lastError.value }
+    lastError.value = "Not authenticated";
+    return { data: [], error: lastError.value };
   }
-  const api = createApi(token)
+  const api = createApi(token);
   try {
-    const params: Record<string, string> = {}
-    if (options.limit != null) params._limit = String(options.limit)
-    if (options.offset != null) params._offset = String(options.offset)
-    if (options.sort != null) params._sort = String(options.sort)
+    const params: Record<string, string> = {};
+    if (options.limit != null) params._limit = String(options.limit);
+    if (options.offset != null) params._offset = String(options.offset);
+    if (options.sort != null) params._sort = String(options.sort);
     const res = await api.get<{
-      response?: { data?: Array<{ recordId?: string | number; fieldData?: T }> }
-      messages?: Array<{ code?: string }>
-    }>(`/layouts/${layout}/records`, { params })
-    const list = res.data?.response?.data ?? []
-    const msg = res.data?.messages?.[0]
-    if (msg && msg.code !== undefined && String(msg.code) !== '0') {
-      const errMsg = (res.data as { messages?: Array<{ message?: string }> }).messages?.[0]?.message ?? `Error ${msg.code}`
-      if (typeof errMsg === 'string' && errMsg.toLowerCase().includes('invalid') && errMsg.toLowerCase().includes('token')) {
-        logout()
-        return { data: [], error: 'Session expired. Please sign in again.' }
+      response?: {
+        data?: Array<{ recordId?: string | number; fieldData?: T }>;
+      };
+      messages?: Array<{ code?: string }>;
+    }>(`/layouts/${layout}/records`, { params });
+    const list = res.data?.response?.data ?? [];
+    const msg = res.data?.messages?.[0];
+    if (msg && msg.code !== undefined && String(msg.code) !== "0") {
+      const errMsg =
+        (res.data as { messages?: Array<{ message?: string }> }).messages?.[0]
+          ?.message ?? `Error ${msg.code}`;
+      if (
+        typeof errMsg === "string" &&
+        errMsg.toLowerCase().includes("invalid") &&
+        errMsg.toLowerCase().includes("token")
+      ) {
+        logout();
+        return { data: [], error: "Session expired. Please sign in again." };
       }
-      lastError.value = errMsg
-      return { data: [], error: lastError.value }
+      lastError.value = errMsg;
+      return { data: [], error: lastError.value };
     }
     return {
       data: list.map((r) => ({
-        recordId: r?.recordId != null ? String(r.recordId) : '',
-        fieldData: (r && 'fieldData' in r ? r.fieldData : r) as T,
+        recordId: r?.recordId != null ? String(r.recordId) : "",
+        fieldData: (r && "fieldData" in r ? r.fieldData : r) as T,
       })),
       error: null,
-    }
+    };
   } catch (err) {
-    return { data: [], error: handleApiError(err) }
+    return { data: [], error: handleApiError(err) };
   }
 }
 
@@ -251,64 +287,85 @@ export async function findRecordsWithIds<T = FileMakerFieldData>(
 export async function findRecordsByQuery<T = FileMakerFieldData>(
   layout: string,
   query: Record<string, string | number>,
-  limit = 1
+  limit = 1,
 ): Promise<FindResult<T>> {
-  const token = sessionToken.value
+  const token = sessionToken.value;
   if (!token) {
-    lastError.value = 'Not authenticated'
-    return { data: [], error: lastError.value }
+    lastError.value = "Not authenticated";
+    return { data: [], error: lastError.value };
   }
   if (Object.keys(query).length === 0) {
-    return { data: [], error: null }
+    return { data: [], error: null };
   }
   // FileMaker requires "=value" for exact match in find requests
-  const queryExact: Record<string, string> = {}
+  const queryExact: Record<string, string> = {};
   for (const [key, val] of Object.entries(query)) {
-    if (val !== undefined && val !== null && val !== '') {
-      queryExact[key] = '=' + String(val).trim()
+    if (val !== undefined && val !== null && val !== "") {
+      queryExact[key] = "=" + String(val).trim();
     }
   }
   if (Object.keys(queryExact).length === 0) {
-    return { data: [], error: null }
+    return { data: [], error: null };
   }
-  const api = createApi(token)
+  const api = createApi(token);
   try {
     const res = await api.post<{
-      response?: { data?: Array<{ recordId?: string; fieldData?: T }> }
-      messages?: Array<{ code?: string; message?: string }>
+      response?: { data?: Array<{ recordId?: string; fieldData?: T }> };
+      messages?: Array<{ code?: string; message?: string }>;
     }>(`/layouts/${layout}/_find`, {
       query: [queryExact],
       limit: String(limit),
-    })
-    const list = res.data?.response?.data ?? []
-    const msg = res.data?.messages?.[0]
+    });
+    const list = res.data?.response?.data ?? [];
+    const msg = res.data?.messages?.[0];
     // FileMaker returns code "401" for "No records match the request" - this is NOT an error,
     // it means no duplicates were found, which is what we want
-    if (msg && msg.code !== undefined && String(msg.code) !== '0' && String(msg.code) !== '401') {
-      lastError.value = msg.message ?? `Error ${msg.code}`
-      return { data: [], error: lastError.value }
+    if (
+      msg &&
+      msg.code !== undefined &&
+      String(msg.code) !== "0" &&
+      String(msg.code) !== "401"
+    ) {
+      lastError.value = msg.message ?? `Error ${msg.code}`;
+      return { data: [], error: lastError.value };
     }
-    const data = list.map((r) => (r && typeof r === 'object' && 'fieldData' in r ? r.fieldData : r) as T)
-    return { data, error: null }
+    const data = list.map(
+      (r) =>
+        (r && typeof r === "object" && "fieldData" in r ? r.fieldData : r) as T,
+    );
+    return { data, error: null };
   } catch (err) {
     // Check if this is a "No records match" error before parsing
-    const errObj = err as { response?: { data?: { messages?: Array<{ code?: string | number; message?: string }> } } }
-    const messages = errObj.response?.data?.messages
+    const errObj = err as {
+      response?: {
+        data?: {
+          messages?: Array<{ code?: string | number; message?: string }>;
+        };
+      };
+    };
+    const messages = errObj.response?.data?.messages;
     if (messages && messages.length > 0) {
-      const code = String(messages[0].code ?? '')
-      const message = messages[0].message ?? ''
+      const code = String(messages[0].code ?? "");
+      const message = messages[0].message ?? "";
       // FileMaker returns code "401" or message "No records match" - this is NOT an error for duplicate checking
       // It means no duplicates were found, which is what we want
-      if (code === '401' || code === '0' || message.toLowerCase().includes('no records match')) {
-        return { data: [], error: null }
+      if (
+        code === "401" ||
+        code === "0" ||
+        message.toLowerCase().includes("no records match")
+      ) {
+        return { data: [], error: null };
       }
     }
-    const msg = parseFileMakerError(err)
+    const msg = parseFileMakerError(err);
     // Also check the parsed message in case the structure is different
-    if (msg && (msg.toLowerCase().includes('no records match') || msg.includes('401'))) {
-      return { data: [], error: null }
+    if (
+      msg &&
+      (msg.toLowerCase().includes("no records match") || msg.includes("401"))
+    ) {
+      return { data: [], error: null };
     }
-    return { data: [], error: handleApiError(err) }
+    return { data: [], error: handleApiError(err) };
   }
 }
 
@@ -316,52 +373,72 @@ export async function findRecordsByQuery<T = FileMakerFieldData>(
 export async function findRecordsByFindRequest<T = FileMakerFieldData>(
   layout: string,
   query: Array<Record<string, string>>,
-  limit = 1000
+  limit = 1000,
 ): Promise<FindResultWithIds<T>> {
-  const token = sessionToken.value
+  const token = sessionToken.value;
   if (!token) {
-    lastError.value = 'Not authenticated'
-    return { data: [], error: lastError.value }
+    lastError.value = "Not authenticated";
+    return { data: [], error: lastError.value };
   }
   if (!query || query.length === 0) {
-    return { data: [], error: null }
+    return { data: [], error: null };
   }
-  const api = createApi(token)
+  const api = createApi(token);
   try {
     const res = await api.post<{
-      response?: { data?: Array<{ recordId?: string | number; fieldData?: T }> }
-      messages?: Array<{ code?: string; message?: string }>
+      response?: {
+        data?: Array<{ recordId?: string | number; fieldData?: T }>;
+      };
+      messages?: Array<{ code?: string; message?: string }>;
     }>(`/layouts/${layout}/_find`, {
       query,
       limit: String(limit),
-    })
-    const list = res.data?.response?.data ?? []
-    const msg = res.data?.messages?.[0]
-    if (msg && msg.code !== undefined && String(msg.code) !== '0' && String(msg.code) !== '401') {
-      lastError.value = msg.message ?? `Error ${msg.code}`
-      return { data: [], error: lastError.value }
+    });
+    const list = res.data?.response?.data ?? [];
+    const msg = res.data?.messages?.[0];
+    if (
+      msg &&
+      msg.code !== undefined &&
+      String(msg.code) !== "0" &&
+      String(msg.code) !== "401"
+    ) {
+      lastError.value = msg.message ?? `Error ${msg.code}`;
+      return { data: [], error: lastError.value };
     }
     const data: FindRecordWithId<T>[] = list.map((r) => ({
-      recordId: r?.recordId != null ? String(r.recordId) : '',
-      fieldData: (r && typeof r === 'object' && 'fieldData' in r ? r.fieldData : r) as T,
-    }))
-    return { data, error: null }
+      recordId: r?.recordId != null ? String(r.recordId) : "",
+      fieldData: (r && typeof r === "object" && "fieldData" in r
+        ? r.fieldData
+        : r) as T,
+    }));
+    return { data, error: null };
   } catch (err) {
-    const errObj = err as { response?: { data?: { messages?: Array<{ code?: string; message?: string }> } } }
-    const messages = errObj.response?.data?.messages
+    const errObj = err as {
+      response?: {
+        data?: { messages?: Array<{ code?: string; message?: string }> };
+      };
+    };
+    const messages = errObj.response?.data?.messages;
     if (messages && messages.length > 0) {
-      const code = String(messages[0].code ?? '')
-      const msg = messages[0].message ?? ''
-      if (code === '401' || code === '0' || msg.toLowerCase().includes('no records match')) {
-        return { data: [], error: null }
+      const code = String(messages[0].code ?? "");
+      const msg = messages[0].message ?? "";
+      if (
+        code === "401" ||
+        code === "0" ||
+        msg.toLowerCase().includes("no records match")
+      ) {
+        return { data: [], error: null };
       }
     }
-    const errorMsg = parseFileMakerError(err)
-    if (errorMsg?.toLowerCase().includes('no records match') || errorMsg?.includes('401')) {
-      return { data: [], error: null }
+    const errorMsg = parseFileMakerError(err);
+    if (
+      errorMsg?.toLowerCase().includes("no records match") ||
+      errorMsg?.includes("401")
+    ) {
+      return { data: [], error: null };
     }
-    lastError.value = errorMsg
-    return { data: [], error: lastError.value }
+    lastError.value = errorMsg;
+    return { data: [], error: lastError.value };
   }
 }
 
@@ -369,142 +446,165 @@ export async function findRecordsByFindRequest<T = FileMakerFieldData>(
 export async function findRecordsByQueryWithIds<T = FileMakerFieldData>(
   layout: string,
   query: Record<string, string | number>,
-  limit = 100
+  limit = 100,
 ): Promise<FindResultWithIds<T>> {
-  const token = sessionToken.value
+  const token = sessionToken.value;
   if (!token) {
-    lastError.value = 'Not authenticated'
-    return { data: [], error: lastError.value }
+    lastError.value = "Not authenticated";
+    return { data: [], error: lastError.value };
   }
   if (Object.keys(query).length === 0) {
-    return { data: [], error: null }
+    return { data: [], error: null };
   }
-  const queryExact: Record<string, string> = {}
+  const queryExact: Record<string, string> = {};
   for (const [key, val] of Object.entries(query)) {
-    if (val !== undefined && val !== null && val !== '') {
-      queryExact[key] = '=' + String(val).trim()
+    if (val !== undefined && val !== null && val !== "") {
+      queryExact[key] = "=" + String(val).trim();
     }
   }
   if (Object.keys(queryExact).length === 0) {
-    return { data: [], error: null }
+    return { data: [], error: null };
   }
-  const api = createApi(token)
+  const api = createApi(token);
   try {
     const res = await api.post<{
-      response?: { data?: Array<{ recordId?: string | number; fieldData?: T }> }
-      messages?: Array<{ code?: string; message?: string }>
+      response?: {
+        data?: Array<{ recordId?: string | number; fieldData?: T }>;
+      };
+      messages?: Array<{ code?: string; message?: string }>;
     }>(`/layouts/${layout}/_find`, {
       query: [queryExact],
       limit: String(limit),
-    })
-    const list = res.data?.response?.data ?? []
-    const msg = res.data?.messages?.[0]
+    });
+    const list = res.data?.response?.data ?? [];
+    const msg = res.data?.messages?.[0];
     // FileMaker returns code "401" for "No records match the request" - this is NOT an error,
     // it means no duplicates were found, which is what we want
-    if (msg && msg.code !== undefined && String(msg.code) !== '0' && String(msg.code) !== '401') {
-      lastError.value = msg.message ?? `Error ${msg.code}`
-      return { data: [], error: lastError.value }
+    if (
+      msg &&
+      msg.code !== undefined &&
+      String(msg.code) !== "0" &&
+      String(msg.code) !== "401"
+    ) {
+      lastError.value = msg.message ?? `Error ${msg.code}`;
+      return { data: [], error: lastError.value };
     }
     const data: FindRecordWithId<T>[] = list.map((r) => ({
-      recordId: r?.recordId != null ? String(r.recordId) : '',
-      fieldData: (r && typeof r === 'object' && 'fieldData' in r ? r.fieldData : r) as T,
-    }))
-    return { data, error: null }
+      recordId: r?.recordId != null ? String(r.recordId) : "",
+      fieldData: (r && typeof r === "object" && "fieldData" in r
+        ? r.fieldData
+        : r) as T,
+    }));
+    return { data, error: null };
   } catch (err) {
     // Check if this is a "No records match" error before parsing
-    const errObj = err as { response?: { data?: { messages?: Array<{ code?: string | number; message?: string }> } } }
-    const messages = errObj.response?.data?.messages
+    const errObj = err as {
+      response?: {
+        data?: {
+          messages?: Array<{ code?: string | number; message?: string }>;
+        };
+      };
+    };
+    const messages = errObj.response?.data?.messages;
     if (messages && messages.length > 0) {
-      const code = String(messages[0].code ?? '')
-      const message = messages[0].message ?? ''
+      const code = String(messages[0].code ?? "");
+      const message = messages[0].message ?? "";
       // FileMaker returns code "401" or message "No records match" - this is NOT an error for duplicate checking
       // It means no duplicates were found, which is what we want
-      if (code === '401' || code === '0' || message.toLowerCase().includes('no records match')) {
-        return { data: [], error: null }
+      if (
+        code === "401" ||
+        code === "0" ||
+        message.toLowerCase().includes("no records match")
+      ) {
+        return { data: [], error: null };
       }
     }
-    const msg = parseFileMakerError(err)
+    const msg = parseFileMakerError(err);
     // Also check the parsed message in case the structure is different
-    if (msg && (msg.toLowerCase().includes('no records match') || msg.includes('401'))) {
-      return { data: [], error: null }
+    if (
+      msg &&
+      (msg.toLowerCase().includes("no records match") || msg.includes("401"))
+    ) {
+      return { data: [], error: null };
     }
-    return { data: [], error: handleApiError(err) }
+    return { data: [], error: handleApiError(err) };
   }
 }
 
 /** Remove undefined so FileMaker receives only defined field values. Allows 0 for numeric fields. */
 function sanitizeFieldData(
   data: FileMakerFieldData,
-  opts?: { allowEmptyStrings?: boolean }
+  opts?: { allowEmptyStrings?: boolean },
 ): Record<string, string | number> {
-  const allowEmpty = opts?.allowEmptyStrings === true
-  const out: Record<string, string | number> = {}
+  const allowEmpty = opts?.allowEmptyStrings === true;
+  const out: Record<string, string | number> = {};
   for (const [k, v] of Object.entries(data)) {
     const keep =
       v !== undefined &&
       v !== null &&
-      (typeof v === 'number' || allowEmpty || v !== '')
+      (typeof v === "number" || allowEmpty || v !== "");
     if (keep) {
-      out[k] = typeof v === 'number' ? v : String(v)
+      out[k] = typeof v === "number" ? v : String(v);
     }
   }
-  return out
+  return out;
 }
 
 export interface CreateRecordScriptOptions {
-  script: string
-  scriptParam?: string
+  script: string;
+  scriptParam?: string;
 }
 
 export async function createRecord(
   layout: string,
   fieldData: FileMakerFieldData,
-  scriptOptions?: CreateRecordScriptOptions
+  scriptOptions?: CreateRecordScriptOptions,
 ): Promise<{ id: string | null; error: string | null }> {
-  const token = sessionToken.value
-  if (!token) return { id: null, error: 'Not authenticated' }
-  const api = createApi(token)
-  const payload = sanitizeFieldData(fieldData)
-  const body: Record<string, unknown> = { fieldData: payload }
+  const token = sessionToken.value;
+  if (!token) return { id: null, error: "Not authenticated" };
+  const api = createApi(token);
+  const payload = sanitizeFieldData(fieldData);
+  const body: Record<string, unknown> = { fieldData: payload };
   if (scriptOptions?.script) {
-    body.script = scriptOptions.script
-    if (scriptOptions.scriptParam != null && scriptOptions.scriptParam !== '') {
-      body['script.param'] = scriptOptions.scriptParam
+    body.script = scriptOptions.script;
+    if (scriptOptions.scriptParam != null && scriptOptions.scriptParam !== "") {
+      body["script.param"] = scriptOptions.scriptParam;
     }
   }
   try {
     const res = await api.post<{
-      response?: { recordId?: string; scriptError?: string }
-      messages?: Array<{ code?: string; message?: string }>
-    }>(`/layouts/${layout}/records`, body)
-    const scriptError = res.data?.response?.scriptError
-    if (scriptError && scriptError !== '0') {
-      const msg = (res.data as { messages?: Array<{ message?: string }> }).messages?.[0]?.message
-      return { id: null, error: msg ?? `Script error: ${scriptError}` }
+      response?: { recordId?: string; scriptError?: string };
+      messages?: Array<{ code?: string; message?: string }>;
+    }>(`/layouts/${layout}/records`, body);
+    const scriptError = res.data?.response?.scriptError;
+    if (scriptError && scriptError !== "0") {
+      const msg = (res.data as { messages?: Array<{ message?: string }> })
+        .messages?.[0]?.message;
+      return { id: null, error: msg ?? `Script error: ${scriptError}` };
     }
-    const id = res.data?.response?.recordId ?? null
-    return { id, error: null }
+    const id = res.data?.response?.recordId ?? null;
+    return { id, error: null };
   } catch (err) {
-    return { id: null, error: handleApiError(err) }
+    return { id: null, error: handleApiError(err) };
   }
 }
 
 /** Get a single record by id; returns fieldData so you can read auto-generated fields (e.g. TransRef). */
 export async function getRecord<T = FileMakerFieldData>(
   layout: string,
-  recordId: string
+  recordId: string,
 ): Promise<{ data: T | null; error: string | null }> {
-  const token = sessionToken.value
-  if (!token) return { data: null, error: 'Not authenticated' }
-  const api = createApi(token)
+  const token = sessionToken.value;
+  if (!token) return { data: null, error: "Not authenticated" };
+  const api = createApi(token);
   try {
-    const res = await api.get<{ response?: { data?: Array<{ fieldData: T }> } }>(
-      `/layouts/${layout}/records/${recordId}`
-    )
-    const fieldData = res.data?.response?.data?.[0]?.fieldData ?? null
-    return { data: fieldData, error: null }
+    const res = await api.get<{
+      response?: { data?: Array<{ fieldData: T }> };
+    }>(`/layouts/${layout}/records/${recordId}`);
+    const fieldData = res.data?.response?.data?.[0]?.fieldData ?? null;
+    return { data: fieldData, error: null };
   } catch (err) {
-    return { data: null, error: handleApiError(err) }
+    return { data: null, error: handleApiError(err) };
   }
 }
 
@@ -512,33 +612,36 @@ export async function updateRecord(
   layout: string,
   recordId: string,
   fieldData: FileMakerFieldData,
-  opts?: { allowEmptyStrings?: boolean }
+  opts?: { allowEmptyStrings?: boolean },
 ): Promise<{ error: string | null }> {
-  const token = sessionToken.value
-  if (!token) return { error: 'Not authenticated' }
-  if (!recordId || String(recordId).trim() === '') return { error: 'Invalid record ID' }
-  const api = createApi(token)
-  const payload = sanitizeFieldData(fieldData, opts)
+  const token = sessionToken.value;
+  if (!token) return { error: "Not authenticated" };
+  if (!recordId || String(recordId).trim() === "")
+    return { error: "Invalid record ID" };
+  const api = createApi(token);
+  const payload = sanitizeFieldData(fieldData, opts);
   try {
-    await api.patch(`/layouts/${layout}/records/${recordId}`, { fieldData: payload })
-    return { error: null }
+    await api.patch(`/layouts/${layout}/records/${recordId}`, {
+      fieldData: payload,
+    });
+    return { error: null };
   } catch (err) {
-    return { error: handleApiError(err) }
+    return { error: handleApiError(err) };
   }
 }
 
 export async function deleteRecord(
   layout: string,
-  recordId: string
+  recordId: string,
 ): Promise<{ error: string | null }> {
-  const token = sessionToken.value
-  if (!token) return { error: 'Not authenticated' }
-  const api = createApi(token)
+  const token = sessionToken.value;
+  if (!token) return { error: "Not authenticated" };
+  const api = createApi(token);
   try {
-    await api.delete(`/layouts/${layout}/records/${recordId}`)
-    return { error: null }
+    await api.delete(`/layouts/${layout}/records/${recordId}`);
+    return { error: null };
   } catch (err) {
-    return { error: handleApiError(err) }
+    return { error: handleApiError(err) };
   }
 }
 
@@ -546,45 +649,61 @@ export async function deleteRecord(
 export async function runScript(
   layout: string,
   scriptName: string,
-  scriptParam?: string
-): Promise<{ error: string | null; scriptResult?: string | null; scriptError?: string; messageCode?: string }> {
-  const token = sessionToken.value
-  if (!token) return { error: 'Not authenticated', scriptResult: null, scriptError: undefined, messageCode: undefined }
-  const api = createApi(token)
+  scriptParam?: string,
+): Promise<{
+  error: string | null;
+  scriptResult?: string | null;
+  scriptError?: string;
+  messageCode?: string;
+}> {
+  const token = sessionToken.value;
+  if (!token)
+    return {
+      error: "Not authenticated",
+      scriptResult: null,
+      scriptError: undefined,
+      messageCode: undefined,
+    };
+  const api = createApi(token);
   try {
-    const path = `/layouts/${encodeURIComponent(layout)}/script/${encodeURIComponent(scriptName)}`
+    const path = `/layouts/${encodeURIComponent(layout)}/script/${encodeURIComponent(scriptName)}`;
     const url =
-      scriptParam != null && scriptParam !== ''
+      scriptParam != null && scriptParam !== ""
         ? `${path}?script.param=${encodeURIComponent(scriptParam)}`
-        : path
+        : path;
     const res = await api.get<{
-      response?: { scriptError?: string; scriptResult?: string }
-      messages?: Array<{ code?: string; message?: string }>
-    }>(url)
-    const scriptError = res.data?.response?.scriptError ?? '0'
-    const scriptResult = res.data?.response?.scriptResult ?? null
-    const msg = res.data?.messages?.[0]
-    const messageCode = msg?.code != null ? String(msg.code) : undefined
-    if (scriptError !== '0') {
-      const rawMsg = msg?.message?.trim()
+      response?: { scriptError?: string; scriptResult?: string };
+      messages?: Array<{ code?: string; message?: string }>;
+    }>(url);
+    const scriptError = res.data?.response?.scriptError ?? "0";
+    const scriptResult = res.data?.response?.scriptResult ?? null;
+    const msg = res.data?.messages?.[0];
+    const messageCode = msg?.code != null ? String(msg.code) : undefined;
+    if (scriptError !== "0") {
+      const rawMsg = msg?.message?.trim();
       const errMsg =
-        rawMsg && rawMsg !== 'OK' && rawMsg.length > 2
+        rawMsg && rawMsg !== "OK" && rawMsg.length > 2
           ? rawMsg
-          : `Script error (code ${scriptError})`
-      lastError.value = errMsg
-      return { error: errMsg, scriptResult, scriptError, messageCode }
+          : `Script error (code ${scriptError})`;
+      lastError.value = errMsg;
+      return { error: errMsg, scriptResult, scriptError, messageCode };
     }
-    return { error: null, scriptResult, scriptError, messageCode }
+    return { error: null, scriptResult, scriptError, messageCode };
   } catch (err) {
-    return { error: handleApiError(err), scriptResult: null, scriptError: undefined, messageCode: undefined }
+    return {
+      error: handleApiError(err),
+      scriptResult: null,
+      scriptError: undefined,
+      messageCode: undefined,
+    };
   }
 }
 
 export function useFileMaker() {
-  const status = computed<ConnectionStatus>(() => connectionStatus.value)
-  const error = computed(() => lastError.value)
-  const isConnected = computed(() => connectionStatus.value === 'connected')
-  const hasBaseUrl = computed(() => !!getBaseUrl()?.trim())
+  const status = computed<ConnectionStatus>(() => connectionStatus.value);
+  const error = computed(() => lastError.value);
+  const isConnected = computed(() => connectionStatus.value === "connected");
+  const hasBaseUrl = computed(() => !!getBaseUrl()?.trim());
 
   return {
     status,
@@ -605,5 +724,5 @@ export function useFileMaker() {
     deleteRecord,
     runScript,
     getToken: () => sessionToken.value,
-  }
+  };
 }

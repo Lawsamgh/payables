@@ -448,6 +448,16 @@
           >
             {{ payableStore.mainCode }}
           </p>
+          <div
+            v-if="codeQrDataUrl"
+            class="mt-3 flex justify-center rounded-lg bg-white p-2"
+          >
+            <img
+              :src="codeQrDataUrl"
+              :alt="`QR code for Code ${payableStore.mainCode}`"
+              class="h-[120px] w-[120px]"
+            />
+          </div>
         </div>
         <div
           v-if="
@@ -674,6 +684,18 @@
             >{{ formatCompactCount(listSummary.approvedCount) }}</span
           >
         </div>
+        <button
+          v-if="invoiceMailSelection.canSend"
+          type="button"
+          class="overview-card overview-card--clickable w-full rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-4 py-3 flex items-center justify-center gap-2 text-[var(--label-size)] font-medium text-emerald-400 hover:bg-emerald-500/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          :disabled="loadingOverlay.visible"
+          @click="onSendMailToVendors"
+        >
+          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+          {{ loadingOverlay.visible ? "Sending…" : `Send mail (${invoiceMailSelection.selectedCount})` }}
+        </button>
       </div>
 
       <!-- Cheque collection: total count + short description -->
@@ -828,7 +850,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
+import { ref, computed, watch, watchEffect } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import LogoutConfirmModal from "./LogoutConfirmModal.vue";
 import OverdueEntriesModal from "./OverdueEntriesModal.vue";
@@ -837,13 +859,17 @@ import { useFileMaker } from "../composables/useFileMaker";
 import { useUserRole } from "../composables/useUserRole";
 import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
 import { useListSummaryStore } from "../stores/listSummaryStore";
+import { useInvoiceMailSelectionStore } from "../stores/invoiceMailSelectionStore";
 import { usePayableStore } from "../stores/payableStore";
+import { useSendInvoiceToVendor } from "../composables/useSendInvoiceToVendor";
+import { useLoadingOverlayStore } from "../stores/loadingOverlayStore";
 import { useVendorStore } from "../stores/vendorStore";
 import { useVendorOverviewStore } from "../stores/vendorOverviewStore";
 import { useChequeOverviewStore } from "../stores/chequeOverviewStore";
 import { useTaxOverviewStore } from "../stores/taxOverviewStore";
 import { useActivityLogOverviewStore } from "../stores/activityLogOverviewStore";
 import { formatNumberDisplay, formatCompactCount } from "../utils/formatNumber";
+import QRCode from "qrcode";
 
 const route = useRoute();
 const router = useRouter();
@@ -882,7 +908,34 @@ function onLogoutConfirm() {
 }
 
 const listSummary = useListSummaryStore();
+const invoiceMailSelection = useInvoiceMailSelectionStore();
+const loadingOverlay = useLoadingOverlayStore();
+const { sendToVendors } = useSendInvoiceToVendor();
 const payableStore = usePayableStore();
+
+/** QR data URL for Code (Approved entry only). */
+const codeQrDataUrl = ref<string | null>(null);
+watchEffect(async () => {
+  const code =
+    route.name === "entry" &&
+    payableStore.mainStatus === "Approved" &&
+    payableStore.mainCode
+      ? String(payableStore.mainCode).trim()
+      : "";
+  if (!code) {
+    codeQrDataUrl.value = null;
+    return;
+  }
+  try {
+    codeQrDataUrl.value = await QRCode.toDataURL(code, {
+      width: 120,
+      margin: 2,
+      color: { dark: "#0f172a", light: "#ffffff" },
+    });
+  } catch {
+    codeQrDataUrl.value = null;
+  }
+});
 
 /** Entry overview: totals from grid rows. */
 const entryTotalAmountBeforeVat = computed(() =>
@@ -917,6 +970,18 @@ function formatPostedDate(dateStr: string | null | undefined): string {
   if (isNaN(d.getTime())) return dateStr;
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+async function onSendMailToVendors() {
+  const items = invoiceMailSelection.selectedWithEmail;
+  if (items.length === 0) return;
+  loadingOverlay.show("Sending emails…", "Please don't navigate away");
+  try {
+    const { error } = await sendToVendors(items);
+    if (!error) invoiceMailSelection.clear();
+  } finally {
+    loadingOverlay.hide();
+  }
 }
 
 /** One line per currency for a cleaner list (currency label + amount). */

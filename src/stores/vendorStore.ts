@@ -14,7 +14,7 @@ const DEFAULT_VENDOR: Vendor = {
   payment_terms: '',
   contact_email: '',
   phone_number: '',
-  currency: 'USD',
+  currency: 'GHS',
   created_date: '',
 }
 

@@ -71,6 +71,7 @@ import { ref, onMounted, watch } from "vue";
 import QRCode from "qrcode";
 import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
 import { useToastStore } from "../stores/toastStore";
+import { useLoadingOverlayStore } from "../stores/loadingOverlayStore";
 
 const documentSettings = useDocumentSettingsStore();
 const toast = useToastStore();
@@ -119,6 +120,8 @@ async function onSave() {
 async function onDownloadPdf() {
   if (downloadingPdf.value) return;
   downloadingPdf.value = true;
+  const loadingOverlay = useLoadingOverlayStore();
+  loadingOverlay.show("Generating PDF…");
   try {
     const url = getVendorCollectUrl();
     const qrDataUrl = await QRCode.toDataURL(url, {
@@ -179,12 +182,13 @@ async function onDownloadPdf() {
         {
           ol: [
             "Scan the QR code above with your mobile phone camera or QR scanner app.",
-            "Enter your Code (e.g. C00051) from your approval notice and tap Continue.",
-            "Enter cheque details: Bank Name and Cheque No. The amount will be shown for verification.",
-            "Enter your details: Received By (your name), ID No, and Contact (phone or email).",
-            "Enter your Tin No, review the Collection Date, and tap Submit to complete.",
+            "Enter your TransRef (sent to you in your email, e.g. RF2025684) and tap Continue.",
+            "Enter your Code manually or scan the QR code the officer shows you. Tap Continue. (The officer can find the Code and its QR in the sidebar Overview when viewing an Approved entry.)",
+            "Step 1 – Cheque details: Enter Bank Name and Cheque No. The amount is shown for verification. Tap Next.",
+            "Step 2 – Your details: Enter Received By (your name), ID No, and Contact (phone or email). Tap Next.",
+            "Step 3 – Tax & confirmation: Enter Tin No, review the Collection Date, and tap Submit. Use the footer buttons (Back, Next, Submit) to move between steps.",
           ],
-          fontSize: 13,
+          fontSize: 12,
         },
         {
           text: "Please ensure you have a stable internet connection and enter all required fields (marked with *) accurately.",
@@ -211,6 +215,7 @@ async function onDownloadPdf() {
     toast.error(msg);
   } finally {
     downloadingPdf.value = false;
+    loadingOverlay.hide();
   }
 }
 </script>

@@ -104,18 +104,20 @@ export function usePdfDownload() {
   /**
    * Build and download PDF for the current entry in payableStore/vendorStore.
    * Respects Settings > Documents (invoiceDownloadWhen).
+   * Uses Status (Approved/Posted) as the source of truth; mainPosted is not required
+   * since some workflows allow PDF for Approved entries before accounting Posted.
    * @returns true if PDF was downloaded, false if skipped
    */
   async function buildAndDownloadPdf(): Promise<boolean> {
     const status = payableStore.mainStatus;
     const when = documentSettings.invoiceDownloadWhen;
-    const ok =
-      payableStore.mainPosted &&
-      (when === "approved_only"
+    const statusAllowed =
+      when === "approved_only"
         ? status === "Approved"
         : when === "once_posted"
           ? status === "Posted" || status === "Approved"
-          : false);
+          : false;
+    const ok = statusAllowed && payableStore.currentTransRef?.trim();
     if (!ok) return false;
 
     try {

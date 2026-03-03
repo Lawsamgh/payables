@@ -549,6 +549,7 @@ import { LAYOUTS } from "../utils/filemakerApi";
 import type { VendorTblFieldData } from "../utils/filemakerApi";
 import type { FindRecordWithId } from "../composables/useFileMaker";
 import { useToastStore } from "../stores/toastStore";
+import { useLoadingOverlayStore } from "../stores/loadingOverlayStore";
 import { useVendorOverviewStore } from "../stores/vendorOverviewStore";
 import { formatDateForFileMaker } from "../utils/filemakerMappers";
 
@@ -814,6 +815,8 @@ async function onRefreshFromBCPS() {
   if (refreshing.value || !isConnected.value) return;
   refreshing.value = true;
   showAddModal.value = false;
+  const loadingOverlay = useLoadingOverlayStore();
+  loadingOverlay.show("Refreshing…", "Please don't navigate away");
   try {
     const { error, scriptError } = await runScript(
       LAYOUTS.VENDOR_TBL,
@@ -827,6 +830,7 @@ async function onRefreshFromBCPS() {
     await loadVendors({ silent: true });
   } finally {
     refreshing.value = false;
+    loadingOverlay.hide();
   }
 }
 

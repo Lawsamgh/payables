@@ -32,6 +32,8 @@ export const usePayableStore = defineStore("payable", () => {
   const loading = ref(false);
   const error = ref<string | null>(null);
   const syncing = ref(false);
+  /** Shown in loading overlay: "Saving…" | "Posting.." based on sync intent. */
+  const syncMessage = ref<"Saving…" | "Posting..">("Saving…");
   /** When set, entry view shows only Details for this Main (TransRef). */
   const currentTransRef = ref<string | null>(null);
   /** Main record id (for updating Posted after post). */
@@ -356,8 +358,12 @@ export const usePayableStore = defineStore("payable", () => {
     );
     if (mainWithId) {
       currentMainRecordId.value = mainWithId.recordId;
+      const fdForPosted = mainWithId.fieldData as Record<string, unknown> | undefined;
+      const postedVal = String(
+        fdForPosted?.Posted ?? fdForPosted?.posted ?? fdForPosted?.["Posted"] ?? "",
+      ).trim().toLowerCase();
       mainPosted.value =
-        String(mainWithId.fieldData?.Posted ?? "").trim() === "Yes";
+        postedVal === "yes" || postedVal === "1" || postedVal === "true";
       const fd = mainWithId.fieldData as Record<string, unknown> | undefined;
       const statusRaw = fd?.Status ?? fd?.status ?? "";
       mainStatus.value =
@@ -700,6 +706,7 @@ export const usePayableStore = defineStore("payable", () => {
       };
     }
     syncing.value = true;
+    syncMessage.value = markPosted ? "Posting.." : "Saving…";
     error.value = null;
     try {
     const currentRows = rows.value;
@@ -1172,6 +1179,7 @@ export const usePayableStore = defineStore("payable", () => {
     loading,
     error,
     syncing,
+    syncMessage: computed(() => syncMessage.value),
     isDirty: computed(() => isDirty.value),
     currentTransRef: computed(() => currentTransRef.value),
     currentMainRecordId: computed(() => currentMainRecordId.value),
