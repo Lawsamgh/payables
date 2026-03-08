@@ -1,17 +1,49 @@
 <template>
   <header
-    class="sticky top-0 z-50 glass border-b border-[var(--color-border)] shrink-0"
+    class="sticky top-0 z-50 glass rounded-none border-b border-[var(--color-border)] shrink-0"
     style="
       transition: box-shadow 0.3s var(--ease);
-      min-height: var(--app-header-height);
+      height: var(--app-header-height);
     "
   >
     <div
-      class="w-full max-w-[1600px] mx-auto h-full min-h-[var(--app-header-height)] px-4 py-3 md:px-6 md:py-3 flex flex-wrap items-center justify-end gap-3"
+      class="w-full max-w-[1600px] mx-auto h-full px-4 py-3 md:px-6 md:py-3 flex flex-wrap items-center justify-end gap-3"
     >
+      <nav
+        v-if="settingsBreadcrumbs.length"
+        class="breadcrumb-progress mr-auto flex items-center"
+        aria-label="Breadcrumb"
+      >
+        <template v-for="(crumb, idx) in settingsBreadcrumbs" :key="crumb.path ?? idx">
+          <router-link
+            v-if="crumb.path"
+            :to="crumb.path"
+            class="breadcrumb-progress__step breadcrumb-progress__step--past"
+          >
+            <span class="breadcrumb-progress__node" aria-hidden="true" />
+            <span class="breadcrumb-progress__label">{{ crumb.label }}</span>
+          </router-link>
+          <span
+            v-else
+            class="breadcrumb-progress__step breadcrumb-progress__step--current"
+          >
+            <span class="breadcrumb-progress__node" aria-hidden="true" />
+            <span class="breadcrumb-progress__label">{{ crumb.label }}</span>
+          </span>
+          <span
+            v-if="idx < settingsBreadcrumbs.length - 1"
+            class="breadcrumb-progress__connector"
+            :class="{ 'breadcrumb-progress__connector--filled': true }"
+            aria-hidden="true"
+          >
+            <span class="breadcrumb-progress__connector-line" />
+          </span>
+        </template>
+      </nav>
       <span
         v-if="route.name === 'entry' && vendorStore.vendor?.vendor_name"
-        class="header-vendor-name mr-auto text-xl md:text-3xl text-[var(--color-text)] font-normal"
+        class="header-vendor-name mr-auto max-w-[10rem] sm:max-w-[14rem] md:max-w-[20rem] truncate text-xl md:text-3xl text-[var(--color-text)] font-normal"
+        :title="vendorStore.vendor.vendor_name"
       >
         {{ vendorStore.vendor.vendor_name }}
       </span>
@@ -151,15 +183,59 @@
       <button
         type="button"
         class="pill-btn glass-input inline-flex items-center gap-2 rounded-full px-3 py-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] transition-colors"
-        :title="isMac ? 'Search and navigate (⌘K)' : 'Search and navigate (Ctrl+K)'"
+        :title="
+          isMac ? 'Search and navigate (⌘K)' : 'Search and navigate (Ctrl+K)'
+        "
         aria-label="Open command palette"
         @click="paletteStore.open()"
       >
-        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        <svg
+          class="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
         </svg>
-        <kbd class="hidden sm:inline text-[11px] font-medium">{{ isMac ? '⌘K' : 'Ctrl+K' }}</kbd>
+        <kbd class="hidden sm:inline text-[11px] font-medium">{{
+          isMac ? "⌘K" : "Ctrl+K"
+        }}</kbd>
       </button>
+      <div
+        class="theme-switch"
+        role="group"
+        aria-label="Theme"
+      >
+        <button
+          type="button"
+          class="theme-switch__option"
+          :class="{ 'theme-switch__option--active': themeStore.appearance === 'light' }"
+          title="Light theme"
+          :aria-pressed="themeStore.appearance === 'light'"
+          @click="themeStore.setAppearance('light')"
+        >
+          <svg class="theme-switch__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          class="theme-switch__option"
+          :class="{ 'theme-switch__option--active': themeStore.appearance === 'dark' }"
+          title="Dark theme"
+          :aria-pressed="themeStore.appearance === 'dark'"
+          @click="themeStore.setAppearance('dark')"
+        >
+          <svg class="theme-switch__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+        </button>
+      </div>
       <span
         v-if="isConnected && loggedInEmail"
         class="user-email-badge inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[var(--label-size)] text-[var(--color-text)] bg-white/5 border border-[var(--color-border)] hover:bg-white/[0.08] transition-colors"
@@ -203,6 +279,7 @@ import { useFileMaker } from "../composables/useFileMaker";
 import { useEditRequest } from "../composables/useEditRequest";
 import { useUserRole } from "../composables/useUserRole";
 import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
+import { useThemeStore } from "../stores/themeStore";
 import { useLoadingOverlayStore } from "../stores/loadingOverlayStore";
 import { LAYOUTS } from "../utils/filemakerApi";
 import { formatNumberDisplay } from "../utils/formatNumber";
@@ -210,10 +287,21 @@ import { formatNumberDisplay } from "../utils/formatNumber";
 const route = useRoute();
 const router = useRouter();
 
+/** Breadcrumb trail when in Settings (main or sub-page) */
+const settingsBreadcrumbs = computed(() => {
+  const path = route.path;
+  if (!path.startsWith("/settings")) return [];
+  if (path === "/settings") return [{ label: "Settings" }];
+  const title = (route.meta?.title as string | undefined) ?? "";
+  return [{ label: "Settings", path: "/settings" }, ...(title ? [{ label: title }] : [])];
+});
+
 const paletteStore = useCommandPaletteStore();
 const shortcutsCheatsheetStore = useShortcutsCheatsheetStore();
 const payableStore = usePayableStore();
-const isMac = typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+const isMac =
+  typeof navigator !== "undefined" &&
+  /Mac|iPod|iPhone|iPad/.test(navigator.platform);
 const vendorStore = useVendorStore();
 const toast = useToastStore();
 const booklet = useBookletStore();
@@ -225,13 +313,11 @@ const {
   findRecordsWithIds,
   findRecordsByQueryWithIds,
 } = useFileMaker();
-const {
-  fetchPendingEditRequest,
-  getCachedPending,
-  createEditRequest,
-} = useEditRequest();
+const { fetchPendingEditRequest, getCachedPending, createEditRequest } =
+  useEditRequest();
 const { userFullName, isManager, isAdmin } = useUserRole();
 const documentSettings = useDocumentSettingsStore();
+const themeStore = useThemeStore();
 
 /** Save/Post keyboard shortcuts (Ctrl+S, Ctrl+P) - only when on entry and palette closed */
 function handleEntryShortcuts(e: KeyboardEvent) {
@@ -290,12 +376,13 @@ const editRequestPending = computed(() => {
 });
 
 watch(
-  () => [
-    route.query.transRef,
-    payableStore.mainPosted,
-    payableStore.mainStatus,
-    payableStore.loading,
-  ] as const,
+  () =>
+    [
+      route.query.transRef,
+      payableStore.mainPosted,
+      payableStore.mainStatus,
+      payableStore.loading,
+    ] as const,
   async ([transRef, mainPosted, mainStatus, loading]) => {
     if (
       loading ||
@@ -329,7 +416,9 @@ async function onRequestEditForMistakePosted() {
       toast.error("Request failed: " + error);
     } else {
       await fetchPendingEditRequest(transRef.trim());
-      toast.success("Request sent to manager. They will be prompted when they open this entry.");
+      toast.success(
+        "Request sent to manager. They will be prompted when they open this entry.",
+      );
     }
   } finally {
     editRequestSending.value = false;
@@ -504,6 +593,13 @@ async function onSave() {
     if (updated > 0) parts.push(`${updated} updated`);
     if (deleted > 0) parts.push(`${deleted} deleted`);
     toast.success(`Saved ${parts.join(", ")} row(s) to FileMaker.`);
+    const hadNoTransRef = !(route.query.transRef as string)?.trim();
+    if (hadNoTransRef && payableStore.currentTransRef) {
+      router.push({
+        name: "entry",
+        query: { transRef: payableStore.currentTransRef },
+      });
+    }
   } else if (mainUpdated) {
     toast.success("Vendor details saved.");
   } else {
@@ -616,3 +712,131 @@ async function onRepost() {
   }
 }
 </script>
+
+<style scoped>
+/* Breadcrumb as progress line */
+.breadcrumb-progress {
+  font-size: var(--label-size);
+  gap: 0;
+  min-height: 2rem;
+}
+
+.breadcrumb-progress__step {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: inherit;
+  transition: color 0.2s var(--ease);
+}
+
+.breadcrumb-progress__step--past {
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.breadcrumb-progress__step--past:hover {
+  color: var(--color-text);
+}
+
+.breadcrumb-progress__step--current {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.breadcrumb-progress__node {
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  opacity: 0.6;
+  transition: all 0.2s var(--ease);
+}
+
+.breadcrumb-progress__step--past .breadcrumb-progress__node {
+  background: var(--color-accent);
+  opacity: 0.8;
+}
+
+.breadcrumb-progress__step--past:hover .breadcrumb-progress__node {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.breadcrumb-progress__step--current .breadcrumb-progress__node {
+  width: 0.625rem;
+  height: 0.625rem;
+  background: var(--color-accent);
+  opacity: 1;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+.breadcrumb-progress__connector {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 1.5rem;
+  margin: 0 0.25rem;
+}
+
+.breadcrumb-progress__connector-line {
+  flex: 1;
+  height: 2px;
+  background: var(--color-accent);
+  opacity: 0.5;
+  border-radius: 1px;
+}
+
+.breadcrumb-progress__connector--filled .breadcrumb-progress__connector-line {
+  opacity: 0.7;
+}
+
+/* Theme switch – modern segmented control */
+.theme-switch {
+  display: inline-flex;
+  padding: 0.25rem;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-input);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.theme-switch__option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font: inherit;
+  transition: color 0.2s var(--ease), background 0.2s var(--ease);
+}
+
+.theme-switch__option:hover {
+  color: var(--color-text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.theme-switch__option--active {
+  color: var(--color-text);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.theme-switch__option:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.theme-switch__icon {
+  width: 1rem;
+  height: 1rem;
+}
+</style>

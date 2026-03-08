@@ -2,8 +2,7 @@
   <Teleport to="body">
     <div
       v-if="visible"
-      class="fixed inset-0 z-[200] flex items-center justify-center p-4"
-      style="background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(8px);"
+      class="teleport-modal-backdrop fixed inset-0 z-[200] flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="overdue-modal-title"
@@ -95,8 +94,8 @@
                   <span class="overdue-modal-col overdue-modal-col--days">
                     <span
                       v-if="entry.daysOverdue != null"
-                      class="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium tabular-nums"
-                      :class="entry.daysOverdue >= 14 ? 'bg-amber-500/20 text-amber-400' : 'bg-amber-500/10 text-amber-300/90'"
+                      class="overdue-modal-badge inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium tabular-nums"
+                      :class="entry.daysOverdue >= 14 ? 'overdue-modal-badge--severe bg-amber-500/20 text-amber-400' : 'overdue-modal-badge--default bg-amber-500/10 text-amber-300/90'"
                     >
                       {{ entry.daysOverdue }} {{ entry.daysOverdue === 1 ? 'day' : 'days' }}
                     </span>

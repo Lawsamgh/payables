@@ -19,7 +19,7 @@
         Activity Logs
       </h1>
       <p class="mt-1 text-[13px] text-[var(--color-text-muted)]">
-        View audit trail of Created, Edited, Posted, Rejected, Approved, and Reposted events.
+        View audit trail of Created, Edited, Posted, Rejected, Approved, Deleted, and Reposted events.
       </p>
     </header>
 
@@ -237,12 +237,13 @@
               >
                 <td>
                   <router-link
-                    v-if="getField(row, 'TransRef')"
+                    v-if="getField(row, 'TransRef') && getField(row, 'Action') !== 'Deleted'"
                     :to="{ name: 'entry', query: { transRef: getField(row, 'TransRef'), from: 'settings-logs' } }"
                     class="text-[var(--color-accent)] hover:underline no-underline"
                   >
                     {{ getField(row, 'TransRef') }}
                   </router-link>
+                  <span v-else-if="getField(row, 'TransRef')">{{ getField(row, 'TransRef') }}</span>
                   <span v-else>—</span>
                 </td>
                 <td>
@@ -289,6 +290,7 @@ const ACTION_OPTIONS = [
   "Rejected",
   "Approved",
   "Reposted",
+  "Deleted",
   "EditRequested",
   "EditAllowed",
 ] as const;
@@ -348,6 +350,7 @@ function getActionBadgeClass(action: string): string {
   if (a === "posted" || a === "reposted") return "action-badge--posted";
   if (a === "rejected") return "action-badge--rejected";
   if (a === "approved") return "action-badge--approved";
+  if (a === "deleted") return "action-badge--rejected";
   if (a === "editrequested") return "action-badge--posted";
   if (a === "editallowed") return "action-badge--approved";
   return "";

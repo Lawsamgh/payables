@@ -17,6 +17,10 @@ function escapeCsvCell(value: unknown): string {
 }
 
 function headerLabel(key: string): string {
+  if (key === 'tax') return 'Tax Rate'
+  if (key === 'reference') return 'Tax Amount'
+  if (key === 'wht_tax') return 'WHT Tax'
+  if (key === 'wht_tax_amount') return 'WHT Tax Amount'
   return key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 

@@ -9,6 +9,8 @@ import { useFileMaker } from "../composables/useFileMaker";
 import { LAYOUTS } from "../utils/filemakerApi";
 import type { PayablesUsersFieldData } from "../utils/filemakerApi";
 
+export type Appearance = "dark" | "light";
+
 function getFieldValue(
   fd: Record<string, unknown> | undefined,
   key: string
@@ -36,8 +38,10 @@ export const useCurrentUserFromPayablesStore = defineStore(
     const fullName = ref<string | null>(null);
     const onboarded = ref<boolean>(true);
     const loaded = ref(false);
+    /** Theme from Payables_Users.Theme ("dark" | "light"). Null when not loaded or empty. */
+    const themeFromUser = ref<Appearance | null>(null);
 
-    const { loggedInEmail, isConnected, findRecordsWithIds } = useFileMaker();
+    const { loggedInEmail, isConnected, findRecordsWithIds, updateRecord } = useFileMaker();
 
     /** In-flight promise to deduplicate concurrent loads for the same email */
     let loadPromise: Promise<void> | null = null;
@@ -54,6 +58,7 @@ export const useCurrentUserFromPayablesStore = defineStore(
         role.value = null;
         fullName.value = null;
         onboarded.value = true;
+        themeFromUser.value = null;
         loaded.value = false;
         return;
       }
@@ -83,10 +88,13 @@ export const useCurrentUserFromPayablesStore = defineStore(
               (fd ? String(fd["Full Name"] ?? "").trim() : "") ||
               null;
             onboarded.value = isOnboarded(getFieldValue(fd, "Onboarded"));
+            const theme = getFieldValue(fd, "Theme").toLowerCase();
+            themeFromUser.value = theme === "dark" || theme === "light" ? theme : null;
           } else {
             role.value = null;
             fullName.value = null;
             onboarded.value = true;
+            themeFromUser.value = null;
           }
         } finally {
           loaded.value = true;
@@ -107,6 +115,7 @@ export const useCurrentUserFromPayablesStore = defineStore(
           role.value = null;
           fullName.value = null;
           onboarded.value = true;
+          themeFromUser.value = null;
           loaded.value = false;
         }
       },
@@ -124,12 +133,27 @@ export const useCurrentUserFromPayablesStore = defineStore(
       onboarded.value = true;
     }
 
+    async function saveTheme(value: Appearance): Promise<{ error: string | null }> {
+      if (!isConnected.value || !recordId.value) {
+        return { error: "Not connected" };
+      }
+      themeFromUser.value = value;
+      const { error } = await updateRecord(
+        LAYOUTS.PAYABLES_USERS,
+        recordId.value,
+        { Theme: value },
+      );
+      return { error };
+    }
+
     return {
       recordId,
       role,
       fullName,
       onboarded,
       loaded,
+      themeFromUser,
+      saveTheme,
       loadCurrentUser,
       setRoleFromCache,
       markOnboardedComplete,

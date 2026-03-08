@@ -52,7 +52,7 @@
         </button>
         <button
           type="button"
-          class="pill-btn inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2.5 text-[var(--label-size)] font-semibold text-white shadow-md hover:bg-orange-600 transition-colors"
+          class="pill-btn add-collection-btn inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-[var(--label-size)] font-semibold text-white shadow-md hover:bg-orange-600 transition-colors"
           @click="showAddModal = true"
         >
           <svg
@@ -388,9 +388,35 @@
             </svg>
             <span class="tax-modal__error-text">{{ formError }}</span>
           </div>
-          <form class="tax-modal__form" @submit.prevent="submit">
-            <section class="tax-modal__section">
-              <h3 class="tax-modal__section-title">Cheque details</h3>
+
+          <!-- Stepper -->
+          <div class="cheque-modal__stepper" role="tablist" aria-label="Form steps">
+            <div
+              v-for="(step, idx) in COLLECTION_MODAL_SLIDES"
+              :key="step.id"
+              class="cheque-modal__step"
+              :class="{
+                'cheque-modal__step--active': collectionModalSlide === idx,
+                'cheque-modal__step--done': collectionModalSlide > idx,
+              }"
+              role="tab"
+              :aria-selected="collectionModalSlide === idx"
+              :aria-label="`Step ${idx + 1}: ${step.title}`"
+              @click="collectionModalSlide = idx"
+            >
+              <span class="cheque-modal__step-num">{{ idx + 1 }}</span>
+              <span class="cheque-modal__step-title">{{ step.title }}</span>
+              <span v-if="idx < COLLECTION_MODAL_SLIDES.length - 1" class="cheque-modal__step-connector" />
+            </div>
+          </div>
+
+          <form class="tax-modal__form cheque-modal__form" @submit.prevent="submit">
+            <div class="cheque-modal__track">
+              <Transition name="cheque-modal-slide" mode="out-in">
+                <!-- Slide 0: Cheque details -->
+                <div v-if="collectionModalSlide === 0" key="0" class="cheque-modal__slide">
+                  <section class="tax-modal__section">
+                    <h3 class="tax-modal__section-title">Cheque details</h3>
               <p
                 v-if="form.TransRef"
                 class="text-2xl font-semibold text-[var(--color-text)] mb-4"
@@ -405,13 +431,14 @@
               </p>
               <label v-if="!editingRecordId" class="tax-modal__label">
                 <span
-                  >Select approved payable
+                  >Select approved payable <span class="text-red-500" aria-hidden="true">*</span>
                   <span class="text-[var(--color-text-muted)] font-normal"
                     >(only those not yet collected)</span
                   ></span
                 >
                 <div v-if="!editingRecordId" class="payable-select-wrap" ref="payableSelectWrapRef">
                   <div
+                    ref="payableSelectTriggerRef"
                     class="payable-select-trigger glass-input flex items-center gap-2 w-full px-3 py-2.5 rounded-lg cursor-pointer"
                     :class="{ 'payable-select-trigger--focused': showPayableDropdown }"
                     @click="showPayableDropdown = !showPayableDropdown"
@@ -454,18 +481,21 @@
                       />
                     </svg>
                   </div>
-                  <div
-                    v-if="!editingRecordId && showPayableDropdown"
-                    class="payable-select-dropdown"
-                    @click.stop
-                  >
+                  <Teleport to="body">
+                    <div
+                      v-if="!editingRecordId && showPayableDropdown && payableDropdownStyle"
+                      ref="payableDropdownRef"
+                      class="payable-select-dropdown payable-select-dropdown--fixed"
+                      :style="payableDropdownStyle"
+                      @click.stop
+                    >
                     <div class="payable-select-search">
                       <input
                         ref="payableSearchInputRef"
                         v-model="payableSearchQuery"
                         type="search"
                         class="glass-input w-full px-3 py-2.5 rounded-lg text-[var(--label-size)]"
-                        placeholder="Search by vendor name or TransRef…"
+                        placeholder="Search by PO, vendor name or TransRef…"
                         autocomplete="off"
                         @keydown.escape="showPayableDropdown = false"
                       />
@@ -541,12 +571,13 @@
                         Loading approved payables…
                       </li>
                     </ul>
-                  </div>
+                    </div>
+                  </Teleport>
                 </div>
               </label>
               <div class="tax-modal__row">
                 <label class="tax-modal__label">
-                  <span>Bank Name</span>
+                  <span>Bank Name <span class="text-red-500" aria-hidden="true">*</span></span>
                   <input
                     v-model="form.BankName"
                     type="text"
@@ -555,7 +586,7 @@
                   />
                 </label>
                 <label class="tax-modal__label">
-                  <span>Cheque No</span>
+                  <span>Cheque No <span class="text-red-500" aria-hidden="true">*</span></span>
                   <input
                     v-model="form.ChequeNo"
                     type="text"
@@ -566,7 +597,7 @@
               </div>
               <div class="tax-modal__row">
                 <label class="tax-modal__label">
-                  <span>Amount</span>
+                  <span>Amount <span class="text-red-500" aria-hidden="true">*</span></span>
                   <input
                     :value="formatNumberDisplay(form.Amount)"
                     type="text"
@@ -576,7 +607,7 @@
                   />
                 </label>
                 <label class="tax-modal__label">
-                  <span>Cheque Payee (Vendor Name)</span>
+                  <span>Cheque Payee (Vendor Name) <span class="text-red-500" aria-hidden="true">*</span></span>
                   <input
                     v-model="form.ChequePayee"
                     type="text"
@@ -585,12 +616,16 @@
                   />
                 </label>
               </div>
-            </section>
-            <section class="tax-modal__section">
-              <h3 class="tax-modal__section-title">Received by</h3>
+                  </section>
+                </div>
+
+                <!-- Slide 1: Received by -->
+                <div v-else-if="collectionModalSlide === 1" key="1" class="cheque-modal__slide">
+                  <section class="tax-modal__section">
+                    <h3 class="tax-modal__section-title">Received by</h3>
               <div class="tax-modal__row">
                 <label class="tax-modal__label">
-                  <span>Received By</span>
+                  <span>Received By <span class="text-red-500" aria-hidden="true">*</span></span>
                   <input
                     v-model="form.ReceivedBy"
                     type="text"
@@ -599,7 +634,7 @@
                   />
                 </label>
                 <label class="tax-modal__label">
-                  <span>ID No</span>
+                  <span>ID No <span class="text-red-500" aria-hidden="true">*</span></span>
                   <input
                     v-model="form.IDNo"
                     type="text"
@@ -609,7 +644,7 @@
                 </label>
               </div>
               <label class="tax-modal__label">
-                <span>Contact</span>
+                <span>Contact <span class="text-red-500" aria-hidden="true">*</span></span>
                 <input
                   v-model="form.Contact"
                   type="text"
@@ -617,9 +652,13 @@
                   placeholder="Phone / email"
                 />
               </label>
-            </section>
-            <section class="tax-modal__section">
-              <h3 class="tax-modal__section-title">Other</h3>
+                  </section>
+                </div>
+
+                <!-- Slide 2: Other -->
+                <div v-else key="2" class="cheque-modal__slide">
+                  <section class="tax-modal__section">
+                    <h3 class="tax-modal__section-title">Other</h3>
               <div class="tax-modal__row">
                 <label class="tax-modal__label">
                   <span>Tin No</span>
@@ -639,16 +678,29 @@
                   />
                 </label>
               </div>
-            </section>
-            <div class="tax-modal__actions">
+                  </section>
+                </div>
+              </Transition>
+            </div>
+
+            <div class="tax-modal__actions cheque-modal__actions">
               <button
                 type="button"
                 class="tax-modal__btn-cancel"
-                @click="closeModal"
+                @click="collectionModalSlide > 0 ? (collectionModalSlide--) : closeModal()"
               >
-                Cancel
+                {{ collectionModalSlide > 0 ? "Back" : "Cancel" }}
               </button>
               <button
+                v-if="collectionModalSlide < 2"
+                type="button"
+                class="tax-modal__btn-submit"
+                @click="goToNextSlide"
+              >
+                Next
+              </button>
+              <button
+                v-else
                 type="submit"
                 class="tax-modal__btn-submit"
                 :disabled="saving"
@@ -697,6 +749,13 @@ const loading = ref(true);
 const loadError = ref<string | null>(null);
 const showAddModal = ref(false);
 const editingRecordId = ref<string | null>(null);
+const collectionModalSlide = ref(0);
+
+const COLLECTION_MODAL_SLIDES = [
+  { id: 0, title: "Cheque details", icon: "document" },
+  { id: 1, title: "Received by", icon: "user" },
+  { id: 2, title: "Other", icon: "cog" },
+] as const;
 const searchQuery = ref("");
 const formError = ref<string | null>(null);
 const saving = ref(false);
@@ -709,7 +768,27 @@ const payableSearchQuery = ref("");
 const showPayableDropdown = ref(false);
 const loadingPayables = ref(false);
 const payableSelectWrapRef = ref<HTMLElement | null>(null);
+const payableSelectTriggerRef = ref<HTMLElement | null>(null);
 const payableSearchInputRef = ref<HTMLInputElement | null>(null);
+const payableDropdownStyle = ref<{ top: string; left: string; width: string; maxHeight: string } | null>(null);
+const payableDropdownRef = ref<HTMLElement | null>(null);
+
+function updatePayableDropdownPosition() {
+  const trigger = payableSelectTriggerRef.value;
+  if (!trigger || !showPayableDropdown.value) {
+    payableDropdownStyle.value = null;
+    return;
+  }
+  const rect = trigger.getBoundingClientRect();
+  const spaceBelow = window.innerHeight - rect.bottom - 16;
+  const maxH = Math.max(180, Math.min(320, spaceBelow));
+  payableDropdownStyle.value = {
+    top: `${rect.bottom + 6}px`,
+    left: `${rect.left}px`,
+    width: `${rect.width}px`,
+    maxHeight: `${maxH}px`,
+  };
+}
 const selectedPayableVendorName = ref("");
 const selectedPayableVendorId = ref("");
 
@@ -844,6 +923,9 @@ const filteredPayablesForSelect = computed(() => {
   if (!q) return list;
   return list.filter((r) => {
     const fd = r.fieldData as Record<string, unknown>;
+    const purchaseOrder = String(
+      fd.PurchaseOrder ?? fd["Purchase Order"] ?? "",
+    ).toLowerCase();
     const transRef = String(fd.TransRef ?? fd["TransRef"] ?? "").toLowerCase();
     const vendor = String(
       fd.VendorName ?? fd["Vendor Name"] ?? "",
@@ -852,7 +934,10 @@ const filteredPayablesForSelect = computed(() => {
       fd.VendorID ?? fd["Vendor ID"] ?? "",
     ).toLowerCase();
     return (
-      transRef.includes(q) || vendor.includes(q) || vendorId.includes(q)
+      purchaseOrder.includes(q) ||
+      transRef.includes(q) ||
+      vendor.includes(q) ||
+      vendorId.includes(q)
     );
   });
 });
@@ -951,23 +1036,29 @@ function clearPayableSelection() {
 
 function handleClickOutsidePayableSelect(e: MouseEvent) {
   const wrap = payableSelectWrapRef.value;
-  if (wrap && !wrap.contains(e.target as Node)) {
-    showPayableDropdown.value = false;
-  }
+  const dropdown = payableDropdownRef.value;
+  const target = e.target as Node;
+  if (wrap?.contains(target) || dropdown?.contains(target)) return;
+  showPayableDropdown.value = false;
 }
 
 watch(showPayableDropdown, (open) => {
   if (open) {
     payableSearchQuery.value = "";
-    nextTick(() => payableSearchInputRef.value?.focus());
+    nextTick(() => {
+      updatePayableDropdownPosition();
+      payableSearchInputRef.value?.focus();
+    });
+  } else {
+    payableDropdownStyle.value = null;
   }
 });
 
 watch(showAddModal, (open) => {
-  if (open && !editingRecordId.value) {
-    loadApprovedPayables();
-  }
-  if (!open) {
+  if (open) {
+    collectionModalSlide.value = 0;
+    if (!editingRecordId.value) loadApprovedPayables();
+  } else {
     resetForm();
     editingRecordId.value = null;
   }
@@ -1099,11 +1190,43 @@ async function resolveOfficerName(): Promise<string | null> {
   return null;
 }
 
+function validateSlide(slide: number): string | null {
+  if (slide === 0) {
+    if (!form.value.TransRef?.trim())
+      return "Please select a payable from the list.";
+    if (!form.value.BankName?.trim()) return "Bank Name is required.";
+    if (!form.value.ChequeNo?.trim()) return "Cheque No is required.";
+    if (form.value.Amount === "" || form.value.Amount == null)
+      return "Amount is required (select a payable to auto-fill).";
+    if (!form.value.ChequePayee?.trim())
+      return "Cheque Payee (Vendor Name) is required.";
+  }
+  if (slide === 1) {
+    if (!form.value.ReceivedBy?.trim()) return "Received By is required.";
+    if (!form.value.IDNo?.trim()) return "ID No is required.";
+    if (!form.value.Contact?.trim()) return "Contact is required.";
+  }
+  if (slide === 2) {
+    if (!form.value.CollectionDate?.trim())
+      return "Collection Date is required.";
+  }
+  return null;
+}
+
+function goToNextSlide() {
+  const err = validateSlide(collectionModalSlide.value);
+  if (err) {
+    toast.error(err);
+    return;
+  }
+  collectionModalSlide.value++;
+}
+
 function validateForm(): string | null {
-  if (!form.value.TransRef?.trim())
-    return "Please select a payable from the list.";
-  if (!form.value.ChequePayee?.trim())
-    return "Cheque Payee (Vendor Name) is required.";
+  for (let s = 0; s <= 2; s++) {
+    const err = validateSlide(s);
+    if (err) return err;
+  }
   return null;
 }
 
@@ -1251,7 +1374,119 @@ watch(isConnected, (connected) => {
 
 <style scoped>
 .cheque-modal {
-  max-width: 920px;
+  max-width: 680px;
+}
+
+/* Stepper */
+.cheque-modal__stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 0 1.5rem 1.25rem;
+  border-bottom: 1px solid var(--color-border);
+  margin: 0 1.5rem 1rem;
+}
+
+.cheque-modal__step {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.5rem 0.25rem;
+  border-radius: 10px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.cheque-modal__step:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.cheque-modal__step-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  background: rgba(148, 163, 184, 0.2);
+  color: var(--color-text-muted);
+  transition: all 0.2s;
+}
+
+.cheque-modal__step--active .cheque-modal__step-num {
+  background: var(--color-accent);
+  color: white;
+}
+
+.cheque-modal__step--done .cheque-modal__step-num {
+  background: rgba(34, 197, 94, 0.25);
+  color: rgb(134, 239, 172);
+}
+
+.cheque-modal__step-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.cheque-modal__step--active .cheque-modal__step-title {
+  color: var(--color-text);
+}
+
+.cheque-modal__step--done .cheque-modal__step-title {
+  color: var(--color-text-muted);
+}
+
+.cheque-modal__step-connector {
+  width: 2rem;
+  height: 2px;
+  margin-left: 0.25rem;
+  background: var(--color-border);
+}
+
+.cheque-modal__step--done + .cheque-modal__step .cheque-modal__step-connector,
+.cheque-modal__step--done .cheque-modal__step-connector {
+  background: rgba(34, 197, 94, 0.4);
+}
+
+/* Slide track – overflow: visible so payable dropdown can extend beyond */
+.cheque-modal__track {
+  min-height: 320px;
+  overflow: visible;
+}
+
+.cheque-modal__slide {
+  padding: 0 0.25rem;
+}
+
+.cheque-modal-slide-enter-active,
+.cheque-modal-slide-leave-active {
+  transition: opacity 0.2s ease, transform 0.25s ease;
+}
+
+.cheque-modal-slide-enter-from {
+  opacity: 0;
+  transform: translateX(16px);
+}
+
+.cheque-modal-slide-leave-to {
+  opacity: 0;
+  transform: translateX(-16px);
+}
+
+.cheque-modal-slide-enter-to,
+.cheque-modal-slide-leave-from {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.cheque-modal__actions {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
 }
 
 .cheque-table-actions {
@@ -1309,6 +1544,17 @@ watch(isConnected, (connected) => {
   border-radius: 12px;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
   overflow: hidden;
+}
+
+.payable-select-dropdown--fixed {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+}
+
+.payable-select-dropdown--fixed .payable-select-list {
+  flex: 1;
+  min-height: 0;
 }
 
 .payable-select-search {

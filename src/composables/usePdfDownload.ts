@@ -8,8 +8,39 @@ import { useVendorStore } from "../stores/vendorStore";
 import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
 import { useFileMaker } from "./useFileMaker";
 import { useToastStore } from "../stores/toastStore";
-import { LAYOUTS, type PayableInvoiceFieldData } from "../utils/filemakerApi";
+import {
+  LAYOUTS,
+  type PayableInvoiceFieldData,
+  type TaxValueFieldData,
+} from "../utils/filemakerApi";
+import type { FindRecordWithId } from "./useFileMaker";
 import type { PayableRow } from "../types";
+
+function formatDateForPdfDisplay(dateStr: string | undefined): string {
+  if (!dateStr?.trim()) return "—";
+  const s = dateStr.trim();
+  // Parse YYYY-MM-DD
+  const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (iso) {
+    const [, y, m, d] = iso;
+    return `${d!.padStart(2, "0")}/${m!.padStart(2, "0")}/${y}`;
+  }
+  // Parse MM/DD/YYYY
+  const us = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (us) {
+    const [, m, d, y] = us;
+    return `${d!.padStart(2, "0")}/${m!.padStart(2, "0")}/${y}`;
+  }
+  const d = new Date(s);
+  if (!Number.isNaN(d.getTime())) {
+    return d.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  }
+  return s;
+}
 
 function formatPdfNumber(value: string | number | undefined): string {
   if (value === undefined || value === null || value === "") return "—";
@@ -98,7 +129,8 @@ export function usePdfDownload() {
   const payableStore = usePayableStore();
   const vendorStore = useVendorStore();
   const documentSettings = useDocumentSettingsStore();
-  const { isConnected, findRecordsByQueryWithIds } = useFileMaker();
+  const { isConnected, findRecordsByQueryWithIds, findRecordsWithIds } =
+    useFileMaker();
   const toast = useToastStore();
 
   /**
@@ -322,11 +354,14 @@ export function usePdfDownload() {
   async function buildSinglePageContent(): Promise<unknown[]> {
     const transRef = payableStore.currentTransRef?.trim() ?? "";
     const v = vendorStore.vendor;
-    const totalAmount =
-      typeof payableStore.entryTotal === "number"
-        ? payableStore.entryTotal
+    const amountToPayVal =
+      typeof payableStore.amountToPay === "number"
+        ? payableStore.amountToPay
         : 0;
-    const totalFormatted = formatPdfNumber(totalAmount);
+    const advancePaymentVal = payableStore.advancePaymentNum ?? 0;
+    const advancePaymentStr =
+      (v.currency ? `${v.currency} ` : "") + formatPdfNumber(advancePaymentVal);
+    const totalFormatted = formatPdfNumber(amountToPayVal);
     const totalStr = (v.currency ? `${v.currency} ` : "") + totalFormatted;
     const dateStr = new Date().toLocaleDateString(undefined, {
       weekday: "long",
@@ -337,7 +372,7 @@ export function usePdfDownload() {
     const vendorLine =
       [transRef, v.vendor_id, v.vendor_name].filter(Boolean).join("  ·  ") ||
       "—";
-    const inWords = amountInWords(totalAmount, v.currency || "");
+    const inWords = amountInWords(amountToPayVal, v.currency || "");
 
     const rows = payableStore.rows.filter(
       (r: PayableRow) =>
@@ -351,7 +386,12 @@ export function usePdfDownload() {
       return acc + (Number.isNaN(n) ? 0 : n);
     }, 0);
     const totalTax = rows.reduce((acc, r) => {
-      const n = parseFloat(String(r.tax ?? "").replace(/,/g, ""));
+      const taxAmount = (r.reference ?? "").trim() || (r.tax ?? "");
+      const n = parseFloat(String(taxAmount).replace(/,/g, ""));
+      return acc + (Number.isNaN(n) ? 0 : n);
+    }, 0);
+    const totalWhtTax = rows.reduce((acc, r) => {
+      const n = parseFloat(String(r.wht_tax_amount ?? "").replace(/,/g, ""));
       return acc + (Number.isNaN(n) ? 0 : n);
     }, 0);
     const subTotalStr =
@@ -363,17 +403,23 @@ export function usePdfDownload() {
       ),
     ];
     const payableInvoiceByInv = new Map<string, PayableInvoiceFieldData[]>();
+    let taxListData: FindRecordWithId<TaxValueFieldData>[] = [];
     if (isConnected.value && uniqueInvoices.length > 0) {
-      const results = await Promise.all(
-        uniqueInvoices.map((inv) =>
-          findRecordsByQueryWithIds<PayableInvoiceFieldData>(
-            LAYOUTS.PAYABLE_INVOICE,
-            { invoiceNumber: inv },
-            100,
+      const [invResults, taxRes] = await Promise.all([
+        Promise.all(
+          uniqueInvoices.map((inv) =>
+            findRecordsByQueryWithIds<PayableInvoiceFieldData>(
+              LAYOUTS.PAYABLE_INVOICE,
+              { invoiceNumber: inv },
+              100,
+            ),
           ),
         ),
-      );
-      results.forEach((res, i) => {
+        findRecordsWithIds<TaxValueFieldData>(LAYOUTS.TAX_VALUE, {
+          limit: 500,
+        }),
+      ]);
+      invResults.forEach((res, i) => {
         const inv = uniqueInvoices[i];
         if (inv && res.data?.length) {
           payableInvoiceByInv.set(
@@ -382,48 +428,109 @@ export function usePdfDownload() {
           );
         }
       });
+      taxListData = taxRes.data ?? [];
     }
 
-    function buildTaxBreakdownText(row: PayableRow): string {
+    function getActionForTax(
+      taxName: string,
+      rate: number,
+      taxType?: string,
+    ): "Add" | "Sub" {
+      const nameMatch = String(taxName ?? "").trim();
+      for (const { fieldData } of taxListData) {
+        const fd = fieldData;
+        const matchName = String(fd.Tax_Name ?? "").trim() === nameMatch;
+        const matchRate = Number(fd.Tax_Rate) === rate;
+        const matchType =
+          !taxType ||
+          String(fd.Tax_Type ?? "").trim() === String(taxType).trim();
+        if (matchName && matchRate && matchType) {
+          return (fd.Action ?? "").trim() === "Sub" ? "Sub" : "Add";
+        }
+      }
+      return "Add";
+    }
+
+    function buildTaxBreakdownText(
+      row: PayableRow,
+      actionFilter: "Add" | "Sub",
+    ): string {
       const inv = (row.invoice_number ?? "").trim();
       if (!inv) return "—";
       const records = payableInvoiceByInv.get(inv);
       if (!records?.length) return "—";
-      const parts = records.map((rec) => {
-        const rate = Number(rec.Rate ?? 0);
-        const name = (rec.TaxName ?? "").trim() || "Tax";
-        const rateStr = rate !== 0 ? `${rate}%` : "";
-        return `${name}${rateStr ? ` ${rateStr}` : ""}`;
-      });
-      return parts.join(", ");
+      const parts = records
+        .filter((rec) => {
+          const rate = Number(rec.Rate ?? 0);
+          const name = (rec.TaxName ?? "").trim();
+          const action = getActionForTax(name, rate, rec.Tax_Type);
+          return action === actionFilter;
+        })
+        .map((rec) => {
+          const rate = Number(rec.Rate ?? 0);
+          const name = (rec.TaxName ?? "").trim() || "Tax";
+          const rateStr = rate !== 0 ? `${rate}%` : "";
+          return `${name}${rateStr ? ` ${rateStr}` : ""}`;
+        });
+      return parts.length ? parts.join(", ") : "—";
     }
 
+    const tableFontSize = 7;
     const tableHeaderRow = [
-      { text: "Invoice No.", fillColor: "#ebebeb", bold: true },
+      { text: "Invoice No.", fillColor: "#ebebeb", bold: true, fontSize: tableFontSize },
       {
-        text: "Amount",
+        text: "Amount before VAT",
         fillColor: "#ebebeb",
         bold: true,
         alignment: "right" as const,
+        fontSize: tableFontSize,
       },
       {
-        text: "Tax",
+        text: "Tax Rate",
         fillColor: "#ebebeb",
         bold: true,
         alignment: "right" as const,
+        fontSize: tableFontSize,
       },
       {
         text: "Tax Amount",
         fillColor: "#ebebeb",
         bold: true,
         alignment: "right" as const,
+        fontSize: tableFontSize,
       },
-      { text: "Tax breakdown", fillColor: "#ebebeb", bold: true, fontSize: 9 },
+      {
+        text: "Tax breakdown (Add)",
+        fillColor: "#ebebeb",
+        bold: true,
+        fontSize: tableFontSize,
+      },
+      {
+        text: "WHT Tax",
+        fillColor: "#ebebeb",
+        bold: true,
+        alignment: "right" as const,
+        fontSize: tableFontSize,
+      },
+      {
+        text: "WHT Tax Amount",
+        fillColor: "#ebebeb",
+        bold: true,
+        alignment: "right" as const,
+        fontSize: tableFontSize,
+      },
+      {
+        text: "WHT Tax breakdown (Sub)",
+        fillColor: "#ebebeb",
+        bold: true,
+        fontSize: tableFontSize,
+      },
       {
         text: "Total",
         fillColor: "#ebebeb",
         bold: true,
         alignment: "right" as const,
+        fontSize: tableFontSize,
       },
     ];
     const tableBody = [
@@ -431,17 +538,22 @@ export function usePdfDownload() {
       ...rows.map((r) => {
         const taxAmount = (r.reference ?? "").trim() || (r.tax ?? "");
         return [
-          (r.invoice_number ?? "").trim() || "—",
+          { text: (r.invoice_number ?? "").trim() || "—", fontSize: tableFontSize },
           {
             text: formatPdfNumber(r.amount ?? ""),
             alignment: "right" as const,
+            fontSize: tableFontSize,
           },
-          { text: formatPdfNumber(r.tax ?? ""), alignment: "right" as const },
-          { text: formatPdfNumber(taxAmount), alignment: "right" as const },
-          { text: buildTaxBreakdownText(r), fontSize: 9 },
+          { text: formatPdfNumber(r.tax ?? ""), alignment: "right" as const, fontSize: tableFontSize },
+          { text: formatPdfNumber(taxAmount), alignment: "right" as const, fontSize: tableFontSize },
+          { text: buildTaxBreakdownText(r, "Add"), fontSize: tableFontSize },
+          { text: formatPdfNumber(r.wht_tax ?? ""), alignment: "right" as const, fontSize: tableFontSize },
+          { text: formatPdfNumber(r.wht_tax_amount ?? ""), alignment: "right" as const, fontSize: tableFontSize },
+          { text: buildTaxBreakdownText(r, "Sub"), fontSize: tableFontSize },
           {
             text: formatPdfNumber(r.total ?? ""),
             alignment: "right" as const,
+            fontSize: tableFontSize,
           },
         ];
       }),
@@ -478,24 +590,64 @@ export function usePdfDownload() {
           widths: [120, "*"],
           body: [
             [
-              { text: "Vendor ID", bold: true, fillColor: "#f5f5f5" },
-              v.vendor_id?.trim() || "—",
+              {
+                text: "Purchase order",
+                bold: true,
+                fillColor: "#f5f5f5",
+                fontSize: 8,
+              },
+              { text: v.purchase_order?.trim() || "—", fontSize: 8 },
             ],
             [
-              { text: "Vendor name", bold: true, fillColor: "#f5f5f5" },
-              v.vendor_name?.trim() || "—",
+              {
+                text: "Vendor ID",
+                bold: true,
+                fillColor: "#f5f5f5",
+                fontSize: 8,
+              },
+              { text: v.vendor_id?.trim() || "—", fontSize: 8 },
             ],
             [
-              { text: "Date", bold: true, fillColor: "#f5f5f5" },
-              v.payment_terms?.trim() || dateStr,
+              {
+                text: "Vendor name",
+                bold: true,
+                fillColor: "#f5f5f5",
+                fontSize: 8,
+              },
+              { text: v.vendor_name?.trim() || "—", fontSize: 8 },
             ],
             [
-              { text: "Email", bold: true, fillColor: "#f5f5f5" },
-              v.contact_email?.trim() || "—",
+              {
+                text: "Date (DD/MM/YYYY)",
+                bold: true,
+                fillColor: "#f5f5f5",
+                fontSize: 8,
+              },
+              {
+                text: formatDateForPdfDisplay(
+                  v.payment_terms?.trim() ||
+                    new Date().toISOString().slice(0, 10),
+                ),
+                fontSize: 8,
+              },
             ],
             [
-              { text: "Currency", bold: true, fillColor: "#f5f5f5" },
-              v.currency?.trim() || "—",
+              {
+                text: "Email",
+                bold: true,
+                fillColor: "#f5f5f5",
+                fontSize: 8,
+              },
+              { text: v.contact_email?.trim() || "—", fontSize: 8 },
+            ],
+            [
+              {
+                text: "Currency",
+                bold: true,
+                fillColor: "#f5f5f5",
+                fontSize: 8,
+              },
+              { text: v.currency?.trim() || "—", fontSize: 8 },
             ],
           ],
         },
@@ -511,7 +663,7 @@ export function usePdfDownload() {
       {
         table: {
           headerRows: 1,
-          widths: [110, 95, 90, 95, "*", 100],
+          widths: [65, 70, 42, 55, "*", 42, 60, "*", 55],
           body: tableBody,
         },
         layout: { hLineWidth: () => 0.25, vLineWidth: () => 0.25 },
@@ -552,9 +704,26 @@ export function usePdfDownload() {
                   },
                 ],
                 [
-                  { text: "Total Tax", fontSize: 9, fillColor: "#f5f5f5" },
                   {
-                    text: formatPdfNumber(totalTax),
+                    text: "Total Tax (Add)",
+                    fontSize: 9,
+                    fillColor: "#f5f5f5",
+                  },
+                  {
+                    text: (v.currency ? `${v.currency} ` : "") + formatPdfNumber(totalTax),
+                    fontSize: 9,
+                    alignment: "right" as const,
+                    fillColor: "#f5f5f5",
+                  },
+                ],
+                [
+                  {
+                    text: "Total WHT Tax (Sub)",
+                    fontSize: 9,
+                    fillColor: "#f5f5f5",
+                  },
+                  {
+                    text: (v.currency ? `${v.currency} ` : "") + formatPdfNumber(totalWhtTax),
                     fontSize: 9,
                     alignment: "right" as const,
                     fillColor: "#f5f5f5",
@@ -567,7 +736,7 @@ export function usePdfDownload() {
                     fillColor: "#f5f5f5",
                   },
                   {
-                    text: "—",
+                    text: advancePaymentVal > 0 ? advancePaymentStr : "—",
                     fontSize: 9,
                     alignment: "right" as const,
                     fillColor: "#f5f5f5",

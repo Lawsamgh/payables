@@ -4,6 +4,11 @@
   >
     <UnsavedChangesModal
       :visible="showLeaveConfirmModal"
+      :message="
+        sessionPayableInvoice.createdIds.length > 0
+          ? 'You have unsaved changes. Taxes added will be removed. Leave anyway?'
+          : 'You have unsaved changes. Leave anyway?'
+      "
       @confirm="onLeaveConfirm"
       @cancel="onLeaveCancel"
     />
@@ -26,6 +31,55 @@
       @dismiss="dismissEditRequestModal"
       @proceed="onProceedAllowEdit"
     />
+    <DeleteDraftConfirmModal
+      :visible="showDeleteDraftModal"
+      :deleting="deletingDraft"
+      @confirm="onDeleteDraftConfirm"
+      @cancel="showDeleteDraftModal = false"
+    />
+    <!-- TransRef QR modal (Approved entry only) -->
+    <Teleport to="body">
+      <Transition name="transref-qr-modal">
+        <div
+          v-if="showTransRefQrModal"
+          class="transref-qr-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="transref-qr-modal-title"
+          @click.self="showTransRefQrModal = false"
+        >
+          <div class="transref-qr-modal">
+            <h2 id="transref-qr-modal-title" class="transref-qr-modal__title">
+              TransRef
+            </h2>
+            <p class="transref-qr-modal__subtitle">
+              Scan for cheque collection
+            </p>
+            <div
+              v-if="transRefQrDataUrl"
+              class="transref-qr-modal__qr"
+            >
+              <img
+                :src="transRefQrDataUrl"
+                :alt="`QR code for TransRef ${payableStore.currentTransRef}`"
+                class="transref-qr-modal__qr-img"
+              />
+              <p class="transref-qr-modal__transref">
+                {{ payableStore.currentTransRef }}
+              </p>
+            </div>
+            <button
+              type="button"
+              class="transref-qr-modal__close"
+              aria-label="Close"
+              @click="showTransRefQrModal = false"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
     <div class="flex flex-wrap items-center gap-2 mb-4">
       <router-link
         :to="backToListRoute"
@@ -46,29 +100,53 @@
         </svg>
         Back to list
       </router-link>
-      <!-- Center: booklet + Reject + Approve -->
+      <!-- Center: booklet prev/next + page numbers + Reject + Approve -->
       <div class="flex flex-1 flex-wrap items-center justify-center gap-2">
         <div
           v-if="documentSettings.bookletEnabled && booklet.count > 1"
-          class="booklet-bar glass-input inline-flex items-center overflow-hidden rounded-full border border-[var(--color-border)]"
+          class="booklet-nav inline-flex items-center gap-1 rounded-full border border-[var(--color-border)] bg-white/[0.04] p-1"
         >
           <button
-            v-for="(ref, index) in booklet.openEntryRefs"
-            :key="ref"
             type="button"
-            class="booklet-page-btn min-w-[2rem] px-2.5 py-2 text-[var(--label-size)] font-medium transition-colors"
-            :class="
-              index === booklet.currentOpenIndex
-                ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
-                : 'text-[var(--color-text-muted)] hover:bg-white/5 hover:text-[var(--color-text)]'
-            "
-            :aria-label="`Entry ${index + 1} of ${booklet.count}`"
-            :aria-current="
-              index === booklet.currentOpenIndex ? 'true' : undefined
-            "
-            @click="goToPage(index)"
+            :disabled="!booklet.hasPrev"
+            class="booklet-nav-btn flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-orange-400/90 hover:bg-orange-500/10 hover:text-orange-400 disabled:opacity-30 disabled:pointer-events-none disabled:text-[var(--color-text-muted)] transition-colors"
+            :title="isMac ? 'Previous entry (⌘←)' : 'Previous entry (Ctrl+←)'"
+            aria-label="Previous entry"
+            @click="goPrev"
           >
-            {{ index + 1 }}
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <div class="booklet-bar glass-input inline-flex items-center overflow-hidden rounded-full">
+            <button
+              v-for="(ref, index) in booklet.openEntryRefs"
+              :key="ref"
+              type="button"
+              class="booklet-page-btn min-w-[2rem] px-2.5 py-2 text-[var(--label-size)] font-medium transition-colors"
+              :class="
+                index === booklet.currentOpenIndex
+                  ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
+                  : 'text-[var(--color-text-muted)] hover:bg-white/5 hover:text-[var(--color-text)]'
+              "
+              :aria-label="`Entry ${index + 1} of ${booklet.count}`"
+              :aria-current="index === booklet.currentOpenIndex ? 'true' : undefined"
+              @click="goToPage(index)"
+            >
+              {{ index + 1 }}
+            </button>
+          </div>
+          <button
+            type="button"
+            :disabled="!booklet.hasNext"
+            class="booklet-nav-btn flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-orange-400/90 hover:bg-orange-500/10 hover:text-orange-400 disabled:opacity-30 disabled:pointer-events-none disabled:text-[var(--color-text-muted)] transition-colors"
+            :title="isMac ? 'Next entry (⌘→)' : 'Next entry (Ctrl+→)'"
+            aria-label="Next entry"
+            @click="goNext"
+          >
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
           </button>
         </div>
         <template
@@ -135,7 +213,7 @@
         >
           <button
             type="button"
-            class="pill-btn inline-flex items-center gap-2 rounded-full bg-slate-600 px-4 py-2.5 text-[var(--label-size)] font-semibold text-white shadow-md hover:bg-slate-500 transition-colors"
+            class="pill-btn download-pdf-btn inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[var(--label-size)] font-semibold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             :disabled="downloadingPdf"
             @click="downloadApprovedPdf"
           >
@@ -162,12 +240,50 @@
       >
         <Skeleton width="8rem" height="1.5rem" />
       </span>
+      <button
+        v-else-if="payableStore.currentTransRef && payableStore.mainStatus === 'Approved'"
+        type="button"
+        class="entry-transref-btn text-xl font-bold text-[var(--color-text)] tabular-nums tracking-tight cursor-pointer bg-transparent border-0 p-0 rounded-lg hover:bg-[var(--color-accent-soft)] hover:text-[var(--color-accent)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]"
+        :title="'Click to show TransRef QR code for scanning'"
+        @click="showTransRefQrModal = true"
+      >
+        {{ payableStore.currentTransRef }}
+      </button>
       <span
         v-else-if="payableStore.currentTransRef"
         class="text-xl font-bold text-[var(--color-text)] tabular-nums tracking-tight"
       >
         {{ payableStore.currentTransRef }}
       </span>
+      <!-- Delete draft: icon only on the right, visible for Draft entries -->
+      <button
+        v-if="
+          !payableStore.loading &&
+          payableStore.currentTransRef &&
+          payableStore.currentMainRecordId &&
+          payableStore.mainStatus === 'Draft'
+        "
+        type="button"
+        class="entry-delete-draft-btn ml-auto inline-flex items-center justify-center w-10 h-10 rounded-xl border border-red-500/40 bg-red-500/20 text-red-400 hover:bg-red-500/30 hover:border-red-500/60 hover:text-red-300 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50"
+        :disabled="deletingDraft"
+        :aria-label="'Delete draft entry'"
+        @click="showDeleteDraftModal = true"
+      >
+        <svg
+          class="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+          />
+        </svg>
+      </button>
     </div>
 
     <!-- Rejection history: show for Posted (resubmitted) only when we have data – avoids flash when none -->
@@ -469,7 +585,7 @@
               </div>
             </div>
           </div>
-          <div class="vendor-details-row relative mb-4">
+          <div class="vendor-details-row mb-4">
             <section
               class="glass overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)]"
             >
@@ -488,48 +604,6 @@
                 </div>
               </div>
             </section>
-            <button
-              v-if="documentSettings.bookletEnabled && booklet.count > 1"
-              type="button"
-              disabled
-              class="booklet-circle absolute -left-16 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full flex items-center justify-center glass-input border-2 opacity-30 pointer-events-none"
-              aria-label="Previous entry"
-            >
-              <svg
-                class="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </button>
-            <button
-              v-if="documentSettings.bookletEnabled && booklet.count > 1"
-              type="button"
-              disabled
-              class="booklet-circle absolute -right-16 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full flex items-center justify-center glass-input border-2 opacity-30 pointer-events-none"
-              aria-label="Next entry"
-            >
-              <svg
-                class="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
           </div>
           <div class="mb-3">
             <div
@@ -624,54 +698,8 @@
           :key="`entry-${route.query.transRef || 'new'}`"
           class="entry-page flex flex-col flex-1 min-h-0"
         >
-          <div class="vendor-details-row relative mb-4">
+          <div class="vendor-details-row mb-4">
             <VendorDetails />
-            <button
-              v-if="documentSettings.bookletEnabled && booklet.count > 1"
-              type="button"
-              :disabled="!booklet.hasPrev"
-              class="booklet-circle absolute -left-16 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full flex items-center justify-center glass-input border-2 text-orange-400/90 hover:text-orange-400 hover:bg-orange-500/10 border-orange-500/70 hover:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:ring-offset-2 focus:ring-offset-[var(--color-bg)] disabled:opacity-30 disabled:pointer-events-none disabled:border-[var(--color-border)] disabled:text-[var(--color-text-muted)] transition-all shadow-lg"
-              :title="isMac ? 'Previous entry (⌘←)' : 'Previous entry (Ctrl+←)'"
-              aria-label="Previous entry"
-              @click="goPrev"
-            >
-              <svg
-                class="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </button>
-            <button
-              v-if="documentSettings.bookletEnabled && booklet.count > 1"
-              type="button"
-              :disabled="!booklet.hasNext"
-              class="booklet-circle absolute -right-16 top-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full flex items-center justify-center glass-input border-2 text-orange-400/90 hover:text-orange-400 hover:bg-orange-500/10 border-orange-500/70 hover:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:ring-offset-2 focus:ring-offset-[var(--color-bg)] disabled:opacity-30 disabled:pointer-events-none disabled:border-[var(--color-border)] disabled:text-[var(--color-text-muted)] transition-all shadow-lg"
-              :title="isMac ? 'Next entry (⌘→)' : 'Next entry (Ctrl+→)'"
-              aria-label="Next entry"
-              @click="goNext"
-            >
-              <svg
-                class="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
           </div>
           <div class="mb-3">
             <Toolbar
@@ -684,9 +712,9 @@
             class="mb-3 text-[var(--label-size)] text-[var(--color-text-muted)]"
           >
             <strong class="text-[var(--color-text)]">Required to save:</strong>
-            Fill <span class="text-red-400/90">*</span> Vendor name or Vendor ID
-            above; in the grid, each row must have at least one of: Invoice
-            Number, Amount, or Total.
+            Fill <span class="text-red-400/90">*</span> Purchase order, and
+            Vendor name or Vendor ID above; in the grid, each row must have at
+            least one of: Invoice Number, Amount, or Total.
           </p>
           <div class="flex-1 min-h-[360px] flex flex-col min-w-0">
             <DataGrid />
@@ -698,13 +726,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onMounted } from "vue";
+import { computed, ref, watch, watchEffect, onMounted } from "vue";
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
 import { getHomeRoute } from "../utils/homeTab";
 import VendorDetails from "../components/VendorDetails.vue";
 import UnsavedChangesModal from "../components/UnsavedChangesModal.vue";
 import RejectReasonModal from "../components/RejectReasonModal.vue";
 import EditRequestModal from "../components/EditRequestModal.vue";
+import DeleteDraftConfirmModal from "../components/DeleteDraftConfirmModal.vue";
 import Toolbar from "../components/Toolbar.vue";
 import DataGrid from "../components/DataGrid.vue";
 import Skeleton from "../components/Skeleton.vue";
@@ -719,7 +748,12 @@ import {
   type PendingEditRequest,
 } from "../composables/useEditRequest";
 import { useApprovalNotification } from "../composables/useApprovalNotification";
-import { LAYOUTS, type PayableInvoiceFieldData } from "../utils/filemakerApi";
+import {
+  LAYOUTS,
+  type PayableInvoiceFieldData,
+  type TaxValueFieldData,
+} from "../utils/filemakerApi";
+import type { FindRecordWithId } from "../composables/useFileMaker";
 import {
   formatTimestampForFileMaker,
   formatDateOnlyForFileMaker,
@@ -728,6 +762,8 @@ import { writeActivityLog } from "../utils/activityLog";
 import { useToastStore } from "../stores/toastStore";
 import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
 import { useLoadingOverlayStore } from "../stores/loadingOverlayStore";
+import { useSessionPayableInvoiceStore } from "../stores/sessionPayableInvoiceStore";
+import QRCode from "qrcode";
 
 const route = useRoute();
 const router = useRouter();
@@ -751,19 +787,52 @@ const spreadsheet = useSpreadsheet();
 const payableStore = usePayableStore();
 const vendorStore = useVendorStore();
 const booklet = useBookletStore();
-const { isConnected, updateRecord, createRecord, findRecordsByQueryWithIds } =
-  useFileMaker();
+const {
+  isConnected,
+  updateRecord,
+  createRecord,
+  findRecordsByQueryWithIds,
+  findRecordsWithIds,
+  deleteRecord,
+} = useFileMaker();
 const toast = useToastStore();
 const documentSettings = useDocumentSettingsStore();
+const loadingOverlay = useLoadingOverlayStore();
+const sessionPayableInvoice = useSessionPayableInvoiceStore();
 const { roleLower, userFullName, roleLoaded } = useUserRole();
 const rejecting = ref(false);
 const approving = ref(false);
 const downloadingPdf = ref(false);
+const deletingDraft = ref(false);
+const showDeleteDraftModal = ref(false);
+const showTransRefQrModal = ref(false);
 const grantingEditRequest = ref(false);
 const showEditRequestModal = ref(false);
 const pendingEditRequestForModal = ref<PendingEditRequest | null>(null);
 const editRequestModalTransRef = ref<string | null>(null);
 const editRequestModalDismissedForTransRef = ref<string | null>(null);
+
+/** QR data URL for TransRef (generated when modal is shown). */
+const transRefQrDataUrl = ref<string | null>(null);
+watchEffect(async () => {
+  const transRef =
+    showTransRefQrModal.value && payableStore.currentTransRef
+      ? String(payableStore.currentTransRef).trim()
+      : "";
+  if (!transRef) {
+    transRefQrDataUrl.value = null;
+    return;
+  }
+  try {
+    transRefQrDataUrl.value = await QRCode.toDataURL(transRef, {
+      width: 200,
+      margin: 2,
+      color: { dark: "#0f172a", light: "#ffffff" },
+    });
+  } catch {
+    transRefQrDataUrl.value = null;
+  }
+});
 
 const { fetchPendingEditRequest, grantEditRequest, notifyEditRequestGranted } =
   useEditRequest();
@@ -865,6 +934,7 @@ function formatRejectionDate(raw?: string): string {
 }
 
 function loadForRoute() {
+  sessionPayableInvoice.clear();
   showEditRequestModal.value = false;
   pendingEditRequestForModal.value = null;
   editRequestModalTransRef.value = null;
@@ -1023,7 +1093,7 @@ async function fetchRejectionHistory() {
 let leaveConfirmNext: (() => void) | ((allow: false) => void) | null = null;
 
 onBeforeRouteLeave((_to, _from, next) => {
-  if (payableStore.isDirty) {
+  if (payableStore.isDirty || sessionPayableInvoice.createdIds.length > 0) {
     showLeaveConfirmModal.value = true;
     leaveConfirmNext = next;
   } else {
@@ -1031,7 +1101,14 @@ onBeforeRouteLeave((_to, _from, next) => {
   }
 });
 
-function onLeaveConfirm() {
+async function onLeaveConfirm() {
+  const ids = [...sessionPayableInvoice.createdIds];
+  sessionPayableInvoice.clear();
+  if (ids.length > 0 && isConnected.value) {
+    for (const recordId of ids) {
+      await deleteRecord(LAYOUTS.PAYABLE_INVOICE, recordId);
+    }
+  }
   if (leaveConfirmNext) {
     leaveConfirmNext();
     leaveConfirmNext = null;
@@ -1185,6 +1262,61 @@ function handleDeleteRow() {
   spreadsheet.deleteRow(spreadsheet.selectedRow.value);
 }
 
+async function onDeleteDraftConfirm() {
+  const mainRecordId = payableStore.currentMainRecordId;
+  const transRef = payableStore.currentTransRef;
+  if (
+    !mainRecordId ||
+    !transRef ||
+    !isConnected.value ||
+    payableStore.mainStatus !== "Draft"
+  ) {
+    showDeleteDraftModal.value = false;
+    return;
+  }
+  deletingDraft.value = true;
+  try {
+    const rows = payableStore.rows;
+    for (const row of rows) {
+      const recordId = (row as { recordId?: string })?.recordId;
+      if (recordId && String(recordId).trim()) {
+        const { error } = await deleteRecord(LAYOUTS.PAYABLES_DETAILS, recordId);
+        if (error) {
+          toast.error("Could not delete entry: " + error);
+          return;
+        }
+      }
+    }
+    const actor = (userFullName.value || "").trim() || "—";
+    const activityErr = await writeActivityLog(
+      createRecord,
+      transRef,
+      "Deleted",
+      actor,
+    );
+    if (activityErr) {
+      toast.error("Draft deleted but activity log failed: " + activityErr);
+    }
+
+    const { error: mainErr } = await deleteRecord(
+      LAYOUTS.PAYABLES_MAIN,
+      mainRecordId,
+    );
+    if (mainErr) {
+      toast.error("Could not delete entry: " + mainErr);
+      return;
+    }
+    showDeleteDraftModal.value = false;
+    booklet.removeByRef(transRef);
+    payableStore.clearAll();
+    vendorStore.reset();
+    toast.success("Draft entry deleted.");
+    router.push({ name: "entry" });
+  } finally {
+    deletingDraft.value = false;
+  }
+}
+
 const SWIPE_THRESHOLD = 60;
 const swipeStartX = ref(0);
 
@@ -1212,6 +1344,7 @@ async function performReject(reason: string) {
   const mainRecordId = payableStore.currentMainRecordId;
   if (!transRef || !mainRecordId || !isConnected.value) return;
   rejecting.value = true;
+  loadingOverlay.show("Rejecting…", "Please don't navigate away");
   try {
     const { error: updateErr } = await updateRecord(
       LAYOUTS.PAYABLES_MAIN,
@@ -1253,6 +1386,7 @@ async function performReject(reason: string) {
     await payableStore.fetchDetailsByTransRef(transRef);
     router.push(backToListRoute.value);
   } finally {
+    loadingOverlay.hide();
     rejecting.value = false;
   }
 }
@@ -1263,6 +1397,7 @@ async function onApprove() {
   const transRef = payableStore.currentTransRef;
   if (!mainRecordId || !isConnected.value || !transRef) return;
   approving.value = true;
+  loadingOverlay.show("Approving…", "Please don't navigate away");
   try {
     const approvedBy = (userFullName.value || "").trim() || "Manager";
     const { error: updateErr } = await updateRecord(
@@ -1304,6 +1439,7 @@ async function onApprove() {
     await payableStore.fetchDetailsByTransRef(transRef);
     router.push(backToListRoute.value);
   } finally {
+    loadingOverlay.hide();
     approving.value = false;
   }
 }
@@ -1319,6 +1455,31 @@ function formatPdfNumber(value: string | number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+/** Format date for PDF vendor table (DD/MM/YYYY). */
+function formatDateForPdfDisplay(dateStr: string | undefined): string {
+  if (!dateStr?.trim()) return "—";
+  const s = dateStr.trim();
+  const iso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (iso) {
+    const [, y, m, d] = iso;
+    return `${d!.padStart(2, "0")}/${m!.padStart(2, "0")}/${y}`;
+  }
+  const us = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (us) {
+    const [, m, d, y] = us;
+    return `${d!.padStart(2, "0")}/${m!.padStart(2, "0")}/${y}`;
+  }
+  const d = new Date(s);
+  if (!Number.isNaN(d.getTime())) {
+    return d.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  }
+  return s;
 }
 
 /** Convert amount to words for PDF. */
@@ -1406,7 +1567,6 @@ async function downloadApprovedPdf() {
         : false);
   if (!ok) return;
   downloadingPdf.value = true;
-  const loadingOverlay = useLoadingOverlayStore();
   loadingOverlay.show("Preparing PDF…");
   try {
     const [pdfMakeModule, vfsModule] = await Promise.all([
@@ -1433,9 +1593,12 @@ async function downloadApprovedPdf() {
 
     const transRef = payableStore.currentTransRef?.trim() ?? "";
     const v = vendorStore.vendor;
-    const totalAmount =
-      typeof payableStore.entryTotal === "number" ? payableStore.entryTotal : 0;
-    const totalFormatted = formatPdfNumber(totalAmount);
+    const amountToPayVal =
+      typeof payableStore.amountToPay === "number" ? payableStore.amountToPay : 0;
+    const advancePaymentVal = payableStore.advancePaymentNum ?? 0;
+    const advancePaymentStr =
+      (v.currency ? `${v.currency} ` : "") + formatPdfNumber(advancePaymentVal);
+    const totalFormatted = formatPdfNumber(amountToPayVal);
     const totalStr = (v.currency ? `${v.currency} ` : "") + totalFormatted;
     const dateStr = new Date().toLocaleDateString(undefined, {
       weekday: "long",
@@ -1446,7 +1609,7 @@ async function downloadApprovedPdf() {
     const vendorLine =
       [transRef, v.vendor_id, v.vendor_name].filter(Boolean).join("  ·  ") ||
       "—";
-    const inWords = amountInWords(totalAmount, v.currency || "");
+    const inWords = amountInWords(amountToPayVal, v.currency || "");
 
     const rows = payableStore.rows.filter(
       (r) =>
@@ -1460,13 +1623,16 @@ async function downloadApprovedPdf() {
       return acc + (Number.isNaN(n) ? 0 : n);
     }, 0);
     const totalTax = rows.reduce((acc, r) => {
-      const n = parseFloat(String(r.tax ?? "").replace(/,/g, ""));
+      const taxAmount = (r.reference ?? "").trim() || (r.tax ?? "");
+      const n = parseFloat(String(taxAmount).replace(/,/g, ""));
+      return acc + (Number.isNaN(n) ? 0 : n);
+    }, 0);
+    const totalWhtTax = rows.reduce((acc, r) => {
+      const n = parseFloat(String(r.wht_tax_amount ?? "").replace(/,/g, ""));
       return acc + (Number.isNaN(n) ? 0 : n);
     }, 0);
     const subTotalStr =
       (v.currency ? `${v.currency} ` : "") + formatPdfNumber(subTotal);
-    const totalTaxStr =
-      (v.currency ? `${v.currency} ` : "") + formatPdfNumber(totalTax);
 
     const uniqueInvoices = [
       ...new Set(
@@ -1474,17 +1640,23 @@ async function downloadApprovedPdf() {
       ),
     ];
     const payableInvoiceByInv = new Map<string, PayableInvoiceFieldData[]>();
+    let taxListData: FindRecordWithId<TaxValueFieldData>[] = [];
     if (isConnected.value && uniqueInvoices.length > 0) {
-      const results = await Promise.all(
-        uniqueInvoices.map((inv) =>
-          findRecordsByQueryWithIds<PayableInvoiceFieldData>(
-            LAYOUTS.PAYABLE_INVOICE,
-            { invoiceNumber: inv },
-            100,
+      const [invResults, taxRes] = await Promise.all([
+        Promise.all(
+          uniqueInvoices.map((inv) =>
+            findRecordsByQueryWithIds<PayableInvoiceFieldData>(
+              LAYOUTS.PAYABLE_INVOICE,
+              { invoiceNumber: inv },
+              100,
+            ),
           ),
         ),
-      );
-      results.forEach((res, i) => {
+        findRecordsWithIds<TaxValueFieldData>(LAYOUTS.TAX_VALUE, {
+          limit: 500,
+        }),
+      ]);
+      invResults.forEach((res, i) => {
         const inv = uniqueInvoices[i];
         if (inv && res.data?.length) {
           payableInvoiceByInv.set(
@@ -1493,48 +1665,109 @@ async function downloadApprovedPdf() {
           );
         }
       });
+      taxListData = taxRes.data ?? [];
     }
 
-    function buildTaxBreakdownText(row: (typeof rows)[0]): string {
+    function getActionForTax(
+      taxName: string,
+      rate: number,
+      taxType?: string,
+    ): "Add" | "Sub" {
+      const nameMatch = String(taxName ?? "").trim();
+      for (const { fieldData } of taxListData) {
+        const fd = fieldData;
+        const matchName = String(fd.Tax_Name ?? "").trim() === nameMatch;
+        const matchRate = Number(fd.Tax_Rate) === rate;
+        const matchType =
+          !taxType ||
+          String(fd.Tax_Type ?? "").trim() === String(taxType).trim();
+        if (matchName && matchRate && matchType) {
+          return (fd.Action ?? "").trim() === "Sub" ? "Sub" : "Add";
+        }
+      }
+      return "Add";
+    }
+
+    function buildTaxBreakdownText(
+      row: (typeof rows)[0],
+      actionFilter: "Add" | "Sub",
+    ): string {
       const inv = (row.invoice_number ?? "").trim();
       if (!inv) return "—";
       const records = payableInvoiceByInv.get(inv);
       if (!records?.length) return "—";
-      const parts = records.map((rec) => {
-        const rate = Number(rec.Rate ?? 0);
-        const name = (rec.TaxName ?? "").trim() || "Tax";
-        const rateStr = rate !== 0 ? `${rate}%` : "";
-        return `${name}${rateStr ? ` ${rateStr}` : ""}`;
-      });
-      return parts.join(", ");
+      const parts = records
+        .filter((rec) => {
+          const rate = Number(rec.Rate ?? 0);
+          const name = (rec.TaxName ?? "").trim();
+          const action = getActionForTax(name, rate, rec.Tax_Type);
+          return action === actionFilter;
+        })
+        .map((rec) => {
+          const rate = Number(rec.Rate ?? 0);
+          const name = (rec.TaxName ?? "").trim() || "Tax";
+          const rateStr = rate !== 0 ? `${rate}%` : "";
+          return `${name}${rateStr ? ` ${rateStr}` : ""}`;
+        });
+      return parts.length ? parts.join(", ") : "—";
     }
 
+    const tableFontSize = 7;
     const tableHeaderRow = [
-      { text: "Invoice No.", fillColor: "#ebebeb", bold: true },
+      { text: "Invoice No.", fillColor: "#ebebeb", bold: true, fontSize: tableFontSize },
       {
-        text: "Amount",
+        text: "Amount before VAT",
         fillColor: "#ebebeb",
         bold: true,
         alignment: "right" as const,
+        fontSize: tableFontSize,
       },
       {
-        text: "Tax",
+        text: "Tax Rate",
         fillColor: "#ebebeb",
         bold: true,
         alignment: "right" as const,
+        fontSize: tableFontSize,
       },
       {
         text: "Tax Amount",
         fillColor: "#ebebeb",
         bold: true,
         alignment: "right" as const,
+        fontSize: tableFontSize,
       },
-      { text: "Tax breakdown", fillColor: "#ebebeb", bold: true, fontSize: 9 },
+      {
+        text: "Tax breakdown (Add)",
+        fillColor: "#ebebeb",
+        bold: true,
+        fontSize: tableFontSize,
+      },
+      {
+        text: "WHT Tax",
+        fillColor: "#ebebeb",
+        bold: true,
+        alignment: "right" as const,
+        fontSize: tableFontSize,
+      },
+      {
+        text: "WHT Tax Amount",
+        fillColor: "#ebebeb",
+        bold: true,
+        alignment: "right" as const,
+        fontSize: tableFontSize,
+      },
+      {
+        text: "WHT Tax breakdown (Sub)",
+        fillColor: "#ebebeb",
+        bold: true,
+        fontSize: tableFontSize,
+      },
       {
         text: "Total",
         fillColor: "#ebebeb",
         bold: true,
         alignment: "right" as const,
+        fontSize: tableFontSize,
       },
     ];
     const tableBody = [
@@ -1542,15 +1775,23 @@ async function downloadApprovedPdf() {
       ...rows.map((r) => {
         const taxAmount = (r.reference ?? "").trim() || (r.tax ?? "");
         return [
-          (r.invoice_number ?? "").trim() || "—",
+          { text: (r.invoice_number ?? "").trim() || "—", fontSize: tableFontSize },
           {
             text: formatPdfNumber(r.amount ?? ""),
             alignment: "right" as const,
+            fontSize: tableFontSize,
           },
-          { text: formatPdfNumber(r.tax ?? ""), alignment: "right" as const },
-          { text: formatPdfNumber(taxAmount), alignment: "right" as const },
-          { text: buildTaxBreakdownText(r), fontSize: 9 },
-          { text: formatPdfNumber(r.total ?? ""), alignment: "right" as const },
+          { text: formatPdfNumber(r.tax ?? ""), alignment: "right" as const, fontSize: tableFontSize },
+          { text: formatPdfNumber(taxAmount), alignment: "right" as const, fontSize: tableFontSize },
+          { text: buildTaxBreakdownText(r, "Add"), fontSize: tableFontSize },
+          { text: formatPdfNumber(r.wht_tax ?? ""), alignment: "right" as const, fontSize: tableFontSize },
+          { text: formatPdfNumber(r.wht_tax_amount ?? ""), alignment: "right" as const, fontSize: tableFontSize },
+          { text: buildTaxBreakdownText(r, "Sub"), fontSize: tableFontSize },
+          {
+            text: formatPdfNumber(r.total ?? ""),
+            alignment: "right" as const,
+            fontSize: tableFontSize,
+          },
         ];
       }),
     ];
@@ -1597,24 +1838,64 @@ async function downloadApprovedPdf() {
             widths: [120, "*"],
             body: [
               [
-                { text: "Vendor ID", bold: true, fillColor: "#f5f5f5" },
-                v.vendor_id?.trim() || "—",
+                {
+                  text: "Purchase order",
+                  bold: true,
+                  fillColor: "#f5f5f5",
+                  fontSize: 8,
+                },
+                { text: v.purchase_order?.trim() || "—", fontSize: 8 },
               ],
               [
-                { text: "Vendor name", bold: true, fillColor: "#f5f5f5" },
-                v.vendor_name?.trim() || "—",
+                {
+                  text: "Vendor ID",
+                  bold: true,
+                  fillColor: "#f5f5f5",
+                  fontSize: 8,
+                },
+                { text: v.vendor_id?.trim() || "—", fontSize: 8 },
               ],
               [
-                { text: "Date", bold: true, fillColor: "#f5f5f5" },
-                v.payment_terms?.trim() || dateStr,
+                {
+                  text: "Vendor name",
+                  bold: true,
+                  fillColor: "#f5f5f5",
+                  fontSize: 8,
+                },
+                { text: v.vendor_name?.trim() || "—", fontSize: 8 },
               ],
               [
-                { text: "Email", bold: true, fillColor: "#f5f5f5" },
-                v.contact_email?.trim() || "—",
+                {
+                  text: "Date (DD/MM/YYYY)",
+                  bold: true,
+                  fillColor: "#f5f5f5",
+                  fontSize: 8,
+                },
+                {
+                  text: formatDateForPdfDisplay(
+                    v.payment_terms?.trim() ||
+                      new Date().toISOString().slice(0, 10),
+                  ),
+                  fontSize: 8,
+                },
               ],
               [
-                { text: "Currency", bold: true, fillColor: "#f5f5f5" },
-                v.currency?.trim() || "—",
+                {
+                  text: "Email",
+                  bold: true,
+                  fillColor: "#f5f5f5",
+                  fontSize: 8,
+                },
+                { text: v.contact_email?.trim() || "—", fontSize: 8 },
+              ],
+              [
+                {
+                  text: "Currency",
+                  bold: true,
+                  fillColor: "#f5f5f5",
+                  fontSize: 8,
+                },
+                { text: v.currency?.trim() || "—", fontSize: 8 },
               ],
             ],
           },
@@ -1628,7 +1909,7 @@ async function downloadApprovedPdf() {
         {
           table: {
             headerRows: 1,
-            widths: [110, 95, 90, 95, "*", 100],
+            widths: [65, 70, 42, 55, "*", 42, 60, "*", 55],
             body: tableBody,
           },
           layout: { hLineWidth: () => 0.25, vLineWidth: () => 0.25 },
@@ -1669,9 +1950,30 @@ async function downloadApprovedPdf() {
                     },
                   ],
                   [
-                    { text: "Total Tax", fontSize: 9, fillColor: "#f5f5f5" },
                     {
-                      text: formatPdfNumber(totalTax),
+                      text: "Total Tax (Add)",
+                      fontSize: 9,
+                      fillColor: "#f5f5f5",
+                    },
+                    {
+                      text:
+                        (v.currency ? `${v.currency} ` : "") +
+                        formatPdfNumber(totalTax),
+                      fontSize: 9,
+                      alignment: "right" as const,
+                      fillColor: "#f5f5f5",
+                    },
+                  ],
+                  [
+                    {
+                      text: "Total WHT Tax (Sub)",
+                      fontSize: 9,
+                      fillColor: "#f5f5f5",
+                    },
+                    {
+                      text:
+                        (v.currency ? `${v.currency} ` : "") +
+                        formatPdfNumber(totalWhtTax),
                       fontSize: 9,
                       alignment: "right" as const,
                       fillColor: "#f5f5f5",
@@ -1684,7 +1986,8 @@ async function downloadApprovedPdf() {
                       fillColor: "#f5f5f5",
                     },
                     {
-                      text: "—",
+                      text:
+                        advancePaymentVal > 0 ? advancePaymentStr : "—",
                       fontSize: 9,
                       alignment: "right" as const,
                       fillColor: "#f5f5f5",
@@ -2117,5 +2420,84 @@ async function downloadApprovedPdf() {
   .booklet-prev-enter-from {
     transform: none;
   }
+}
+
+/* TransRef QR modal */
+.transref-qr-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(12px);
+}
+.transref-qr-modal {
+  width: 100%;
+  max-width: 18rem;
+  padding: 1.5rem;
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.98) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+  text-align: center;
+}
+.transref-qr-modal__title {
+  margin: 0 0 0.25rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+.transref-qr-modal__subtitle {
+  margin: 0 0 1.25rem;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+.transref-qr-modal__qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+}
+.transref-qr-modal__qr-img {
+  width: 200px;
+  height: 200px;
+  border-radius: 8px;
+}
+.transref-qr-modal__transref {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--color-text);
+}
+.transref-qr-modal__close {
+  padding: 0.5rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.transref-qr-modal__close:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+.transref-qr-modal-enter-active,
+.transref-qr-modal-leave-active {
+  transition: opacity 0.2s ease;
+}
+.transref-qr-modal-enter-from,
+.transref-qr-modal-leave-to {
+  opacity: 0;
 }
 </style>

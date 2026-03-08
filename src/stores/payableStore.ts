@@ -10,6 +10,7 @@ import {
   type FileMakerFieldData,
 } from "../composables/useFileMaker";
 import { useVendorStore } from "./vendorStore";
+import { useSessionPayableInvoiceStore } from "./sessionPayableInvoiceStore";
 import { LAYOUTS } from "../utils/filemakerApi";
 import {
   rowToPayablesDetails,
@@ -65,6 +66,8 @@ export const usePayableStore = defineStore("payable", () => {
   const mainPostedName = ref<string | null>(null);
   /** Posted date from Payables_Main (PostedDate field). */
   const mainPostedDate = ref<string | null>(null);
+  /** Advance payment from Payables_Main (deducted from Amount to Pay). */
+  const mainAdvancePayment = ref<string | number | null>(null);
   /** FullName of the manager who rejected the entry (when Status is Rejected). */
   const mainRejectedBy = ref<string | null>(null);
   /** True when any cell has been edited or a row added/removed since last load or save. */
@@ -92,6 +95,25 @@ export const usePayableStore = defineStore("payable", () => {
     }),
   );
 
+  /** Advance payment amount (number for calculation). */
+  const advancePaymentNum = computed(() => {
+    const v = mainAdvancePayment.value;
+    if (v == null) return 0;
+    const n =
+      typeof v === "number" ? v : parseFloat(String(v).replace(/,/g, ""));
+    return Number.isNaN(n) ? 0 : n;
+  });
+
+  /** Amount to Pay = Entry Total − Advance Payment. */
+  const amountToPay = computed(() =>
+    Math.max(0, entryTotal.value - advancePaymentNum.value),
+  );
+
+  function setMainAdvancePayment(value: string | number | null): void {
+    mainAdvancePayment.value = value;
+    isDirty.value = true;
+  }
+
   /** Entry total: from Payables_Main when loaded and not dirty, otherwise sum of grid row totals. */
   const entryTotal = computed(() => {
     if (isDirty.value || mainTotalFromMain.value == null) {
@@ -110,9 +132,14 @@ export const usePayableStore = defineStore("payable", () => {
     const r = rows.value[rowIndex];
     if (!r) return;
     const amount = parseFloat(r.amount);
-    const tax = parseFloat(r.tax);
+    const taxAmountStr = (r.reference ?? "").trim() || (r.tax ?? "").trim();
+    const taxAmount = parseFloat(taxAmountStr);
+    const whtAmountStr = (r.wht_tax_amount ?? "").trim();
+    const whtAmount = parseFloat(whtAmountStr);
     const total =
-      (Number.isNaN(amount) ? 0 : amount) + (Number.isNaN(tax) ? 0 : tax);
+      (Number.isNaN(amount) ? 0 : amount) +
+      (Number.isNaN(taxAmount) ? 0 : taxAmount) -
+      (Number.isNaN(whtAmount) ? 0 : whtAmount);
     if (!Number.isNaN(total)) {
       rows.value = rows.value.map((row, i) =>
         i === rowIndex ? { ...row, total: String(total) } : row,
@@ -169,7 +196,12 @@ export const usePayableStore = defineStore("payable", () => {
     rows.value = rows.value.map((r, i) =>
       i === rowIndex ? { ...r, [field]: value } : r,
     );
-    if (field === "amount" || field === "tax") {
+    if (
+      field === "amount" ||
+      field === "tax" ||
+      field === "reference" ||
+      field === "wht_tax_amount"
+    ) {
       recomputeTotal(rowIndex);
     }
   }
@@ -196,6 +228,7 @@ export const usePayableStore = defineStore("payable", () => {
     mainStatus.value = null;
     mainRejectReason.value = null;
     mainTotalFromMain.value = null;
+    mainAdvancePayment.value = null;
     mainCreatorFullName.value = null;
     mainPostedName.value = null;
     mainPostedDate.value = null;
@@ -230,13 +263,28 @@ export const usePayableStore = defineStore("payable", () => {
           ? String(taxAmountValue)
           : "";
       if (taxAmountStr === "" && taxStr !== "") taxAmountStr = taxStr;
+      const whtTaxValue =
+        d?.["WTH Tax"] ?? d?.["WHT Tax"] ?? d?.WTHTax ?? d?.WHTTax;
+      const whtTaxStr =
+        whtTaxValue != null && whtTaxValue !== "" ? String(whtTaxValue) : "";
+      const whtTaxAmountValue =
+        d?.["WTH Tax Amount"] ??
+        d?.["WHT Tax Amount"] ??
+        d?.WTHTaxAmount ??
+        d?.WHTTaxAmount;
+      const whtTaxAmountStr =
+        whtTaxAmountValue != null && whtTaxAmountValue !== ""
+          ? String(whtTaxAmountValue)
+          : "";
       return {
         ...emptyRow(),
         invoice_number: String(d?.InvoiceNumber ?? ""),
         amount: String(d?.Amount ?? ""),
         tax: taxStr,
         total: String(d?.Total ?? ""),
-        reference: taxAmountStr, // Map Tax Amount to Reference column
+        reference: taxAmountStr,
+        wht_tax: whtTaxStr,
+        wht_tax_amount: whtTaxAmountStr,
       };
     });
     setRows(mapped.length ? mapped : [emptyRow()]);
@@ -244,10 +292,7 @@ export const usePayableStore = defineStore("payable", () => {
 
   /** Load only Payables_Details records related to the given Main (TransRef), and populate VendorDetails and Posted state from that Main. */
   async function fetchDetailsByTransRef(transRef: string): Promise<void> {
-    const {
-      findRecordsByQueryWithIds,
-      isConnected,
-    } = useFileMaker();
+    const { findRecordsByQueryWithIds, isConnected } = useFileMaker();
     const vendorStore = useVendorStore();
     if (!isConnected.value) {
       error.value = "Not connected to FileMaker";
@@ -263,6 +308,7 @@ export const usePayableStore = defineStore("payable", () => {
       mainBankName.value = null;
       mainChequeNo.value = null;
       mainCode.value = null;
+      mainAdvancePayment.value = null;
       mainExpiryCheckDis.value = null;
       mainWhtExpiryCheckDis.value = null;
       mainExpiryCheck.value = null;
@@ -320,6 +366,22 @@ export const usePayableStore = defineStore("payable", () => {
           : "";
       // If FileMaker didn't return Tax Amount but we have Tax, use Tax for the Reference column
       if (taxAmountStr === "" && taxStr !== "") taxAmountStr = taxStr;
+      const whtTaxValue =
+        fieldData?.["WTH Tax"] ??
+        fieldData?.["WHT Tax"] ??
+        fieldData?.WTHTax ??
+        fieldData?.WHTTax;
+      const whtTaxStr =
+        whtTaxValue != null && whtTaxValue !== "" ? String(whtTaxValue) : "";
+      const whtTaxAmountValue =
+        fieldData?.["WTH Tax Amount"] ??
+        fieldData?.["WHT Tax Amount"] ??
+        fieldData?.WTHTaxAmount ??
+        fieldData?.WHTTaxAmount;
+      const whtTaxAmountStr =
+        whtTaxAmountValue != null && whtTaxAmountValue !== ""
+          ? String(whtTaxAmountValue)
+          : "";
       const recordId = d?.recordId ? String(d.recordId) : undefined;
       const fromFileMaker = {
         ...emptyRow(),
@@ -330,6 +392,8 @@ export const usePayableStore = defineStore("payable", () => {
         tax: taxStr,
         total: String(d?.fieldData?.Total ?? ""),
         reference: taxAmountStr,
+        wht_tax: whtTaxStr,
+        wht_tax_amount: whtTaxAmountStr,
       };
       // Preserve Amount before VAT and Invoice Number from current grid when updating calculated fields (tax, reference, total)
       const existing = currentRows.find((r) => r.recordId === recordId);
@@ -358,10 +422,17 @@ export const usePayableStore = defineStore("payable", () => {
     );
     if (mainWithId) {
       currentMainRecordId.value = mainWithId.recordId;
-      const fdForPosted = mainWithId.fieldData as Record<string, unknown> | undefined;
+      const fdForPosted = mainWithId.fieldData as
+        | Record<string, unknown>
+        | undefined;
       const postedVal = String(
-        fdForPosted?.Posted ?? fdForPosted?.posted ?? fdForPosted?.["Posted"] ?? "",
-      ).trim().toLowerCase();
+        fdForPosted?.Posted ??
+          fdForPosted?.posted ??
+          fdForPosted?.["Posted"] ??
+          "",
+      )
+        .trim()
+        .toLowerCase();
       mainPosted.value =
         postedVal === "yes" || postedVal === "1" || postedVal === "true";
       const fd = mainWithId.fieldData as Record<string, unknown> | undefined;
@@ -377,6 +448,9 @@ export const usePayableStore = defineStore("payable", () => {
           ? reasonRaw.trim()
           : null;
       vendorStore.setFromMain({
+        PurchaseOrder: (fd?.PurchaseOrder ?? fd?.["Purchase Order"]) as
+          | string
+          | undefined,
         VendorID: fd?.VendorID as string | undefined,
         VendorName: (fd?.VendorName ?? fd?.["Vendor Name"]) as
           | string
@@ -391,12 +465,22 @@ export const usePayableStore = defineStore("payable", () => {
         String(mainWithId.recordId),
       );
       const totalVal = mainFieldData?.Total ?? mainFieldData?.["Total"];
+      const advPayVal =
+        (mainFieldData as Record<string, unknown>)?.AdvancePayment ??
+        (mainFieldData as Record<string, unknown>)?.["Advance Payment"];
+      const advPayNum =
+        advPayVal != null && String(advPayVal).trim() !== ""
+          ? parseFloat(String(advPayVal).replace(/,/g, ""))
+          : NaN;
+      const advPayForTotal = !Number.isNaN(advPayNum) ? advPayNum : 0;
+      // FileMaker Total = Amount to Pay (entry total − advance payment). App needs mainTotalFromMain = entry total.
       if (totalVal !== undefined && totalVal !== null && totalVal !== "") {
         const num =
           typeof totalVal === "number"
             ? totalVal
             : parseFloat(String(totalVal));
-        mainTotalFromMain.value = Number.isNaN(num) ? null : num;
+        const fmAmountToPay = Number.isNaN(num) ? 0 : num;
+        mainTotalFromMain.value = fmAmountToPay + advPayForTotal;
       } else {
         mainTotalFromMain.value = null;
       }
@@ -585,6 +669,15 @@ export const usePayableStore = defineStore("payable", () => {
       mainPostedName.value = postedName;
       const code = getFieldStr(md, "Code", "code");
       mainCode.value = code;
+      const advPay = md?.AdvancePayment ?? md?.["Advance Payment"];
+      if (advPay != null && String(advPay).trim() !== "") {
+        const num = parseFloat(String(advPay).replace(/,/g, ""));
+        mainAdvancePayment.value = Number.isNaN(num)
+          ? String(advPay).trim()
+          : num;
+      } else {
+        mainAdvancePayment.value = null;
+      }
       const postedDate = getFieldStr(
         md,
         "PostedDate",
@@ -613,6 +706,7 @@ export const usePayableStore = defineStore("payable", () => {
       mainStatus.value = null;
       mainRejectReason.value = null;
       mainTotalFromMain.value = null;
+      mainAdvancePayment.value = null;
       mainChequeIssued.value = null;
       mainChequeIssuedDate.value = null;
       mainBankName.value = null;
@@ -709,435 +803,117 @@ export const usePayableStore = defineStore("payable", () => {
     syncMessage.value = markPosted ? "Posting.." : "Saving…";
     error.value = null;
     try {
-    const currentRows = rows.value;
-    let toPost = currentRows
-      .map((row, index) => ({ row, index }))
-      .filter(({ row }) => !row.id || String(row.id).trim() === "")
-      .filter(({ index }) => !isRowEmptyByIndex(currentRows, index));
+      const currentRows = rows.value;
+      let toPost = currentRows
+        .map((row, index) => ({ row, index }))
+        .filter(({ row }) => !row.id || String(row.id).trim() === "")
+        .filter(({ index }) => !isRowEmptyByIndex(currentRows, index));
 
-    // Always check for duplicate invoice numbers in the grid (before any early return)
-    const seenInvoices = new Set<string>();
-    for (const row of currentRows) {
-      const inv = getRowStr(
-        row as Record<string, unknown>,
-        "invoice_number",
-        "invoiceNumber",
-        "InvoiceNumber",
-      );
-      if (inv === "") continue;
-      const key = inv.trim().toLowerCase();
-      if (seenInvoices.has(key)) {
-        error.value = `Duplicate invoice number "${inv}" in the grid. Each line must have a unique invoice number.`;
-        return { posted: 0, updated: 0, deleted: 0, error: error.value };
-      }
-      seenInvoices.add(key);
-    }
-
-    // Check for duplicate invoice numbers in updated rows against FileMaker (before any early return)
-    // This must happen before the early return for "Save and Post" with only updates
-    const hasRowsToUpdate = currentRows.some((r) => r.recordId);
-    if (hasRowsToUpdate && isConnected.value) {
+      // Always check for duplicate invoice numbers in the grid (before any early return)
+      const seenInvoices = new Set<string>();
       for (const row of currentRows) {
-        if (!row.recordId) continue; // Skip rows without recordId (they're new, will be checked later)
-        const invRaw = getRowStr(
+        const inv = getRowStr(
           row as Record<string, unknown>,
           "invoice_number",
           "invoiceNumber",
           "InvoiceNumber",
         );
-        if (invRaw === "") continue;
-        const invNum = Number(invRaw);
-        const invForFind = Number.isNaN(invNum) ? invRaw : invNum;
-
-        // Check Payables_Details - exclude current record
-        const detailsResultWithIds = await findRecordsByQueryWithIds<{
-          InvoiceNumber?: string | number;
-        }>(LAYOUTS.PAYABLES_DETAILS, { InvoiceNumber: invForFind }, 100);
-        if (detailsResultWithIds.error) {
-          error.value = normalizeFileMakerError(
-            "Could not check invoice uniqueness",
-            detailsResultWithIds.error,
-          );
+        if (inv === "") continue;
+        const key = inv.trim().toLowerCase();
+        if (seenInvoices.has(key)) {
+          error.value = `Duplicate invoice number "${inv}" in the grid. Each line must have a unique invoice number.`;
           return { posted: 0, updated: 0, deleted: 0, error: error.value };
         }
-        // Filter out the current record being updated
-        const otherDetailsWithSameInvoice = detailsResultWithIds.data.filter(
-          (r) => r.recordId !== row.recordId,
-        );
-        if (otherDetailsWithSameInvoice.length > 0) {
-          error.value = `Invoice number "${invRaw}" already exists in FileMaker (in another record). Use a unique invoice number.`;
-          return { posted: 0, updated: 0, deleted: 0, error: error.value };
-        }
-      }
-    }
-
-    // Record already exists, no new rows, no pending deletes, no edits to persist: just set Posted to Yes
-    // When hasRowsToUpdate, we must run the full flow to persist grid/vendor changes before posting
-    if (
-      toPost.length === 0 &&
-      pendingDeletes.value.length === 0 &&
-      !hasRowsToUpdate &&
-      markPosted &&
-      currentMainRecordId.value
-    ) {
-      try {
-        const todayIso = new Date().toISOString().slice(0, 10);
-        const postedDate = formatDateForFileMaker(todayIso) ?? todayIso;
-        const mainPayload: FileMakerFieldData = {
-          Posted: "Yes",
-          PostedDate: postedDate,
-        };
-        const postedName = await resolvePostedName();
-        if (postedName) mainPayload.PostedName = postedName;
-        if (clearRejected) {
-          mainPayload.Rejected = "";
-          mainPayload.RejectReason = "";
-        }
-        const { error: updateErr } = await updateRecord(
-          LAYOUTS.PAYABLES_MAIN,
-          currentMainRecordId.value,
-          mainPayload,
-          clearRejected ? { allowEmptyStrings: true } : undefined,
-        );
-        if (updateErr) {
-          error.value = updateErr;
-          return { posted: 0, updated: 0, deleted: 0, error: updateErr };
-        }
-        const actor = postedName || (await resolvePostedName()) || "—";
-        const transRefForLog = currentTransRef.value;
-        if (transRefForLog) {
-          await writeActivityLog(
-            createRecord,
-            transRefForLog,
-            clearRejected ? "Reposted" : "Posted",
-            actor,
-          );
-        }
-        mainPosted.value = true;
-        if (postedName) mainPostedName.value = postedName;
-        mainPostedDate.value = postedDate;
-        if (clearRejected) {
-          mainStatus.value = null;
-          mainRejectReason.value = null;
-          mainRejectedBy.value = null;
-        }
-        isDirty.value = false;
-        return {
-          posted: 0,
-          updated: 0,
-          deleted: 0,
-          error: null,
-          markedPosted: true,
-        };
-      } finally {
-        syncing.value = false;
-      }
-    }
-
-    const hasPendingDeletes = pendingDeletes.value.length > 0;
-    const noGridWork =
-      toPost.length === 0 && !hasRowsToUpdate && !hasPendingDeletes;
-    if (noGridWork && !currentTransRef.value) {
-      return {
-        posted: 0,
-        updated: 0,
-        deleted: 0,
-        error:
-          "Required: Each row must have at least one of Invoice Number *, Amount *, or Total *. Fill one of these in the grid and try again.",
-      };
-    }
-    // When we have currentTransRef, always continue so we can run the Main update (vendor/date/currency) even if there are no grid changes
-
-    // New entry: require a vendor on Main
-    if (!currentTransRef.value) {
-      const vendorStore = useVendorStore();
-      const hasVendor = Boolean(
-        String(vendorStore.vendor.vendor_id ?? "").trim() ||
-        String(vendorStore.vendor.vendor_name ?? "").trim(),
-      );
-      if (!hasVendor) {
-        return {
-          posted: 0,
-          updated: 0,
-          deleted: 0,
-          error:
-            "Required: Enter Vendor name * or Vendor ID * in Vendor details above, then save.",
-        };
-      }
-    }
-
-    let posted = 0;
-    let updated = 0;
-    let deleted = 0;
-    let mainUpdated = false;
-    let didMarkPosted = false;
-    let mainRecordIdToUpdate: string | null = null;
-    try {
-      // Ensure each new row's invoice number does not already exist in FileMaker
-      for (const { row } of toPost) {
-        const invRaw = getRowStr(
-          row as Record<string, unknown>,
-          "invoice_number",
-          "invoiceNumber",
-          "InvoiceNumber",
-        );
-        if (invRaw === "") continue;
-        const invNum = Number(invRaw);
-        const invForFind = Number.isNaN(invNum) ? invRaw : invNum;
-        const detailsResult = await findRecordsByQuery(
-          LAYOUTS.PAYABLES_DETAILS,
-          { InvoiceNumber: invForFind },
-          1,
-        );
-        if (detailsResult.error) {
-          error.value = normalizeFileMakerError(
-            "Could not check invoice uniqueness",
-            detailsResult.error,
-          );
-          return { posted: 0, updated: 0, deleted: 0, error: error.value };
-        }
-        if (detailsResult.data.length > 0) {
-          error.value = `Invoice number "${invRaw}" already exists in FileMaker. Use a unique invoice number.`;
-          return { posted: 0, updated: 0, deleted: 0, error: error.value };
-        }
+        seenInvoices.add(key);
       }
 
-      // Note: Duplicate check for updated rows already happened above (before early returns)
-      // Only new rows need to be checked here
-
-      for (const recordId of pendingDeletes.value) {
-        const { error: delErr } = await deleteRecord(
-          LAYOUTS.PAYABLES_DETAILS,
-          recordId,
-        );
-        if (delErr) {
-          error.value = delErr;
-          return { posted: 0, updated: 0, deleted, error: delErr };
-        }
-        deleted++;
-      }
-      pendingDeletes.value = [];
-      lastDeleted.value = null;
-
-      let transRef: string;
-      if (currentTransRef.value) {
-        transRef = currentTransRef.value;
-        mainRecordIdToUpdate = currentMainRecordId.value;
-      } else {
-        const vendorStore = useVendorStore();
-        const v = vendorStore.vendor;
-        const vendorIdVal = String(v.vendor_id ?? "").trim();
-        const vendorNameVal = String(v.vendor_name ?? "").trim();
-        const mainCreatePayload: FileMakerFieldData = {};
-        if (vendorIdVal !== "") {
-          mainCreatePayload.VendorID = vendorIdVal;
-        } else if (vendorNameVal !== "") {
-          mainCreatePayload.VendorName = vendorNameVal;
-        }
-        if (Object.keys(mainCreatePayload).length === 0) {
-          error.value =
-            "Required: Enter Vendor name or Vendor ID in Vendor details.";
-          return { posted: 0, updated: 0, deleted: 0, error: error.value };
-        }
-        const { id: mainRecordId, error: mainErr } = await createRecord(
-          LAYOUTS.PAYABLES_MAIN,
-          mainCreatePayload,
-        );
-        if (mainErr || !mainRecordId) {
-          error.value = mainErr
-            ? `Payables_Main create: ${mainErr}`
-            : "Main record not created";
-          return { posted: 0, updated: 0, deleted: 0, error: error.value };
-        }
-        mainRecordIdToUpdate = mainRecordId;
-        const { data: mainDataResp, error: getErr } = await getRecord<{
-          TransRef?: string;
-        }>(LAYOUTS.PAYABLES_MAIN, mainRecordId);
-        if (getErr || !mainDataResp?.TransRef) {
-          error.value = getErr ?? "Could not read TransRef from Main";
-          return { posted: 0, updated: 0, deleted: 0, error: error.value };
-        }
-        transRef = mainDataResp.TransRef;
-        currentTransRef.value = transRef;
-        currentMainRecordId.value = mainRecordId;
-        const createdBy = await resolvePostedName();
-        await writeActivityLog(
-          createRecord,
-          transRef,
-          "Created",
-          createdBy || "—",
-        );
-      }
-      for (const { row, index } of toPost) {
-        const detailsData = rowToPayablesDetails(row, transRef);
-        const { id: detailsRecordId, error: detailsErr } = await createRecord(
-          LAYOUTS.PAYABLES_DETAILS,
-          detailsData as FileMakerFieldData,
-        );
-        if (detailsErr) {
-          error.value = `Payables_Details create: ${detailsErr}`;
-          return { posted, updated: 0, deleted: 0, error: error.value };
-        }
-        posted++;
-        rows.value = rows.value.map((r, j) =>
-          j === index
-            ? {
-                ...r,
-                id: `synced-${Date.now()}-${index}`,
-                recordId: detailsRecordId ?? undefined,
-              }
-            : r,
-        );
-      }
-      // Update existing Details first, then log "Edited" before "Posted" when both apply
-      for (const row of currentRows) {
-        if (row.recordId) {
-          const newInv = getRowStr(
+      // Check for duplicate invoice numbers in updated rows against FileMaker (before any early return)
+      // This must happen before the early return for "Save and Post" with only updates
+      const hasRowsToUpdate = currentRows.some((r) => r.recordId);
+      if (hasRowsToUpdate && isConnected.value) {
+        for (const row of currentRows) {
+          if (!row.recordId) continue; // Skip rows without recordId (they're new, will be checked later)
+          const invRaw = getRowStr(
             row as Record<string, unknown>,
             "invoice_number",
             "invoiceNumber",
             "InvoiceNumber",
-          ).trim();
-          // Get current Payables_Details to read old InvoiceNumber before we overwrite
-          const { data: currentDetails } = await getRecord<{
-            InvoiceNumber?: string | number;
-          }>(LAYOUTS.PAYABLES_DETAILS, row.recordId);
-          const oldInv =
-            currentDetails?.InvoiceNumber != null
-              ? String(currentDetails.InvoiceNumber).trim()
-              : "";
-
-          const detailsData = rowToPayablesDetails(row, transRef);
-          const { error: updateErr } = await updateRecord(
-            LAYOUTS.PAYABLES_DETAILS,
-            row.recordId,
-            detailsData as FileMakerFieldData,
           );
-          if (updateErr) {
-            error.value = updateErr;
-            return { posted, updated, deleted, error: error.value };
-          }
-          updated++;
+          if (invRaw === "") continue;
+          const invNum = Number(invRaw);
+          const invForFind = Number.isNaN(invNum) ? invRaw : invNum;
 
-          // If invoice number changed, update Payable_Invoice records that used the old number
-          if (oldInv !== "" && newInv !== "" && oldInv !== newInv) {
-            const { data: invoiceRecords } = await findRecordsByQueryWithIds<{
-              invoiceNumber?: string;
-            }>(LAYOUTS.PAYABLE_INVOICE, { invoiceNumber: oldInv }, 500);
-            for (const rec of invoiceRecords) {
-              if (!rec.recordId) continue;
-              const { error: invUpdateErr } = await updateRecord(
-                LAYOUTS.PAYABLE_INVOICE,
-                rec.recordId,
-                { invoiceNumber: newInv } as FileMakerFieldData,
-              );
-              if (invUpdateErr) {
-                error.value = `Updated Details but failed to update Payable_Invoice: ${invUpdateErr}`;
-                return { posted, updated, deleted, error: error.value };
-              }
-            }
+          // Check Payables_Details - exclude current record
+          const detailsResultWithIds = await findRecordsByQueryWithIds<{
+            InvoiceNumber?: string | number;
+          }>(LAYOUTS.PAYABLES_DETAILS, { InvoiceNumber: invForFind }, 100);
+          if (detailsResultWithIds.error) {
+            error.value = normalizeFileMakerError(
+              "Could not check invoice uniqueness",
+              detailsResultWithIds.error,
+            );
+            return { posted: 0, updated: 0, deleted: 0, error: error.value };
+          }
+          // Filter out the current record being updated
+          const otherDetailsWithSameInvoice = detailsResultWithIds.data.filter(
+            (r) => r.recordId !== row.recordId,
+          );
+          if (otherDetailsWithSameInvoice.length > 0) {
+            error.value = `Invoice number "${invRaw}" already exists in FileMaker (in another record). Use a unique invoice number.`;
+            return { posted: 0, updated: 0, deleted: 0, error: error.value };
           }
         }
       }
 
-      // Log "Edited" before "Posted" when both apply (existing record with edits + post)
-      if (updated > 0 && currentTransRef.value) {
-        const editedActor = (await resolvePostedName()) || "—";
-        await writeActivityLog(
-          createRecord,
-          currentTransRef.value,
-          "Edited",
-          editedActor,
-        );
-      }
-
-      const vendorStoreForMain = useVendorStore();
-      if (mainRecordIdToUpdate && currentTransRef.value) {
-        const v = vendorStoreForMain.vendor;
-        const vendorIdVal = String(v.vendor_id ?? "").trim();
-        const vendorNameVal = String(v.vendor_name ?? "").trim();
-        const vendorEmailVal = String(v.contact_email ?? "").trim();
-        const currencyVal = String(v.currency ?? "").trim();
-        const mainPayload: FileMakerFieldData = {};
-        if (vendorIdVal !== "") mainPayload.VendorID = vendorIdVal;
-        if (vendorNameVal !== "") mainPayload.VendorName = vendorNameVal;
-        if (vendorEmailVal !== "") mainPayload.VendorEmail = vendorEmailVal;
-        if (currencyVal !== "") mainPayload.Currency = currencyVal;
-        const fmDate = formatDateForFileMaker(v.payment_terms || undefined);
-        if (fmDate) mainPayload.Date = fmDate;
-        let postedNameVal = "";
-        let postedDateVal = "";
-        if (markPosted) {
+      // Record already exists, no new rows, no pending deletes, no edits to persist: just set Posted to Yes
+      // When hasRowsToUpdate, we must run the full flow to persist grid/vendor changes before posting
+      if (
+        toPost.length === 0 &&
+        pendingDeletes.value.length === 0 &&
+        !hasRowsToUpdate &&
+        markPosted &&
+        currentMainRecordId.value
+      ) {
+        try {
           const todayIso = new Date().toISOString().slice(0, 10);
-          postedDateVal = formatDateForFileMaker(todayIso) ?? todayIso;
-          mainPayload.Posted = "Yes";
-          mainPayload.PostedDate = postedDateVal;
-          postedNameVal = await resolvePostedName();
-          if (postedNameVal) mainPayload.PostedName = postedNameVal;
+          const postedDate = formatDateForFileMaker(todayIso) ?? todayIso;
+          const mainPayload: FileMakerFieldData & Record<string, unknown> = {
+            Posted: "Yes",
+            PostedDate: postedDate,
+          };
+          const postedName = await resolvePostedName();
+          if (postedName) mainPayload.PostedName = postedName;
+          const advPay = mainAdvancePayment.value;
+          if (advPay != null && String(advPay).trim() !== "") {
+            const num = parseFloat(String(advPay).replace(/,/g, ""));
+            mainPayload.AdvancePayment = Number.isNaN(num)
+              ? String(advPay).trim()
+              : num;
+          }
           if (clearRejected) {
             mainPayload.Rejected = "";
             mainPayload.RejectReason = "";
           }
-        }
-        const { error: mainUpdateErr } = await updateRecord(
-          LAYOUTS.PAYABLES_MAIN,
-          mainRecordIdToUpdate,
-          mainPayload,
-          clearRejected ? { allowEmptyStrings: true } : undefined,
-        );
-        if (mainUpdateErr) {
-          error.value = mainUpdateErr;
-          return { posted, updated, deleted, error: error.value };
-        }
-        mainUpdated = true;
-        if (markPosted && currentTransRef.value) {
-          const actor = postedNameVal || (await resolvePostedName()) || "—";
-          await writeActivityLog(
-            createRecord,
-            currentTransRef.value,
-            clearRejected ? "Reposted" : "Posted",
-            actor,
+          const { error: updateErr } = await updateRecord(
+            LAYOUTS.PAYABLES_MAIN,
+            currentMainRecordId.value,
+            mainPayload,
+            clearRejected ? { allowEmptyStrings: true } : undefined,
           );
-          didMarkPosted = true;
-          mainPosted.value = true;
-          if (postedNameVal) mainPostedName.value = postedNameVal;
-          mainPostedDate.value = postedDateVal || null;
-          if (clearRejected) {
-            mainStatus.value = null;
-            mainRejectReason.value = null;
-            mainRejectedBy.value = null;
+          if (updateErr) {
+            error.value = updateErr;
+            return { posted: 0, updated: 0, deleted: 0, error: updateErr };
           }
-        }
-      }
-
-      if (markPosted && mainRecordIdToUpdate && !mainUpdated) {
-        const todayIso = new Date().toISOString().slice(0, 10);
-        const postedDate = formatDateForFileMaker(todayIso) ?? todayIso;
-        const mainPayload: FileMakerFieldData = {
-          Posted: "Yes",
-          PostedDate: postedDate,
-        };
-        const postedName = await resolvePostedName();
-        if (postedName) mainPayload.PostedName = postedName;
-        if (clearRejected) {
-          mainPayload.Rejected = "";
-          mainPayload.RejectReason = "";
-        }
-        const { error: updateErr } = await updateRecord(
-          LAYOUTS.PAYABLES_MAIN,
-          mainRecordIdToUpdate,
-          mainPayload,
-          clearRejected ? { allowEmptyStrings: true } : undefined,
-        );
-        if (!updateErr && currentTransRef.value) {
           const actor = postedName || (await resolvePostedName()) || "—";
-          await writeActivityLog(
-            createRecord,
-            currentTransRef.value,
-            clearRejected ? "Reposted" : "Posted",
-            actor,
-          );
-          didMarkPosted = true;
+          const transRefForLog = currentTransRef.value;
+          if (transRefForLog) {
+            await writeActivityLog(
+              createRecord,
+              transRefForLog,
+              clearRejected ? "Reposted" : "Posted",
+              actor,
+            );
+          }
           mainPosted.value = true;
           if (postedName) mainPostedName.value = postedName;
           mainPostedDate.value = postedDate;
@@ -1146,25 +922,452 @@ export const usePayableStore = defineStore("payable", () => {
             mainRejectReason.value = null;
             mainRejectedBy.value = null;
           }
+          isDirty.value = false;
+          return {
+            posted: 0,
+            updated: 0,
+            deleted: 0,
+            error: null,
+            markedPosted: true,
+          };
+        } finally {
+          syncing.value = false;
         }
       }
-      isDirty.value = false;
-      const sum = rows.value.reduce((acc, r) => {
-        const t = parseFloat(String(r.total ?? ""));
-        return acc + (Number.isNaN(t) ? 0 : t);
-      }, 0);
-      mainTotalFromMain.value = sum;
-      return {
-        posted,
-        updated,
-        deleted,
-        error: error.value,
-        mainUpdated: mainUpdated || undefined,
-        markedPosted: didMarkPosted || undefined,
-      };
-    } finally {
-      syncing.value = false;
-    }
+
+      const hasPendingDeletes = pendingDeletes.value.length > 0;
+      const noGridWork =
+        toPost.length === 0 && !hasRowsToUpdate && !hasPendingDeletes;
+      if (noGridWork && !currentTransRef.value) {
+        return {
+          posted: 0,
+          updated: 0,
+          deleted: 0,
+          error:
+            "Required: Each row must have at least one of Invoice Number *, Amount *, or Total *. Fill one of these in the grid and try again.",
+        };
+      }
+      // When we have currentTransRef, always continue so we can run the Main update (vendor/date/currency) even if there are no grid changes
+
+      // New entry: require Purchase order and a vendor on Main
+      if (!currentTransRef.value) {
+        const vendorStore = useVendorStore();
+        const hasPurchaseOrder = Boolean(
+          String(vendorStore.vendor.purchase_order ?? "").trim(),
+        );
+        const hasVendor = Boolean(
+          String(vendorStore.vendor.vendor_id ?? "").trim() ||
+          String(vendorStore.vendor.vendor_name ?? "").trim(),
+        );
+        if (!hasPurchaseOrder) {
+          return {
+            posted: 0,
+            updated: 0,
+            deleted: 0,
+            error:
+              "Required: Enter Purchase order * in Vendor details above, then save.",
+          };
+        }
+        if (!hasVendor) {
+          return {
+            posted: 0,
+            updated: 0,
+            deleted: 0,
+            error:
+              "Required: Enter Vendor name * or Vendor ID * in Vendor details above, then save.",
+          };
+        }
+      }
+
+      let posted = 0;
+      let updated = 0;
+      let deleted = 0;
+      let mainUpdated = false;
+      let didMarkPosted = false;
+      let mainRecordIdToUpdate: string | null = null;
+      let createdNewMain = false;
+      try {
+        // Ensure each new row's invoice number does not already exist in FileMaker
+        for (const { row } of toPost) {
+          const invRaw = getRowStr(
+            row as Record<string, unknown>,
+            "invoice_number",
+            "invoiceNumber",
+            "InvoiceNumber",
+          );
+          if (invRaw === "") continue;
+          const invNum = Number(invRaw);
+          const invForFind = Number.isNaN(invNum) ? invRaw : invNum;
+          const detailsResult = await findRecordsByQuery(
+            LAYOUTS.PAYABLES_DETAILS,
+            { InvoiceNumber: invForFind },
+            1,
+          );
+          if (detailsResult.error) {
+            error.value = normalizeFileMakerError(
+              "Could not check invoice uniqueness",
+              detailsResult.error,
+            );
+            return { posted: 0, updated: 0, deleted: 0, error: error.value };
+          }
+          if (detailsResult.data.length > 0) {
+            error.value = `Invoice number "${invRaw}" already exists in FileMaker. Use a unique invoice number.`;
+            return { posted: 0, updated: 0, deleted: 0, error: error.value };
+          }
+        }
+
+        // Note: Duplicate check for updated rows already happened above (before early returns)
+        // Only new rows need to be checked here
+
+        for (const recordId of pendingDeletes.value) {
+          const { error: delErr } = await deleteRecord(
+            LAYOUTS.PAYABLES_DETAILS,
+            recordId,
+          );
+          if (delErr) {
+            error.value = delErr;
+            return { posted: 0, updated: 0, deleted, error: delErr };
+          }
+          deleted++;
+        }
+        pendingDeletes.value = [];
+        lastDeleted.value = null;
+
+        let transRef: string;
+        if (currentTransRef.value) {
+          transRef = currentTransRef.value;
+          mainRecordIdToUpdate = currentMainRecordId.value;
+        } else {
+          const vendorStore = useVendorStore();
+          const v = vendorStore.vendor;
+          const vendorIdVal = String(v.vendor_id ?? "").trim();
+          const vendorNameVal = String(v.vendor_name ?? "").trim();
+          const purchaseOrderVal = String(v.purchase_order ?? "")
+            .trim()
+            .toUpperCase();
+          if (purchaseOrderVal === "") {
+            error.value = "Required: Enter Purchase order in Vendor details.";
+            return { posted: 0, updated: 0, deleted: 0, error: error.value };
+          }
+          const mainCreatePayload: FileMakerFieldData = {
+            PurchaseOrder: purchaseOrderVal,
+          };
+          if (vendorIdVal !== "") {
+            mainCreatePayload.VendorID = vendorIdVal;
+          } else if (vendorNameVal !== "") {
+            mainCreatePayload.VendorName = vendorNameVal;
+          }
+          if (!mainCreatePayload.VendorID && !mainCreatePayload.VendorName) {
+            error.value =
+              "Required: Enter Vendor name or Vendor ID in Vendor details.";
+            return { posted: 0, updated: 0, deleted: 0, error: error.value };
+          }
+          const { findRecordsWithIds } = useFileMaker();
+          const { data: mainRecords, error: findErr } =
+            await findRecordsWithIds<Record<string, unknown>>(
+              LAYOUTS.PAYABLES_MAIN,
+              { limit: 1000 },
+            );
+          if (findErr) {
+            error.value =
+              findErr || "Could not check Purchase order uniqueness.";
+            return { posted: 0, updated: 0, deleted: 0, error: error.value };
+          }
+          const poVal = purchaseOrderVal.trim().toUpperCase();
+          const matchesPo = (mainRecords ?? []).filter((r) => {
+            const fd = r.fieldData as Record<string, unknown>;
+            const po = String(fd?.PurchaseOrder ?? fd?.["Purchase Order"] ?? "")
+              .trim()
+              .toUpperCase();
+            return po === poVal;
+          });
+          if (matchesPo.length > 0) {
+            error.value =
+              "Purchase order must be unique. Another entry already uses this purchase order.";
+            return { posted: 0, updated: 0, deleted: 0, error: error.value };
+          }
+          const { id: mainRecordId, error: mainErr } = await createRecord(
+            LAYOUTS.PAYABLES_MAIN,
+            mainCreatePayload,
+          );
+          if (mainErr || !mainRecordId) {
+            error.value = mainErr
+              ? `Payables_Main create: ${mainErr}`
+              : "Main record not created";
+            return { posted: 0, updated: 0, deleted: 0, error: error.value };
+          }
+          mainRecordIdToUpdate = mainRecordId;
+          const { data: mainDataResp, error: getErr } = await getRecord<{
+            TransRef?: string;
+          }>(LAYOUTS.PAYABLES_MAIN, mainRecordId);
+          if (getErr || !mainDataResp?.TransRef) {
+            error.value = getErr ?? "Could not read TransRef from Main";
+            return { posted: 0, updated: 0, deleted: 0, error: error.value };
+          }
+          transRef = mainDataResp.TransRef;
+          currentTransRef.value = transRef;
+          currentMainRecordId.value = mainRecordId;
+          mainPosted.value = false;
+          mainStatus.value = "Draft";
+          createdNewMain = true;
+          const createdBy = await resolvePostedName();
+          await writeActivityLog(
+            createRecord,
+            transRef,
+            "Created",
+            createdBy || "—",
+          );
+        }
+        for (const { row, index } of toPost) {
+          const detailsData = rowToPayablesDetails(row, transRef);
+          const { id: detailsRecordId, error: detailsErr } = await createRecord(
+            LAYOUTS.PAYABLES_DETAILS,
+            detailsData as FileMakerFieldData,
+          );
+          if (detailsErr) {
+            error.value = `Payables_Details create: ${detailsErr}`;
+            return { posted, updated: 0, deleted: 0, error: error.value };
+          }
+          posted++;
+          rows.value = rows.value.map((r, j) =>
+            j === index
+              ? {
+                  ...r,
+                  id: `synced-${Date.now()}-${index}`,
+                  recordId: detailsRecordId ?? undefined,
+                }
+              : r,
+          );
+        }
+        // Update existing Details first, then log "Edited" before "Posted" when both apply
+        for (const row of currentRows) {
+          if (row.recordId) {
+            const newInv = getRowStr(
+              row as Record<string, unknown>,
+              "invoice_number",
+              "invoiceNumber",
+              "InvoiceNumber",
+            ).trim();
+            // Get current Payables_Details to read old InvoiceNumber before we overwrite
+            const { data: currentDetails } = await getRecord<{
+              InvoiceNumber?: string | number;
+            }>(LAYOUTS.PAYABLES_DETAILS, row.recordId);
+            const oldInv =
+              currentDetails?.InvoiceNumber != null
+                ? String(currentDetails.InvoiceNumber).trim()
+                : "";
+
+            const detailsData = rowToPayablesDetails(row, transRef);
+            const { error: updateErr } = await updateRecord(
+              LAYOUTS.PAYABLES_DETAILS,
+              row.recordId,
+              detailsData as FileMakerFieldData,
+            );
+            if (updateErr) {
+              error.value = updateErr;
+              return { posted, updated, deleted, error: error.value };
+            }
+            updated++;
+
+            // If invoice number changed, update Payable_Invoice records that used the old number
+            if (oldInv !== "" && newInv !== "" && oldInv !== newInv) {
+              const { data: invoiceRecords } = await findRecordsByQueryWithIds<{
+                invoiceNumber?: string;
+              }>(LAYOUTS.PAYABLE_INVOICE, { invoiceNumber: oldInv }, 500);
+              for (const rec of invoiceRecords) {
+                if (!rec.recordId) continue;
+                const { error: invUpdateErr } = await updateRecord(
+                  LAYOUTS.PAYABLE_INVOICE,
+                  rec.recordId,
+                  { invoiceNumber: newInv } as FileMakerFieldData,
+                );
+                if (invUpdateErr) {
+                  error.value = `Updated Details but failed to update Payable_Invoice: ${invUpdateErr}`;
+                  return { posted, updated, deleted, error: error.value };
+                }
+              }
+            }
+          }
+        }
+
+        // Log "Edited" before "Posted" when both apply (existing record with edits + post)
+        if (updated > 0 && currentTransRef.value) {
+          const editedActor = (await resolvePostedName()) || "—";
+          await writeActivityLog(
+            createRecord,
+            currentTransRef.value,
+            "Edited",
+            editedActor,
+          );
+        }
+
+        const vendorStoreForMain = useVendorStore();
+        if (mainRecordIdToUpdate && currentTransRef.value) {
+          const v = vendorStoreForMain.vendor;
+          const vendorIdVal = String(v.vendor_id ?? "").trim();
+          const vendorNameVal = String(v.vendor_name ?? "").trim();
+          const vendorEmailVal = String(v.contact_email ?? "").trim();
+          const currencyVal = String(v.currency ?? "").trim();
+          const purchaseOrderVal = String(v.purchase_order ?? "")
+            .trim()
+            .toUpperCase();
+          if (purchaseOrderVal === "") {
+            error.value = "Required: Enter Purchase order in Vendor details.";
+            return { posted: 0, updated, deleted, error: error.value };
+          }
+          const { findRecordsWithIds } = useFileMaker();
+          const { data: mainRecords, error: findErr } =
+            await findRecordsWithIds<Record<string, unknown>>(
+              LAYOUTS.PAYABLES_MAIN,
+              { limit: 1000 },
+            );
+          if (findErr) {
+            error.value =
+              findErr || "Could not check Purchase order uniqueness.";
+            return { posted: 0, updated, deleted, error: error.value };
+          }
+          const poVal = purchaseOrderVal.trim().toUpperCase();
+          const matchesPo = (mainRecords ?? []).filter((r) => {
+            const fd = r.fieldData as Record<string, unknown>;
+            const po = String(fd?.PurchaseOrder ?? fd?.["Purchase Order"] ?? "")
+              .trim()
+              .toUpperCase();
+            return po === poVal;
+          });
+          const otherWithSamePo = matchesPo.filter(
+            (r) => String(r.recordId) !== String(mainRecordIdToUpdate),
+          );
+          if (otherWithSamePo.length > 0) {
+            error.value =
+              "Purchase order must be unique. Another entry already uses this purchase order.";
+            return { posted: 0, updated, deleted, error: error.value };
+          }
+          const mainPayload: FileMakerFieldData = {
+            PurchaseOrder: purchaseOrderVal,
+          };
+          if (vendorIdVal !== "") mainPayload.VendorID = vendorIdVal;
+          if (vendorNameVal !== "") mainPayload.VendorName = vendorNameVal;
+          if (vendorEmailVal !== "") mainPayload.VendorEmail = vendorEmailVal;
+          if (currencyVal !== "") mainPayload.Currency = currencyVal;
+          const fmDate = formatDateForFileMaker(v.payment_terms || undefined);
+          if (fmDate) mainPayload.Date = fmDate;
+          const advPay = mainAdvancePayment.value;
+          if (advPay != null && String(advPay).trim() !== "") {
+            const num = parseFloat(String(advPay).replace(/,/g, ""));
+            (mainPayload as Record<string, unknown>).AdvancePayment =
+              Number.isNaN(num) ? String(advPay).trim() : num;
+          }
+          let postedNameVal = "";
+          let postedDateVal = "";
+          if (markPosted) {
+            const todayIso = new Date().toISOString().slice(0, 10);
+            postedDateVal = formatDateForFileMaker(todayIso) ?? todayIso;
+            mainPayload.Posted = "Yes";
+            mainPayload.PostedDate = postedDateVal;
+            postedNameVal = await resolvePostedName();
+            if (postedNameVal) mainPayload.PostedName = postedNameVal;
+            if (clearRejected) {
+              mainPayload.Rejected = "";
+              mainPayload.RejectReason = "";
+            }
+          }
+          const { error: mainUpdateErr } = await updateRecord(
+            LAYOUTS.PAYABLES_MAIN,
+            mainRecordIdToUpdate,
+            mainPayload,
+            clearRejected ? { allowEmptyStrings: true } : undefined,
+          );
+          if (mainUpdateErr) {
+            error.value = mainUpdateErr;
+            return { posted, updated, deleted, error: error.value };
+          }
+          mainUpdated = true;
+          if (markPosted && currentTransRef.value) {
+            const actor = postedNameVal || (await resolvePostedName()) || "—";
+            await writeActivityLog(
+              createRecord,
+              currentTransRef.value,
+              clearRejected ? "Reposted" : "Posted",
+              actor,
+            );
+            didMarkPosted = true;
+            mainPosted.value = true;
+            if (postedNameVal) mainPostedName.value = postedNameVal;
+            mainPostedDate.value = postedDateVal || null;
+            if (clearRejected) {
+              mainStatus.value = null;
+              mainRejectReason.value = null;
+              mainRejectedBy.value = null;
+            }
+          }
+        }
+
+        if (markPosted && mainRecordIdToUpdate && !mainUpdated) {
+          const todayIso = new Date().toISOString().slice(0, 10);
+          const postedDate = formatDateForFileMaker(todayIso) ?? todayIso;
+          const mainPayload: FileMakerFieldData & Record<string, unknown> = {
+            Posted: "Yes",
+            PostedDate: postedDate,
+          };
+          const advPay = mainAdvancePayment.value;
+          if (advPay != null && String(advPay).trim() !== "") {
+            const num = parseFloat(String(advPay).replace(/,/g, ""));
+            mainPayload.AdvancePayment = Number.isNaN(num)
+              ? String(advPay).trim()
+              : num;
+          }
+          const postedName = await resolvePostedName();
+          if (postedName) mainPayload.PostedName = postedName;
+          if (clearRejected) {
+            mainPayload.Rejected = "";
+            mainPayload.RejectReason = "";
+          }
+          const { error: updateErr } = await updateRecord(
+            LAYOUTS.PAYABLES_MAIN,
+            mainRecordIdToUpdate,
+            mainPayload,
+            clearRejected ? { allowEmptyStrings: true } : undefined,
+          );
+          if (!updateErr && currentTransRef.value) {
+            const actor = postedName || (await resolvePostedName()) || "—";
+            await writeActivityLog(
+              createRecord,
+              currentTransRef.value,
+              clearRejected ? "Reposted" : "Posted",
+              actor,
+            );
+            didMarkPosted = true;
+            mainPosted.value = true;
+            if (postedName) mainPostedName.value = postedName;
+            mainPostedDate.value = postedDate;
+            if (clearRejected) {
+              mainStatus.value = null;
+              mainRejectReason.value = null;
+              mainRejectedBy.value = null;
+            }
+          }
+        }
+        isDirty.value = false;
+        useSessionPayableInvoiceStore().clear();
+        const sum = rows.value.reduce((acc, r) => {
+          const t = parseFloat(String(r.total ?? ""));
+          return acc + (Number.isNaN(t) ? 0 : t);
+        }, 0);
+        mainTotalFromMain.value = sum;
+        if (createdNewMain && transRef) {
+          await fetchDetailsByTransRef(transRef);
+        }
+        return {
+          posted,
+          updated,
+          deleted,
+          error: error.value,
+          mainUpdated: mainUpdated || undefined,
+          markedPosted: didMarkPosted || undefined,
+        };
+      } finally {
+        syncing.value = false;
+      }
     } finally {
       syncing.value = false;
     }
@@ -1199,8 +1402,12 @@ export const usePayableStore = defineStore("payable", () => {
     mainPostedName: computed(() => mainPostedName.value),
     mainPostedDate: computed(() => mainPostedDate.value),
     mainRejectedBy: computed(() => mainRejectedBy.value),
+    mainAdvancePayment: computed(() => mainAdvancePayment.value),
     setMainRejectedBy,
+    setMainAdvancePayment,
     entryTotal,
+    amountToPay,
+    advancePaymentNum,
     STATUS_OPTIONS,
     addRow,
     removeRow,

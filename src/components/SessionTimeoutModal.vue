@@ -2,8 +2,7 @@
   <Teleport to="body">
     <div
       v-if="visible"
-      class="fixed inset-0 z-[200] flex items-center justify-center p-4"
-      style="background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(8px);"
+      class="teleport-modal-backdrop fixed inset-0 z-[200] flex items-center justify-center p-4"
       role="alertdialog"
       aria-labelledby="session-timeout-title"
       aria-describedby="session-timeout-desc"

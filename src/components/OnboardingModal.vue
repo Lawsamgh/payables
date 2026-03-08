@@ -45,8 +45,42 @@
                   </div>
                 </template>
 
-                <!-- Slide 1: Role capabilities -->
+                <!-- Slide 1: Theme selection -->
                 <template v-else-if="currentSlide === 1">
+                  <h3 class="onboarding-slide-title">Choose your theme</h3>
+                  <p class="onboarding-slide-desc">You can change this anytime in the header</p>
+                  <div class="onboarding-theme-options">
+                    <button
+                      type="button"
+                      class="onboarding-theme-option"
+                      :class="{ 'onboarding-theme-option--active': themeStore.appearance === 'dark' }"
+                      @click="themeStore.setAppearance('dark')"
+                    >
+                      <span class="onboarding-theme-option-icon onboarding-theme-option-icon--dark">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                        </svg>
+                      </span>
+                      <span class="onboarding-theme-option-label">Dark</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="onboarding-theme-option"
+                      :class="{ 'onboarding-theme-option--active': themeStore.appearance === 'light' }"
+                      @click="themeStore.setAppearance('light')"
+                    >
+                      <span class="onboarding-theme-option-icon onboarding-theme-option-icon--light">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                      </span>
+                      <span class="onboarding-theme-option-label">Light</span>
+                    </button>
+                  </div>
+                </template>
+
+                <!-- Slide 2: Role capabilities -->
+                <template v-else-if="currentSlide === 2">
                   <h3 class="onboarding-slide-title">What you can do</h3>
                   <ul class="onboarding-list" role="list">
                     <li v-for="(item, i) in roleTips" :key="i" class="onboarding-list-item">
@@ -61,8 +95,8 @@
                   <p v-if="roleExtra" class="onboarding-extra">{{ roleExtra }}</p>
                 </template>
 
-                <!-- Slide 2: Global shortcuts -->
-                <template v-else-if="currentSlide === 2">
+                <!-- Slide 3: Global shortcuts -->
+                <template v-else-if="currentSlide === 3">
                   <h3 class="onboarding-slide-title">Keyboard shortcuts</h3>
                   <p class="onboarding-slide-desc">Global shortcuts available anywhere</p>
                   <div class="onboarding-shortcuts">
@@ -75,8 +109,8 @@
                   </div>
                 </template>
 
-                <!-- Slide 3: Entry & grid shortcuts -->
-                <template v-else-if="currentSlide === 3">
+                <!-- Slide 4: Entry & grid shortcuts -->
+                <template v-else-if="currentSlide === 4">
                   <h3 class="onboarding-slide-title">Entry & data grid</h3>
                   <p class="onboarding-slide-desc">Shortcuts when editing entries</p>
                   <div class="onboarding-shortcuts">
@@ -97,8 +131,8 @@
                   <p class="onboarding-hint-footer">Right-click in the grid for Copy, Paste, Cut, Clear.</p>
                 </template>
 
-                <!-- Slide 4: Get started -->
-                <template v-else-if="currentSlide === 4">
+                <!-- Slide 5: Get started -->
+                <template v-else-if="currentSlide === 5">
                   <div class="onboarding-header onboarding-header--center">
                     <div class="onboarding-icon onboarding-icon--large" :class="iconBgClass">
                       <svg class="onboarding-icon__svg" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -151,6 +185,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useThemeStore } from '../stores/themeStore'
 
 const props = defineProps<{
   visible: boolean
@@ -163,7 +198,9 @@ const emit = defineEmits<{
 }>()
 
 const currentSlide = ref(0)
-const slides = [0, 1, 2, 3, 4] // Welcome, Role, Global shortcuts, Entry/grid shortcuts, Get started
+const slides = [0, 1, 2, 3, 4, 5] // Welcome, Theme, Role, Global shortcuts, Entry/grid shortcuts, Get started
+
+const themeStore = useThemeStore()
 
 const isMac =
   typeof navigator !== 'undefined' &&
@@ -578,6 +615,73 @@ function onGotIt() {
   margin: 0;
   font-size: 0.8125rem;
   color: var(--color-text-muted);
+}
+
+.onboarding-theme-options {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.onboarding-theme-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1.25rem 1.75rem;
+  min-width: 120px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 2px solid rgba(148, 163, 184, 0.2);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+}
+
+.onboarding-theme-option:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+.onboarding-theme-option--active {
+  border-color: var(--color-accent);
+  background: rgba(59, 130, 246, 0.12);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2);
+}
+
+.onboarding-theme-option--active:hover {
+  background: rgba(59, 130, 246, 0.16);
+}
+
+.onboarding-theme-option-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+}
+
+.onboarding-theme-option-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.onboarding-theme-option-icon--dark {
+  background: rgba(30, 41, 59, 0.8);
+  color: rgb(148, 163, 184);
+}
+
+.onboarding-theme-option-icon--light {
+  background: rgba(248, 250, 252, 0.9);
+  color: rgb(100, 116, 139);
+}
+
+.onboarding-theme-option-label {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text);
 }
 
 .onboarding-footer {

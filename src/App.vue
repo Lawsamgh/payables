@@ -5,19 +5,24 @@
   >
     <div v-if="!routerReady" class="app__loader" aria-hidden="true" />
     <template v-else-if="showAppLayout">
-      <AppSidebar />
+      <div
+        class="app-layout flex flex-1 min-h-0 min-w-0 overflow-hidden"
+        :class="'theme-' + themeStore.appearance"
+      >
+        <AppSidebar />
 
-      <div class="flex flex-1 flex-col min-h-0 min-w-0">
-        <AppHeader />
-        <main
-          class="app-main flex-1 flex flex-col min-h-0 min-w-0 overflow-auto"
-        >
-          <RouterView />
-        </main>
-        <StatusBar />
+        <div class="flex flex-1 flex-col min-h-0 min-w-0">
+          <AppHeader />
+          <main
+            class="app-main flex-1 flex flex-col min-h-0 min-w-0 overflow-auto"
+          >
+            <RouterView />
+          </main>
+          <StatusBar />
+        </div>
+
+        <AppSidebarRight />
       </div>
-
-      <AppSidebarRight />
     </template>
     <template v-else>
       <div class="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
@@ -84,9 +89,21 @@ import { useOnboarding } from "./composables/useOnboarding";
 import { useToastStore } from "./stores/toastStore";
 import { useLoadingOverlayStore } from "./stores/loadingOverlayStore";
 import { usePayableStore } from "./stores/payableStore";
+import { useThemeStore } from "./stores/themeStore";
 
 const route = useRoute();
+const themeStore = useThemeStore();
 const router = useRouter();
+
+// Sync theme to html for teleported modals and global light-mode cascade
+watch(
+  () => themeStore.appearance,
+  (appearance) => {
+    document.documentElement.classList.remove("theme-dark", "theme-light");
+    document.documentElement.classList.add("theme-" + appearance);
+  },
+  { immediate: true },
+);
 const booklet = useBookletStore();
 const routerReady = ref(false);
 const showConnectionModal = ref(false);
@@ -168,6 +185,11 @@ function handleKeydown(e: KeyboardEvent) {
     if (showAppLayout.value && showForManager.value && !paletteStore.visible) {
       router.push("/entry");
     }
+    return;
+  }
+  if (isMod && e.shiftKey && (e.key === "L" || e.key === "l")) {
+    e.preventDefault();
+    if (showAppLayout.value) themeStore.toggleAppearance();
     return;
   }
   // Booklet prev/next: ⌘← / ⌘→ (Mac) or Ctrl+Left / Ctrl+Right (Win/Linux)

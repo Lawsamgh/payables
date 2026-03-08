@@ -30,7 +30,7 @@
             Unsaved changes
           </h2>
           <p id="unsaved-modal-desc" class="unsaved-modal__message">
-            You have unsaved changes. Leave anyway?
+            {{ message }}
           </p>
           <div class="unsaved-modal__actions">
             <button
@@ -55,7 +55,10 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{ visible: boolean }>()
+withDefaults(
+  defineProps<{ visible: boolean; message?: string }>(),
+  { message: "You have unsaved changes. Leave anyway?" },
+)
 const emit = defineEmits<{ confirm: []; cancel: [] }>()
 
 function confirm() {

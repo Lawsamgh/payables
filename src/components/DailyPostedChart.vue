@@ -197,9 +197,8 @@ const typeLabel = computed(() => (props.chartType === "approved" ? "Approved" : 
 const chartTypeLabel = computed(() => typeLabel.value.toLowerCase());
 const chartTitle = computed(() => {
   if (!isVendorMode.value) return `${typeLabel.value} by day`;
-  const label = props.dateLabel?.trim();
-  if (label && label.toLowerCase() !== "today") return `${typeLabel.value} on ${label} by vendor`;
-  return `${typeLabel.value} today by vendor`;
+  const label = props.dateLabel?.trim() || "today";
+  return `Chart on Entries ${typeLabel.value} ${label}`;
 });
 
 const showTotalInHeader = computed(

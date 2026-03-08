@@ -101,6 +101,7 @@ export const LAYOUTS = {
 export interface PayablesMainFieldData {
   CreationTimestamp?: string;
   ModificationTimestamp?: string;
+  PurchaseOrder?: string;
   VendorID?: string;
   VendorName?: string;
   VendorEmail?: string;
@@ -123,6 +124,8 @@ export interface PayablesMainFieldData {
   BankName?: string;
   ChequeNo?: string;
   Code?: string;
+  /** Advance payment amount (deducted from Amount to Pay). */
+  AdvancePayment?: number | string;
 }
 
 /**
@@ -143,7 +146,8 @@ export interface PayablesDetailsFieldData {
 
 /**
  * Tax_Value | TBL fields (from schema):
- * Tax_Type, T_Code, Tax_Name, Tax_Rate, Start_Date, End_Date, Status
+ * Tax_Type, T_Code, Tax_Name, Tax_Rate, Start_Date, End_Date, Status, Action
+ * Action: "Add" = add tax to amount, "Sub" = subtract from amount (e.g. WHT)
  */
 export interface TaxValueFieldData {
   Tax_Type?: string;
@@ -153,14 +157,16 @@ export interface TaxValueFieldData {
   Start_Date?: string;
   End_Date?: string;
   Status?: string;
+  Action?: string; // "Add" | "Sub"
 }
 
 /**
  * Payable_Invoice fields (from schema):
- * invoiceNumber (Text), TaxName (Text), Rate (Number)
+ * invoiceNumber (Text), Tax_Type (Text), TaxName (Text), Rate (Number)
  */
 export interface PayableInvoiceFieldData {
   invoiceNumber?: string;
+  Tax_Type?: string;
   TaxName?: string;
   Rate?: number;
 }
@@ -217,6 +223,8 @@ export interface PayablesUsersFieldData {
   Role?: string;
   Status?: string;
   Onboarded?: string;
+  /** App theme: "dark" | "light" */
+  Theme?: string;
 }
 
 function getFieldValue(

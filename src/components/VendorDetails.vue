@@ -1,7 +1,9 @@
 <template>
   <section
     class="vendor-details glass rounded-2xl border border-[var(--color-border)] shadow-sm"
-    :class="{ 'vendor-details--dropdown-open': vendorDropdownOpen && !readOnly }"
+    :class="{
+      'vendor-details--dropdown-open': vendorDropdownOpen && !readOnly,
+    }"
   >
     <button
       type="button"
@@ -142,6 +144,36 @@
         <div class="vendor-details__grid">
           <label class="vendor-details__field">
             <span class="vendor-details__label"
+              >Purchase order
+              <span class="vendor-details__required">Required</span></span
+            >
+            <input
+              :value="vendor.purchase_order"
+              type="text"
+              class="vendor-details__input"
+              :class="{
+                'vendor-details__input--duplicate': purchaseOrderDuplicate,
+              }"
+              placeholder="Purchase order"
+              :readonly="readOnly"
+              required
+              @input="
+                onVendorFieldChange(
+                  'purchase_order',
+                  ($event.target as HTMLInputElement).value,
+                )
+              "
+            />
+            <p
+              v-if="purchaseOrderDuplicate"
+              class="vendor-details__field-error"
+              role="alert"
+            >
+              Purchase order already exists. Use a unique value.
+            </p>
+          </label>
+          <label class="vendor-details__field">
+            <span class="vendor-details__label"
               >Vendor ID
               <span class="vendor-details__required">Required</span></span
             >
@@ -241,9 +273,9 @@
             <input
               :value="vendor.vendor_name"
               type="text"
-              class="vendor-details__input"
+              class="vendor-details__input opacity-75 cursor-not-allowed"
               placeholder="Select vendor above"
-              :readonly="vendorNameReadOnly"
+              readonly
               @input="
                 onVendorFieldChange(
                   'vendor_name',
@@ -275,6 +307,20 @@
               class="vendor-details__input opacity-75 cursor-not-allowed"
               placeholder="vendor@example.com"
               readonly
+            />
+          </label>
+          <label class="vendor-details__field">
+            <span class="vendor-details__label">Advance Payment</span>
+            <input
+              :value="advancePaymentDisplay"
+              type="text"
+              inputmode="decimal"
+              class="vendor-details__input"
+              placeholder="0"
+              :readonly="readOnly"
+              @focus="advancePaymentFocused = true"
+              @blur="onAdvancePaymentBlur"
+              @input="onAdvancePaymentInput(($event.target as HTMLInputElement).value)"
             />
           </label>
           <label class="vendor-details__field">
@@ -323,13 +369,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import { useVendorStore } from "../stores/vendorStore";
 import { usePayableStore } from "../stores/payableStore";
 import { useFileMaker } from "../composables/useFileMaker";
 import { useUserRole } from "../composables/useUserRole";
 import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
 import { LAYOUTS } from "../utils/filemakerApi";
+import { formatNumberDisplay } from "../utils/formatNumber";
 import type { Vendor } from "../types";
 import type { VendorTblFieldData } from "../utils/filemakerApi";
 import type { FindRecordWithId } from "../composables/useFileMaker";
@@ -339,7 +386,22 @@ const payableStore = usePayableStore();
 const { isManager } = useUserRole();
 const documentSettings = useDocumentSettingsStore();
 const { findRecordsWithIds, isConnected } = useFileMaker();
+const purchaseOrderDuplicate = ref(false);
+const purchaseOrderCheckTimeout = ref<ReturnType<typeof setTimeout> | null>(
+  null,
+);
 const vendor = computed(() => vendorStore.vendor);
+const advancePaymentFocused = ref(false);
+/** When focused: raw value for editing. When blurred: formatted with thousand separators. */
+const advancePaymentDisplay = computed(() => {
+  const v = payableStore.mainAdvancePayment;
+  if (v == null) return "";
+  if (advancePaymentFocused.value) {
+    return typeof v === "number" ? String(v) : String(v).replace(/,/g, "").trim();
+  }
+  const n = typeof v === "number" ? v : parseFloat(String(v).replace(/,/g, ""));
+  return Number.isNaN(n) ? String(v).trim() : (formatNumberDisplay(n) || "");
+});
 const collapsed = ref(false);
 const vendorDropdownRef = ref<HTMLElement | null>(null);
 const vendorDropdownOpen = ref(false);
@@ -351,10 +413,6 @@ const readOnly = computed(
     (payableStore.mainPosted && payableStore.mainStatus !== "Rejected"),
 );
 
-/** Vendor name is never editable in New Entry; must select from Vendor ID dropdown. */
-const vendorNameReadOnly = computed(
-  () => !payableStore.currentTransRef || readOnly.value,
-);
 
 /** Don't show expiry for Approved/Posted. New entry: VendorDetails. Existing Draft/Rejected: EntryView banner. */
 const displayExpiryCheck = computed(() => {
@@ -504,9 +562,66 @@ function onVendorSelect(
   if (!readOnly.value) payableStore.markDirty();
 }
 
+function onAdvancePaymentInput(value: string): void {
+  const s = value.replace(/,/g, "").trim();
+  payableStore.setMainAdvancePayment(s === "" ? null : s);
+}
+
+function onAdvancePaymentBlur(): void {
+  advancePaymentFocused.value = false;
+  const v = payableStore.mainAdvancePayment;
+  if (v == null) return;
+  const s = String(v).replace(/,/g, "").trim();
+  const n = parseFloat(s);
+  if (!Number.isNaN(n)) {
+    payableStore.setMainAdvancePayment(n);
+  }
+}
+
 function onVendorFieldChange(field: keyof Vendor, value: string): void {
   vendorStore.setField(field, value);
   if (!readOnly.value) payableStore.markDirty();
+  if (field === "purchase_order") {
+    debouncedPurchaseOrderDuplicateCheck(value.trim().toUpperCase());
+  }
+}
+
+function debouncedPurchaseOrderDuplicateCheck(val: string): void {
+  if (purchaseOrderCheckTimeout.value) {
+    clearTimeout(purchaseOrderCheckTimeout.value);
+  }
+  if (!val || !isConnected.value) {
+    purchaseOrderDuplicate.value = false;
+    return;
+  }
+  purchaseOrderDuplicate.value = false;
+  purchaseOrderCheckTimeout.value = setTimeout(() => {
+    purchaseOrderCheckTimeout.value = null;
+    checkPurchaseOrderDuplicate(val);
+  }, 500);
+}
+
+async function checkPurchaseOrderDuplicate(
+  purchaseOrderVal: string,
+): Promise<void> {
+  if (!purchaseOrderVal || !isConnected.value) return;
+  const { data } = await findRecordsWithIds<Record<string, unknown>>(
+    LAYOUTS.PAYABLES_MAIN,
+    { limit: 1000 },
+  );
+  const poVal = purchaseOrderVal.trim().toUpperCase();
+  const matches = data.filter((r) => {
+    const fd = r.fieldData as Record<string, unknown>;
+    const po = String(fd?.PurchaseOrder ?? fd?.["Purchase Order"] ?? "")
+      .trim()
+      .toUpperCase();
+    return po === poVal;
+  });
+  const currentMainId = payableStore.currentMainRecordId;
+  const otherMatches = currentMainId
+    ? matches.filter((r) => String(r.recordId) !== String(currentMainId))
+    : matches;
+  purchaseOrderDuplicate.value = otherMatches.length > 0;
 }
 
 function handleClickOutside(e: MouseEvent) {
@@ -518,11 +633,22 @@ function handleClickOutside(e: MouseEvent) {
   }
 }
 
+watch(
+  () => vendor.purchase_order,
+  (val) => {
+    if (!val?.trim()) purchaseOrderDuplicate.value = false;
+  },
+);
+
 onMounted(() => {
   loadVendors();
   document.addEventListener("click", handleClickOutside);
 });
 onUnmounted(() => {
+  if (purchaseOrderCheckTimeout.value) {
+    clearTimeout(purchaseOrderCheckTimeout.value);
+    purchaseOrderCheckTimeout.value = null;
+  }
   document.removeEventListener("click", handleClickOutside);
 });
 watch(isConnected, (connected) => {
@@ -721,6 +847,22 @@ watch(isConnected, (connected) => {
 .vendor-details__input:focus {
   border-color: var(--color-accent);
   box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+
+.vendor-details__input--duplicate {
+  border-color: rgb(248, 113, 113);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.vendor-details__input--duplicate:focus {
+  border-color: rgb(248, 113, 113);
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.25);
+}
+
+.vendor-details__field-error {
+  margin: 0.375rem 0 0;
+  font-size: 0.8125rem;
+  color: rgb(248, 113, 113);
 }
 
 .vendor-details__input:disabled,

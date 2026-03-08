@@ -88,7 +88,10 @@
           class="overview-alerts flex flex-col gap-2"
         >
           <button
-            v-if="documentSettings.overdueIndicatorEnabled && listSummary.overdueCount > 0"
+            v-if="
+              documentSettings.overdueIndicatorEnabled &&
+              listSummary.overdueCount > 0
+            "
             type="button"
             class="overview-badge-card overview-badge-card--overdue overview-badge-card--clickable w-full text-left rounded-xl border border-amber-500/40 bg-amber-500/15 px-3.5 py-2.5 transition-colors hover:bg-amber-500/25 cursor-pointer"
             :aria-label="`View ${listSummary.overdueCount} overdue entries awaiting approval`"
@@ -503,7 +506,22 @@
           <p
             class="text-[17px] font-medium text-[var(--color-text)] tracking-tight leading-snug"
           >
-            {{ payableStore.mainRejectedBy || '—' }}
+            {{ payableStore.mainRejectedBy || "—" }}
+          </p>
+        </div>
+        <div
+          class="overview-card overview-card--amount-to-pay rounded-xl border-2 border-[var(--color-accent)]/50 bg-[var(--color-accent-soft)] px-4 py-3"
+        >
+          <p
+            class="text-[11px] font-semibold text-[var(--color-accent)] uppercase tracking-wide mb-1"
+          >
+            Amount to Pay
+          </p>
+          <p
+            class="text-[20px] font-bold tabular-nums text-[var(--color-accent)] tracking-tight leading-snug"
+          >
+            {{ vendorStore.vendor.currency }}
+            {{ formatNumberDisplay(payableStore.amountToPay) || "0.00" }}
           </p>
         </div>
         <div
@@ -512,13 +530,28 @@
           <p
             class="text-[11px] font-medium text-[var(--color-text-muted)] mb-1"
           >
-            Entry total
+            Advance Payment
           </p>
           <p
             class="text-[17px] font-medium tabular-nums text-[var(--color-text)] tracking-tight leading-snug"
           >
             {{ vendorStore.vendor.currency }}
-            {{ formatNumberDisplay(payableStore.entryTotal) || "0.00" }}
+            {{ formatNumberDisplay(payableStore.advancePaymentNum) || "0.00" }}
+          </p>
+        </div>
+        <div
+          class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
+        >
+          <p
+            class="text-[11px] font-medium text-[var(--color-text-muted)] mb-1"
+          >
+            Total with Tax Inclusive
+          </p>
+          <p
+            class="text-[17px] font-medium tabular-nums text-[var(--color-text)] tracking-tight leading-snug"
+          >
+            {{ vendorStore.vendor.currency }}
+            {{ formatNumberDisplay(entryTotalTaxInclusive) || "0.00" }}
           </p>
         </div>
         <div
@@ -537,33 +570,118 @@
           </p>
         </div>
         <div
-          class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
+          class="overview-card overview-card--tax overview-card--donut flex flex-col rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
         >
           <p
             class="text-[11px] font-medium text-[var(--color-text-muted)] mb-1"
           >
             Total Tax Amount
           </p>
-          <p
-            class="text-[17px] font-medium tabular-nums text-[var(--color-text)] tracking-tight leading-snug"
-          >
-            {{ vendorStore.vendor.currency }}
-            {{ formatNumberDisplay(entryTotalTaxAmount) || "0.00" }}
-          </p>
+          <div class="flex items-center justify-between gap-4">
+            <p
+              class="text-[17px] font-medium tabular-nums text-[var(--color-text)] tracking-tight leading-snug"
+            >
+              {{ vendorStore.vendor.currency }}
+              {{ formatNumberDisplay(entryTotalTaxAmount) || "0.00" }}
+            </p>
+            <div class="tax-donut-wrap relative flex shrink-0 items-center justify-center">
+              <svg
+                class="tax-donut"
+                width="88"
+                height="88"
+                viewBox="0 0 64 64"
+              >
+                <defs>
+                  <linearGradient id="taxDonutGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#38bdf8" />
+                    <stop offset="100%" stop-color="#3b82f6" />
+                  </linearGradient>
+                </defs>
+                <circle
+                  class="tax-donut-track"
+                  cx="32"
+                  cy="32"
+                  r="26"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="6"
+                  stroke-dasharray="163.36"
+                  stroke-dashoffset="0"
+                />
+                <circle
+                  class="tax-donut-fill"
+                  cx="32"
+                  cy="32"
+                  r="26"
+                  fill="none"
+                  stroke="url(#taxDonutGrad)"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                  stroke-dasharray="163.36"
+                  :stroke-dashoffset="163.36 - (163.36 * Math.min(entryTotalTaxRateNum, 100)) / 100"
+                  transform="rotate(-90 32 32)"
+                />
+              </svg>
+              <span class="tax-donut-value absolute inset-0 flex items-center justify-center text-[15px] font-bold tabular-nums">{{ entryTotalTaxRateDisplay }}</span>
+            </div>
+          </div>
         </div>
         <div
-          class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
+          class="overview-card overview-card--wht-tax overview-card--donut flex flex-col rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
         >
           <p
             class="text-[11px] font-medium text-[var(--color-text-muted)] mb-1"
           >
-            Total Tax
+            Total WHT Tax Amount
           </p>
-          <p
-            class="text-[17px] font-medium tabular-nums text-[var(--color-text)] tracking-tight leading-snug"
-          >
-            {{ formatNumberDisplay(entryTotalTax) || "0.00" }}
-          </p>
+          <div class="flex items-center justify-between gap-4">
+            <p
+              class="text-[17px] font-medium tabular-nums text-[var(--color-text)] tracking-tight leading-snug"
+            >
+              {{ vendorStore.vendor.currency }}
+              {{ formatNumberDisplay(entryTotalWhtTaxAmount) || "0.00" }}
+            </p>
+            <div class="tax-donut-wrap relative flex shrink-0 items-center justify-center">
+              <svg
+                class="tax-donut"
+                width="88"
+                height="88"
+                viewBox="0 0 64 64"
+              >
+                <defs>
+                  <linearGradient id="whtDonutGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#34d399" />
+                    <stop offset="100%" stop-color="#10b981" />
+                  </linearGradient>
+                </defs>
+                <circle
+                  class="tax-donut-track"
+                  cx="32"
+                  cy="32"
+                  r="26"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="6"
+                  stroke-dasharray="163.36"
+                  stroke-dashoffset="0"
+                />
+                <circle
+                  class="tax-donut-fill tax-donut-fill--wht"
+                  cx="32"
+                  cy="32"
+                  r="26"
+                  fill="none"
+                  stroke="url(#whtDonutGrad)"
+                  stroke-width="6"
+                  stroke-linecap="round"
+                  stroke-dasharray="163.36"
+                  :stroke-dashoffset="163.36 - (163.36 * Math.min(entryTotalWhtTaxRateNum, 100)) / 100"
+                  transform="rotate(-90 32 32)"
+                />
+              </svg>
+              <span class="tax-donut-value absolute inset-0 flex items-center justify-center text-[15px] font-bold tabular-nums">{{ entryTotalWhtTaxRateDisplay }}</span>
+            </div>
+          </div>
         </div>
         <div
           class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
@@ -685,16 +803,72 @@
           >
         </div>
         <button
-          v-if="invoiceMailSelection.canSend"
           type="button"
-          class="overview-card overview-card--clickable w-full rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-4 py-3 flex items-center justify-center gap-2 text-[var(--label-size)] font-medium text-emerald-400 hover:bg-emerald-500/25 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          :disabled="loadingOverlay.visible"
+          class="overview-send-mail w-full rounded-xl px-4 py-3.5 flex flex-col items-center gap-2 text-left transition-all"
+          :class="
+            invoiceMailSelection.canSend && !loadingOverlay.visible
+              ? 'overview-send-mail--active border border-emerald-500/40 bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 cursor-pointer'
+              : 'overview-send-mail--disabled border border-[var(--color-border)]/60 bg-white/[0.04] text-[var(--color-text-muted)] cursor-not-allowed opacity-75'
+          "
+          :disabled="!invoiceMailSelection.canSend || loadingOverlay.visible"
+          :title="
+            invoiceMailSelection.canSend
+              ? `Send approval emails to ${invoiceMailSelection.selectedCount} vendor${invoiceMailSelection.selectedCount === 1 ? '' : 's'}`
+              : 'Select approved invoices (with email, not cheque issued) to send mail'
+          "
           @click="onSendMailToVendors"
         >
-          <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-          </svg>
-          {{ loadingOverlay.visible ? "Sending…" : `Send mail (${invoiceMailSelection.selectedCount})` }}
+          <div class="flex items-center gap-2.5 w-full">
+            <span
+              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+              :class="
+                invoiceMailSelection.canSend && !loadingOverlay.visible
+                  ? 'bg-emerald-500/20'
+                  : 'bg-white/[0.06]'
+              "
+            >
+              <svg
+                v-if="!loadingOverlay.visible"
+                class="w-5 h-5 shrink-0"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                />
+              </svg>
+              <span
+                v-else
+                class="overview-send-mail__spinner"
+                aria-hidden="true"
+              />
+            </span>
+            <div class="flex-1 min-w-0">
+              <span class="block text-[15px] font-semibold leading-tight">
+                {{
+                  loadingOverlay.visible ? "Sending…" : "Send mail to vendors"
+                }}
+              </span>
+              <span
+                class="block text-[12px] mt-0.5"
+                :class="
+                  invoiceMailSelection.canSend && !loadingOverlay.visible
+                    ? 'text-emerald-400/80'
+                    : 'text-[var(--color-text-muted)]'
+                "
+              >
+                {{
+                  invoiceMailSelection.canSend
+                    ? `${invoiceMailSelection.selectedCount} vendor${invoiceMailSelection.selectedCount === 1 ? "" : "s"} selected`
+                    : "Select approved invoices in the list"
+                }}
+              </span>
+            </div>
+          </div>
         </button>
       </div>
 
@@ -830,7 +1004,11 @@
             Sections
           </p>
           <p class="text-[13px] text-[var(--color-text)] leading-relaxed">
-            {{ canViewLogs ? 'Account · Audit · Documents · General' : 'Account · Documents · General' }}
+            {{
+              canViewLogs
+                ? "Account · Audit · Documents · General"
+                : "Account · Documents · General"
+            }}
           </p>
         </div>
       </div>
@@ -882,7 +1060,12 @@ const showOverdueModal = ref(false);
 watch(
   () => route.query.openOverdue,
   (val) => {
-    if (route.name === "home" && val === "1" && documentSettings.overdueIndicatorEnabled) showOverdueModal.value = true;
+    if (
+      route.name === "home" &&
+      val === "1" &&
+      documentSettings.overdueIndicatorEnabled
+    )
+      showOverdueModal.value = true;
   },
   { immediate: true },
 );
@@ -951,12 +1134,59 @@ const entryTotalTaxAmount = computed(() =>
     return acc + (Number.isNaN(n) ? 0 : n);
   }, 0),
 );
-const entryTotalTax = computed(() =>
+/** Total with Tax Inclusive = Amount before VAT + Tax Amount. */
+const entryTotalTaxInclusive = computed(
+  () => entryTotalAmountBeforeVat.value + entryTotalTaxAmount.value,
+);
+const entryTotalTaxRateNum = computed(() =>
   payableStore.rows.reduce((acc, r) => {
-    const n = parseFloat(String(r.tax ?? "").replace(/,/g, "")) || 0;
+    const amount = parseFloat(String(r.amount ?? "").replace(/,/g, ""));
+    const tax = parseFloat(
+      String(((r.reference ?? "").trim() || (r.tax ?? ""))).replace(/,/g, ""),
+    );
+    if (Number.isNaN(amount) || amount <= 0 || Number.isNaN(tax) || tax < 0)
+      return acc;
+    return acc + (tax / amount) * 100;
+  }, 0),
+);
+const entryTotalTaxRateDisplay = computed(() => {
+  const sum = entryTotalTaxRateNum.value;
+  if (sum === 0) return "0%";
+  const formatted = formatNumberDisplay(sum) || "0";
+  return `${formatted}%`;
+});
+const entryTotalWhtTaxAmount = computed(() =>
+  payableStore.rows.reduce((acc, r) => {
+    const val = (r.wht_tax_amount ?? "").trim();
+    const n = parseFloat(String(val).replace(/,/g, "")) || 0;
     return acc + (Number.isNaN(n) ? 0 : n);
   }, 0),
 );
+const entryTotalWhtTaxRateNum = computed(() =>
+  payableStore.rows.reduce((acc, r) => {
+    const amount = parseFloat(String(r.amount ?? "").replace(/,/g, ""));
+    if (Number.isNaN(amount) || amount <= 0) return acc;
+    const whtRateRaw = parseFloat(
+      String((r.wht_tax ?? "").trim()).replace(/,/g, ""),
+    );
+    if (!Number.isNaN(whtRateRaw) && whtRateRaw > 0) {
+      const rate = whtRateRaw <= 1 ? whtRateRaw * 100 : whtRateRaw;
+      return acc + rate;
+    }
+    const whtAmt = parseFloat(
+      String((r.wht_tax_amount ?? "").trim()).replace(/,/g, ""),
+    );
+    if (!Number.isNaN(whtAmt) && whtAmt > 0)
+      return acc + (whtAmt / amount) * 100;
+    return acc;
+  }, 0),
+);
+const entryTotalWhtTaxRateDisplay = computed(() => {
+  const sum = entryTotalWhtTaxRateNum.value;
+  if (sum === 0) return "0%";
+  const formatted = formatNumberDisplay(sum) || "0";
+  return `${formatted}%`;
+});
 const vendorStore = useVendorStore();
 const vendorOverview = useVendorOverviewStore();
 const chequeOverview = useChequeOverviewStore();
@@ -968,7 +1198,20 @@ function formatPostedDate(dateStr: string | null | undefined): string {
   if (!dateStr?.trim()) return "—";
   const d = new Date(dateStr + "T12:00:00");
   if (isNaN(d.getTime())) return dateStr;
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
@@ -1133,5 +1376,20 @@ function totalsByCurrencyLines(
 .overview-badge-card--pending .overview-badge-card__value {
   color: rgb(226, 232, 240);
   font-weight: 600;
+}
+
+.overview-send-mail__spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: overview-send-mail-spin 0.7s linear infinite;
+}
+
+@keyframes overview-send-mail-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>

@@ -12,7 +12,7 @@
   --blur-glass: 40px;
   --radius-input: 12px;
   --radius-card: 8px;
-  --radius-pill: 20px;
+  --radius-pill: 9999px;
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --focus-ring: 0 0 0 4px var(--color-accent-soft);
   --font-ui: "Outfit", system-ui, sans-serif;
@@ -59,6 +59,1731 @@ body {
   min-height: 100svh;
   margin: 0;
   overflow-x: hidden;
+}
+
+/* App layout wrapper: theme applied here so LoginView (outside) keeps default dark */
+.app-layout {
+  transition: background 0.25s var(--ease);
+}
+
+.app-layout.theme-light {
+  color-scheme: light;
+  --color-accent: #3b82f6;
+  --color-accent-soft: rgba(59, 130, 246, 0.12);
+  --color-bg-dark: #ffffff;
+  --color-bg-card: #ffffff;
+  --color-border: rgba(148, 163, 184, 0.4);
+  --color-text: #0f172a;
+  --color-text-muted: #64748b;
+  --focus-ring: 0 0 0 3px rgba(59, 130, 246, 0.25);
+  --shadow-card:
+    0 0 0 1px rgba(0, 0, 0, 0.03), 0 2px 4px rgba(0, 0, 0, 0.04),
+    0 12px 24px rgba(0, 0, 0, 0.04);
+  --shadow-card-hover:
+    0 0 0 1px rgba(0, 0, 0, 0.04), 0 4px 8px rgba(0, 0, 0, 0.06),
+    0 16px 32px rgba(0, 0, 0, 0.06);
+  --shadow-btn: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-btn-hover:
+    0 0 0 1px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.06);
+  background: linear-gradient(
+    180deg,
+    #f8fafc 0%,
+    #f1f5f9 30%,
+    #eef2ff 60%,
+    #f8fafc 100%
+  );
+  color: var(--color-text);
+}
+
+.app-layout.theme-light .app-main {
+  background: transparent;
+}
+
+/* Sync light vars to html for teleported modals (ConnectionModal, etc.) */
+html.theme-light {
+  color-scheme: light;
+  --color-accent: #3b82f6;
+  --color-accent-soft: rgba(59, 130, 246, 0.12);
+  --color-bg-dark: #ffffff;
+  --color-bg-card: #ffffff;
+  --color-border: rgba(148, 163, 184, 0.4);
+  --color-text: #0f172a;
+  --color-text-muted: #64748b;
+  --focus-ring: 0 0 0 3px rgba(59, 130, 246, 0.25);
+  --shadow-card:
+    0 0 0 1px rgba(0, 0, 0, 0.03), 0 2px 4px rgba(0, 0, 0, 0.04),
+    0 12px 24px rgba(0, 0, 0, 0.04);
+  --shadow-btn: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-btn-hover:
+    0 0 0 1px rgba(0, 0, 0, 0.06), 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+
+/* Dark mode: modal panels must not be transparent */
+html:not(.theme-light) .tax-modal,
+html:not(.theme-light) .teleport-modal-backdrop .glass,
+html:not(.theme-light) .logout-modal,
+html:not(.theme-light) .shortcuts-cheatsheet,
+html:not(.theme-light) .delete-draft-modal,
+html:not(.theme-light) .unsaved-modal,
+html:not(.theme-light) .reject-modal,
+html:not(.theme-light) .edit-request-modal,
+html:not(.theme-light) .add-email-modal,
+html:not(.theme-light) .onboarding-card {
+  background: rgb(30, 41, 59) !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Modals in light mode (tax-modal, teleported modals, delete-draft, etc.) */
+html.theme-light .tax-modal-backdrop {
+  background: rgba(15, 23, 42, 0.25);
+}
+
+html.theme-light .tax-modal {
+  background: #ffffff;
+  border-color: var(--color-border);
+  box-shadow:
+    0 24px 48px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+html.theme-light .tax-modal__close:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+html.theme-light .tax-modal__error {
+  color: #991b1b;
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+html.theme-light .tax-modal__error-icon {
+  color: #dc2626;
+}
+
+html.theme-light .tax-modal__select,
+html.theme-light .tax-modal__input {
+  background: #ffffff !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+html.theme-light .tax-modal__select:hover,
+html.theme-light .tax-modal__input:hover {
+  background: #f8fafc !important;
+}
+
+html.theme-light .tax-modal__select:focus,
+html.theme-light .tax-modal__input:focus {
+  border-color: var(--color-accent) !important;
+}
+
+/* Glass-input: light mode for all contexts (incl. teleported modals) */
+html.theme-light .glass-input {
+  background: #ffffff !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+html.theme-light .glass-input:hover {
+  background: #f8fafc !important;
+  border-color: rgba(148, 163, 184, 0.5) !important;
+}
+
+html.theme-light .glass-input:focus {
+  border-color: var(--color-accent) !important;
+  box-shadow: var(--focus-ring) !important;
+}
+
+html.theme-light .glass-input::placeholder {
+  color: var(--color-text-muted) !important;
+}
+
+/* Loading overlay / spinner card – light */
+html.theme-light .loading-overlay {
+  background: rgba(15, 23, 42, 0.25) !important;
+}
+
+html.theme-light .loading-overlay__content {
+  background: #ffffff !important;
+  border-color: var(--color-border) !important;
+  box-shadow:
+    0 24px 48px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+html.theme-light .loading-overlay__spinner {
+  border-color: rgba(148, 163, 184, 0.3) !important;
+  border-top-color: var(--color-accent) !important;
+}
+
+html.theme-light .teleport-modal-backdrop {
+  background: rgba(15, 23, 42, 0.25);
+}
+
+html.theme-light .delete-draft-modal-backdrop {
+  background: rgba(15, 23, 42, 0.3) !important;
+}
+
+html.theme-light .delete-draft-modal {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+  border-color: var(--color-border) !important;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12) !important;
+}
+
+html.theme-light .delete-draft-modal__btn--cancel {
+  background: rgba(0, 0, 0, 0.06) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+html.theme-light .delete-draft-modal__btn--cancel:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.1) !important;
+  border-color: rgba(148, 163, 184, 0.5) !important;
+}
+
+/* Overdue modal uses .glass – light glass is already set; ensure pill-btn hover */
+html.theme-light .glass {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+/* Overdue modal close button – light hover */
+html.theme-light .pill-btn.hover\:bg-white\/5:hover {
+  background: rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Overdue modal badge – light mode visibility */
+html.theme-light .overdue-modal-badge--default {
+  background: rgba(217, 119, 6, 0.2) !important;
+  color: #b45309 !important;
+}
+
+html.theme-light .overdue-modal-badge--severe {
+  background: rgba(180, 83, 9, 0.25) !important;
+  color: #92400e !important;
+}
+
+/* Shortcuts cheatsheet modal – light */
+html.theme-light .shortcuts-cheatsheet-backdrop {
+  background: rgba(15, 23, 42, 0.3) !important;
+}
+
+html.theme-light .shortcuts-cheatsheet {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+  border-color: var(--color-border) !important;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12) !important;
+}
+
+html.theme-light .shortcuts-cheatsheet__header {
+  border-bottom-color: var(--color-border) !important;
+}
+
+html.theme-light .shortcuts-cheatsheet__close:hover {
+  background: rgba(0, 0, 0, 0.06) !important;
+}
+
+html.theme-light .shortcuts-cheatsheet__list {
+  background: rgba(0, 0, 0, 0.03) !important;
+  border-color: var(--color-border) !important;
+}
+
+html.theme-light .shortcuts-cheatsheet__kbd,
+html.theme-light .shortcuts-cheatsheet__kbd-inline {
+  background: rgba(0, 0, 0, 0.05) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+/* Logout, unsaved, reject, edit-request, add-email modals – light */
+html.theme-light .logout-modal-backdrop,
+html.theme-light .unsaved-modal-backdrop,
+html.theme-light .reject-modal-backdrop,
+html.theme-light .edit-request-modal-backdrop,
+html.theme-light .add-email-modal-backdrop {
+  background: rgba(15, 23, 42, 0.3) !important;
+}
+
+html.theme-light .logout-modal,
+html.theme-light .unsaved-modal,
+html.theme-light .reject-modal,
+html.theme-light .edit-request-modal,
+html.theme-light .add-email-modal {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+  border-color: var(--color-border) !important;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12) !important;
+}
+
+html.theme-light .logout-modal__btn--cancel,
+html.theme-light .unsaved-modal__btn--primary,
+html.theme-light .reject-modal__btn--cancel,
+html.theme-light .edit-request-modal__btn--secondary,
+html.theme-light .add-email-modal__btn-cancel {
+  background: rgba(0, 0, 0, 0.06) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+html.theme-light .logout-modal__btn--cancel:hover,
+html.theme-light .unsaved-modal__btn--primary:hover,
+html.theme-light .reject-modal__btn--cancel:hover,
+html.theme-light .edit-request-modal__btn--secondary:hover,
+html.theme-light .add-email-modal__btn-cancel:hover {
+  background: rgba(0, 0, 0, 0.1) !important;
+}
+
+html.theme-light .add-email-modal__input {
+  background: #ffffff !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+html.theme-light .add-email-modal__input:hover {
+  background: #f8fafc !important;
+}
+
+html.theme-light .reject-modal__textarea {
+  background: #ffffff !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+/* Command palette – light (glass + item hover) */
+html.theme-light .command-palette__item:hover,
+html.theme-light .command-palette__item--selected {
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+
+html.theme-light .command-palette__kbd {
+  background: rgba(0, 0, 0, 0.06) !important;
+  color: var(--color-text-muted) !important;
+}
+
+/* Onboarding modal – light */
+html.theme-light .onboarding-backdrop {
+  background:
+    radial-gradient(
+      ellipse 100% 80% at 50% 0%,
+      rgba(59, 130, 246, 0.08) 0%,
+      transparent 50%
+    ),
+    rgba(15, 23, 42, 0.25) !important;
+}
+
+html.theme-light .onboarding-card {
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-color: var(--color-border) !important;
+  box-shadow:
+    0 32px 64px -16px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+.app-layout.theme-light .glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow:
+    var(--shadow-card),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.app-layout.theme-light .glass-input {
+  background: #ffffff !important;
+  border: 1px solid var(--color-border) !important;
+  color: var(--color-text) !important;
+  box-shadow:
+    var(--shadow-btn),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
+}
+
+.app-layout.theme-light .glass-input:hover {
+  background: #f8fafc !important;
+  border-color: rgba(148, 163, 184, 0.5) !important;
+  box-shadow:
+    var(--shadow-btn-hover),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.app-layout.theme-light .glass-input:focus {
+  border-color: var(--color-accent) !important;
+  box-shadow: var(--focus-ring) !important;
+}
+
+.app-layout.theme-light .glass-input::placeholder {
+  color: var(--color-text-muted) !important;
+}
+
+.app-layout.theme-light .pill-btn {
+  color: var(--color-text);
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.app-layout.theme-light .pill-btn.glass-input:hover {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+.app-layout.theme-light .pill-btn:hover {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+/* Download PDF button (EntryView) – primary CTA styling */
+.download-pdf-btn {
+  background: var(--color-accent);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.download-pdf-btn:hover:not(:disabled) {
+  background: #2563eb;
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+}
+
+/* Download PDF – light mode */
+.app-layout.theme-light .download-pdf-btn {
+  background: var(--color-accent);
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 1px 2px rgba(59, 130, 246, 0.15);
+  color: white !important;
+}
+
+.app-layout.theme-light .download-pdf-btn svg {
+  color: white;
+}
+
+.app-layout.theme-light .download-pdf-btn:hover:not(:disabled) {
+  background: #2563eb;
+  border-color: var(--color-accent);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+}
+
+/* Orange buttons in light mode: white text and better hover (exclude add-tax/add-user/add-collection/new-entry which stay blue) */
+.app-layout.theme-light .pill-btn.bg-orange-500:not(.add-tax-btn):not(.add-user-btn):not(.add-collection-btn):not(.new-entry-btn),
+.app-layout.theme-light a.pill-btn.bg-orange-500:not(.add-tax-btn):not(.add-user-btn):not(.add-collection-btn):not(.new-entry-btn) {
+  color: white !important;
+}
+
+.app-layout.theme-light .pill-btn.bg-orange-500:not(.add-tax-btn):not(.add-user-btn):not(.add-collection-btn):not(.new-entry-btn) svg,
+.app-layout.theme-light a.pill-btn.bg-orange-500:not(.add-tax-btn):not(.add-user-btn):not(.add-collection-btn):not(.new-entry-btn) svg {
+  color: white;
+}
+
+.app-layout.theme-light .pill-btn.bg-orange-500:not(.add-tax-btn):not(.add-user-btn):not(.add-collection-btn):not(.new-entry-btn):hover,
+.app-layout.theme-light a.pill-btn.bg-orange-500:not(.add-tax-btn):not(.add-user-btn):not(.add-collection-btn):not(.new-entry-btn):hover {
+  background: #c2410c !important;
+  color: white !important;
+  box-shadow: 0 2px 8px rgba(194, 65, 12, 0.35);
+}
+
+.app-layout.theme-light .pill-btn.bg-orange-500:not(.add-tax-btn):not(.add-user-btn):not(.add-collection-btn):not(.new-entry-btn):hover svg,
+.app-layout.theme-light a.pill-btn.bg-orange-500:not(.add-tax-btn):not(.add-user-btn):not(.add-collection-btn):not(.new-entry-btn):hover svg {
+  color: white;
+}
+
+/* Notification emails – email toggle hover in light mode */
+.app-layout.theme-light .email-toggle:hover:not(:disabled) .email-toggle__track {
+  background: rgba(148, 163, 184, 0.35);
+  border-color: rgba(148, 163, 184, 0.45);
+}
+
+.app-layout.theme-light .email-toggle:hover:not(:disabled).email-toggle--on .email-toggle__track {
+  background: rgba(52, 211, 153, 0.45);
+  border-color: rgba(52, 211, 153, 0.6);
+}
+
+/* Add Tax / Add User / Add collection / New entry – light mode: accent blue instead of orange */
+.app-layout.theme-light .add-tax-btn,
+.app-layout.theme-light .add-user-btn,
+.app-layout.theme-light .add-collection-btn,
+.app-layout.theme-light .new-entry-btn {
+  background: var(--color-accent) !important;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  color: white !important;
+}
+
+.app-layout.theme-light .add-tax-btn:hover,
+.app-layout.theme-light .add-user-btn:hover,
+.app-layout.theme-light .add-collection-btn:hover,
+.app-layout.theme-light .new-entry-btn:hover {
+  background: #2563eb !important;
+  border-color: var(--color-accent);
+}
+
+/* Breadcrumb progress line – light */
+.app-layout.theme-light
+  .breadcrumb-progress__step--past
+  .breadcrumb-progress__node {
+  background: var(--color-accent);
+}
+
+.app-layout.theme-light
+  .breadcrumb-progress__step--current
+  .breadcrumb-progress__node {
+  background: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+
+/* Overview sidebar (right) – light */
+.app-layout.theme-light .overview-sidebar {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(248, 250, 252, 0.9) 100%
+  );
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-left: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow:
+    -8px 0 32px rgba(0, 0, 0, 0.06),
+    inset 1px 0 0 rgba(255, 255, 255, 0.9);
+}
+
+.app-layout.theme-light .overview-header {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.app-layout.theme-light .overview-card {
+  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: var(--color-text);
+  box-shadow:
+    var(--shadow-card),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border-radius: 14px;
+  transition: all 0.2s ease;
+}
+
+.app-layout.theme-light .overview-card:hover {
+  border-color: rgba(148, 163, 184, 0.5);
+  box-shadow:
+    var(--shadow-card-hover),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.app-layout.theme-light .overview-totals__currency,
+.app-layout.theme-light .overview-totals__empty {
+  color: var(--color-text-muted);
+}
+
+.app-layout.theme-light .overview-totals__amount {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.app-layout.theme-light .overview-badge {
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  font-weight: 700;
+}
+
+.app-layout.theme-light .overview-badge--draft {
+  background: linear-gradient(180deg, #fdba74 0%, #fb923c 100%);
+  color: #7c2d12;
+  border-color: rgba(234, 88, 12, 0.4);
+}
+
+.app-layout.theme-light .overview-badge--posted {
+  background: linear-gradient(180deg, #cbd5e1 0%, #94a3b8 100%);
+  color: #0f172a;
+  border-color: rgba(100, 116, 139, 0.4);
+}
+
+.app-layout.theme-light .overview-badge--rejected {
+  background: linear-gradient(180deg, #fca5a5 0%, #f87171 100%);
+  color: #7f1d1d;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.app-layout.theme-light .overview-badge--approved {
+  background: linear-gradient(180deg, #86efac 0%, #22c55e 100%);
+  color: #14532d;
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+.app-layout.theme-light .overview-badge-card--overdue {
+  background: linear-gradient(180deg, #fef9c3 0%, #fef08a 100%);
+  border: 1px solid rgba(234, 179, 8, 0.5);
+  box-shadow:
+    0 2px 12px rgba(234, 179, 8, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.app-layout.theme-light
+  .overview-badge-card--overdue
+  .overview-badge-card__label,
+.app-layout.theme-light
+  .overview-badge-card--overdue
+  .overview-badge-card__value {
+  color: #b45309;
+}
+
+.app-layout.theme-light
+  .overview-badge-card--overdue
+  .overview-badge-card__icon {
+  color: #d97706;
+}
+
+.app-layout.theme-light .overview-badge-card--pending {
+  background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%);
+  border: 1px solid rgba(100, 116, 139, 0.45);
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.app-layout.theme-light
+  .overview-badge-card--pending
+  .overview-badge-card__label,
+.app-layout.theme-light
+  .overview-badge-card--pending
+  .overview-badge-card__value {
+  color: var(--color-text);
+}
+
+.app-layout.theme-light
+  .overview-badge-card--pending
+  .overview-badge-card__icon {
+  color: var(--color-text-muted);
+}
+
+.app-layout.theme-light .overview-card--rejected-by {
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.12);
+}
+
+.app-layout.theme-light .overview-vendor-analytics {
+  border-top-color: var(--color-border);
+}
+
+.app-layout.theme-light .overview-card.overview-card--clickable {
+  color: #065f46;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  background: linear-gradient(180deg, #d1fae5 0%, #a7f3d0 100%);
+  box-shadow:
+    0 2px 12px rgba(16, 185, 129, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.app-layout.theme-light .overview-card.overview-card--clickable:hover {
+  background: linear-gradient(180deg, #a7f3d0 0%, #6ee7b7 100%);
+  border-color: rgba(5, 150, 105, 0.55);
+  box-shadow:
+    0 4px 16px rgba(16, 185, 129, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.app-layout.theme-light .overview-sidebar .overview-card[class*="emerald"] {
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%);
+  color: var(--color-text);
+  box-shadow:
+    0 2px 12px rgba(16, 185, 129, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.app-layout.theme-light .overview-send-mail--active {
+  border-color: rgba(16, 185, 129, 0.45);
+  background: linear-gradient(180deg, #d1fae5 0%, #a7f3d0 100%);
+  color: #065f46;
+  box-shadow:
+    0 2px 12px rgba(16, 185, 129, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.app-layout.theme-light .overview-send-mail--active:hover {
+  background: linear-gradient(180deg, #a7f3d0 0%, #6ee7b7 100%);
+  border-color: rgba(5, 150, 105, 0.55);
+  box-shadow:
+    0 4px 16px rgba(16, 185, 129, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.app-layout.theme-light
+  .overview-send-mail--active
+  .overview-send-mail__spinner,
+.app-layout.theme-light .overview-send-mail--active [class*="text-emerald"] {
+  color: #059669;
+}
+
+.app-layout.theme-light .overview-send-mail--disabled {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+/* Left sidebar – light */
+.app-layout.theme-light > aside:first-of-type {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(248, 250, 252, 0.9) 100%
+  );
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-right: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow:
+    8px 0 32px rgba(0, 0, 0, 0.05),
+    inset -1px 0 0 rgba(255, 255, 255, 0.9);
+}
+
+.app-layout.theme-light .sidebar-link {
+  color: var(--color-text-muted);
+  transition: all 0.18s ease;
+  border-radius: 12px;
+}
+
+.app-layout.theme-light .sidebar-link:hover {
+  color: var(--color-text);
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.app-layout.theme-light .sidebar-link.router-link-active {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  font-weight: 600;
+}
+
+/* Vertical orange accent bar for active sidebar items */
+.sidebar-link--active {
+  position: relative;
+}
+
+.sidebar-link--active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 1rem;
+  background: #ea580c;
+  border-radius: 0 1px 1px 0;
+}
+
+.app-layout.theme-light .sidebar-link--active::before {
+  background: #ea580c;
+}
+
+/* Theme switch – light mode */
+.app-layout.theme-light .theme-switch {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(148, 163, 184, 0.35);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.app-layout.theme-light .theme-switch__option:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.app-layout.theme-light .theme-switch__option--active {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--color-accent);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2);
+}
+
+.app-layout.theme-light .list-view--inset {
+  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow:
+    var(--shadow-card),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border-radius: 14px;
+}
+
+.app-layout.theme-light .list-view--inset .list-view__row:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.app-layout.theme-light .list-view--inset .list-view__row:active {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.app-layout.theme-light .list-view__header {
+  background: rgba(0, 0, 0, 0.04);
+  border-bottom-color: var(--color-border);
+}
+
+.app-layout.theme-light .segment-control {
+  background: rgba(226, 232, 240, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+  padding: 5px;
+  border-radius: 12px;
+}
+
+.app-layout.theme-light .segment-control__segment {
+  color: var(--color-text-muted);
+  border-radius: 10px;
+  transition: all 0.18s ease;
+}
+
+.app-layout.theme-light .segment-control__segment:hover {
+  color: var(--color-text);
+}
+
+.app-layout.theme-light .segment-control__segment--active {
+  background: #ffffff;
+  color: var(--color-accent);
+  font-weight: 600;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(59, 130, 246, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.app-layout.theme-light
+  .segment-control__segment:not(.segment-control__segment--active)
+  .segment-control__badge {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.app-layout.theme-light
+  .segment-control__segment[id="tab-posted"].segment-control__segment--active
+  .segment-control__badge {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+/* Stats dashboard – light */
+.app-layout.theme-light .stats-dashboard {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 50%, #f1f5f9 100%);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow:
+    var(--shadow-card-hover),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  border-radius: 18px;
+}
+
+.app-layout.theme-light .stats-dashboard__greeting {
+  color: var(--color-text);
+}
+
+.app-layout.theme-light .stats-dashboard__greeting-row {
+  border-bottom-color: var(--color-border);
+}
+
+.app-layout.theme-light .stats-dashboard__role {
+  background: rgba(0, 0, 0, 0.07);
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.app-layout.theme-light .stats-dashboard__bar-label {
+  color: var(--color-text-muted);
+}
+
+.app-layout.theme-light .stats-dashboard__bar-legend {
+  color: var(--color-text-muted);
+}
+
+.app-layout.theme-light .stats-dashboard__bar-track {
+  background: rgba(148, 163, 184, 0.2);
+}
+
+/* Daily chart section – light */
+.app-layout.theme-light .daily-chart-section {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 50%, #f1f5f9 100%);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow:
+    var(--shadow-card-hover),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  border-radius: 18px;
+}
+
+.app-layout.theme-light .chart-calendar {
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  box-shadow:
+    var(--shadow-card),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border-radius: 14px;
+}
+
+.app-layout.theme-light .chart-calendar__month {
+  color: #0f172a;
+}
+
+.app-layout.theme-light .chart-calendar__nav {
+  color: #64748b;
+}
+
+.app-layout.theme-light .chart-calendar__nav:hover {
+  color: #0f172a;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.app-layout.theme-light .chart-calendar__weekday {
+  color: #64748b;
+}
+
+.app-layout.theme-light .chart-calendar__day {
+  color: #0f172a;
+}
+
+.app-layout.theme-light .chart-calendar__day:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.app-layout.theme-light .chart-calendar__day--selected {
+  color: #ffffff;
+  background: rgba(34, 197, 94, 0.7);
+}
+
+.app-layout.theme-light .chart-calendar__day--selected:hover {
+  background: rgba(34, 197, 94, 0.8);
+}
+
+.app-layout.theme-light
+  .chart-calendar__day--today:not(.chart-calendar__day--selected) {
+  box-shadow: 0 0 0 1.5px rgba(34, 197, 94, 0.6);
+}
+
+.app-layout.theme-light .chart-calendar__today {
+  color: var(--color-accent);
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+.app-layout.theme-light .chart-calendar__today:hover {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.app-layout.theme-light .daily-chart-metric-btn {
+  background: rgba(148, 163, 184, 0.15);
+}
+
+.app-layout.theme-light .daily-chart-metric-btn:hover {
+  background: rgba(148, 163, 184, 0.22);
+}
+
+.app-layout.theme-light .daily-chart-metric-btn--active {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
+/* Daily posted chart – light mode (chart area + empty state) */
+.app-layout.theme-light .daily-posted-chart__wrap {
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.app-layout.theme-light .daily-posted-chart__empty {
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px dashed rgba(100, 116, 139, 0.4);
+}
+
+.app-layout.theme-light .daily-posted-chart__empty-icon {
+  color: #64748b;
+  opacity: 0.7;
+}
+
+.app-layout.theme-light .daily-posted-chart__empty-text {
+  color: #475569;
+}
+
+.app-layout.theme-light .daily-posted-chart__grid-line {
+  stroke: rgba(100, 116, 139, 0.2);
+}
+
+.app-layout.theme-light .daily-posted-chart__axis-text {
+  fill: #64748b;
+}
+
+.app-layout.theme-light .daily-posted-chart__tooltip {
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.app-layout.theme-light .daily-posted-chart__tooltip-date {
+  color: #64748b;
+}
+
+.app-layout.theme-light .daily-posted-chart__tooltip-value {
+  color: #0f172a;
+}
+
+/* Stat cards – light */
+.app-layout.theme-light .stat-card {
+  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow:
+    var(--shadow-card),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border-radius: 14px;
+  transition: all 0.2s ease;
+}
+
+.app-layout.theme-light .stat-card:hover {
+  border-color: rgba(148, 163, 184, 0.5);
+  box-shadow:
+    var(--shadow-card-hover),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.app-layout.theme-light .stat-card--draft {
+  border-left: 3px solid #ea580c;
+}
+
+.app-layout.theme-light .stat-card--draft .stat-card__value {
+  color: #c2410c;
+}
+
+.app-layout.theme-light .stat-card--posted {
+  border-left: 3px solid #22c55e;
+}
+
+.app-layout.theme-light .stat-card--posted .stat-card__value {
+  color: #15803d;
+}
+
+.app-layout.theme-light .stat-card--rejected {
+  border-left: 3px solid #ef4444;
+}
+
+.app-layout.theme-light .stat-card--rejected .stat-card__value {
+  color: #b91c1c;
+}
+
+.app-layout.theme-light .stat-card--approved {
+  border-left: 3px solid #22c55e;
+}
+
+.app-layout.theme-light .stat-card--approved .stat-card__value {
+  color: #15803d;
+}
+
+.app-layout.theme-light .stat-card--vendors {
+  border-left: 3px solid #6366f1;
+}
+
+.app-layout.theme-light .stat-card--vendors .stat-card__value {
+  color: #4338ca;
+}
+
+.app-layout.theme-light .stat-card--clickable:not(:disabled):hover {
+  background: rgba(254, 226, 226, 0.5);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.app-layout.theme-light .stat-card--link:hover {
+  background: rgba(238, 242, 255, 0.7);
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.app-layout.theme-light .stat-card--clickable .stat-card__action-icon {
+  color: #dc2626;
+}
+
+.app-layout.theme-light .stat-card--vendors .stat-card__action-icon--vendors {
+  color: #6366f1;
+}
+
+/* Quick filter pill – light */
+.app-layout.theme-light .quick-filter-pill {
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  box-shadow:
+    var(--shadow-btn),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border-radius: 9999px;
+  transition: all 0.18s ease;
+}
+
+.app-layout.theme-light .quick-filter-pill:hover {
+  background: #f8fafc;
+  border-color: rgba(148, 163, 184, 0.5);
+  box-shadow: var(--shadow-btn-hover);
+}
+
+.app-layout.theme-light .quick-filter-pill--active {
+  background: var(--color-accent-soft);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: var(--color-accent);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+}
+
+.app-layout.theme-light .quick-filter-pill__count {
+  background: rgba(0, 0, 0, 0.07);
+  font-weight: 600;
+  border-radius: 8px;
+}
+
+/* Search bar – light */
+.app-layout.theme-light .search-bar__wrap {
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  box-shadow:
+    var(--shadow-btn),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  border-radius: 14px;
+  transition: all 0.18s ease;
+}
+
+.app-layout.theme-light .search-bar__wrap:hover {
+  border-color: rgba(148, 163, 184, 0.5);
+  box-shadow: var(--shadow-btn-hover);
+}
+
+.app-layout.theme-light .search-bar__wrap:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: var(--focus-ring);
+}
+
+.app-layout.theme-light .search-bar__wrap--has-value {
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.app-layout.theme-light .search-bar__clear {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.app-layout.theme-light .search-bar__clear:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* Sidebar link hover – light (Tailwind hover:bg-white/5) */
+.app-layout.theme-light a.sidebar-link:not(.router-link-active):hover {
+  background: rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Vendor details inputs – light (overrides component scoped dark bg) */
+.app-layout.theme-light .vendor-details__input {
+  background: #ffffff !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.app-layout.theme-light
+  .vendor-details__input:hover:not(:disabled):not([readonly]) {
+  background: #f8fafc !important;
+  border-color: rgba(148, 163, 184, 0.5) !important;
+}
+
+.app-layout.theme-light .vendor-details__input::placeholder {
+  color: var(--color-text-muted) !important;
+}
+
+.app-layout.theme-light .vendor-details__input--date {
+  color-scheme: light;
+}
+
+/* Vendor collect inputs – light */
+.app-layout.theme-light .vendor-collect__input-wrap {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: var(--color-border) !important;
+  box-shadow:
+    var(--shadow-btn),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
+}
+
+.app-layout.theme-light .vendor-collect__input-wrap:focus-within {
+  border-color: var(--color-accent) !important;
+  background: #ffffff !important;
+}
+
+.app-layout.theme-light .vendor-collect__input {
+  color: var(--color-text) !important;
+}
+
+/* Data grid cell select – ensure light appearance */
+.app-layout.theme-light .cell-select {
+  color: var(--color-text) !important;
+}
+
+.app-layout.theme-light .tax-modal__search-dropdown-input-wrap,
+.app-layout.theme-light .tax-modal__search-dropdown-panel {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: var(--color-border);
+}
+
+/* Vendor ID dropdown – input and list */
+.app-layout.theme-light .tax-modal__search-dropdown-input,
+html.theme-light .tax-modal__search-dropdown-input {
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.app-layout.theme-light .tax-modal__search-dropdown-input:hover,
+html.theme-light .tax-modal__search-dropdown-input:hover {
+  background: #f8fafc;
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+.app-layout.theme-light .tax-modal__search-dropdown-list,
+html.theme-light .tax-modal__search-dropdown-list {
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+}
+
+.app-layout.theme-light .tax-modal__search-dropdown-item:hover,
+.app-layout.theme-light .tax-modal__search-dropdown-item--highlight,
+html.theme-light .tax-modal__search-dropdown-item:hover,
+html.theme-light .tax-modal__search-dropdown-item--highlight {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.app-layout.theme-light .tax-modal__search-dropdown-item--add,
+html.theme-light .tax-modal__search-dropdown-item--add {
+  border-top-color: var(--color-border);
+}
+
+.app-layout.theme-light .tax-modal__search-dropdown-item--add:hover,
+html.theme-light .tax-modal__search-dropdown-item--add:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* Payable select dropdown (Cheque Collection) – light mode */
+.app-layout.theme-light .payable-select-dropdown,
+html.theme-light .payable-select-dropdown {
+  background: #ffffff;
+  border-color: var(--color-border);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.app-layout.theme-light .payable-select-dropdown .payable-select-search,
+html.theme-light .payable-select-dropdown .payable-select-search {
+  border-bottom-color: var(--color-border);
+}
+
+.app-layout.theme-light .payable-select-dropdown .payable-select-hint,
+html.theme-light .payable-select-dropdown .payable-select-hint {
+  color: var(--color-text-muted);
+}
+
+.app-layout.theme-light .payable-select-dropdown .payable-select-item,
+html.theme-light .payable-select-dropdown .payable-select-item {
+  color: var(--color-text);
+}
+
+.app-layout.theme-light .payable-select-dropdown .payable-select-item:hover,
+html.theme-light .payable-select-dropdown .payable-select-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.app-layout.theme-light .payable-select-dropdown .payable-select-item--empty,
+html.theme-light .payable-select-dropdown .payable-select-item--empty {
+  color: var(--color-text-muted);
+}
+
+.app-layout.theme-light .payable-select-dropdown .payable-select-item__vendor,
+html.theme-light .payable-select-dropdown .payable-select-item__vendor {
+  color: var(--color-text-muted);
+}
+
+/* Data grid header / entry total row – light */
+.app-layout.theme-light .bg-\[var\(--color-bg-dark\)\] {
+  background: var(--color-bg-dark) !important;
+}
+
+/* User email badge in header – light */
+.app-layout.theme-light .user-email-badge {
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  box-shadow:
+    var(--shadow-btn),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  border-radius: 9999px;
+  transition: all 0.18s ease;
+}
+
+.app-layout.theme-light .user-email-badge:hover {
+  border-color: rgba(59, 130, 246, 0.35);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.12);
+}
+
+.app-layout.theme-light .user-email-badge__icon {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+/* Data grid wrapper – light */
+.app-layout.theme-light .data-grid-wrapper {
+  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow:
+    var(--shadow-card),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border-radius: 16px;
+}
+
+.app-layout.theme-light .header-vendor-name {
+  color: var(--color-text);
+}
+
+.app-layout.theme-light .section-header {
+  color: var(--color-text-muted);
+}
+
+/* Expiry check banners (EntryView, VendorDetails) – light mode visibility */
+.app-layout.theme-light .expiry-check-banner,
+.app-layout.theme-light .vendor-details__expiry-alert {
+  background: linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%);
+  border-color: rgba(59, 130, 246, 0.5);
+}
+
+.app-layout.theme-light .expiry-check-banner__icon,
+.app-layout.theme-light .vendor-details__expiry-icon {
+  color: #1d4ed8;
+}
+
+.app-layout.theme-light .expiry-check-banner__item--invalid,
+.app-layout.theme-light .vendor-details__expiry-item--invalid {
+  color: #b91c1c;
+}
+
+.app-layout.theme-light
+  .expiry-check-banner__item--invalid
+  .expiry-check-banner__text,
+.app-layout.theme-light
+  .vendor-details__expiry-item--invalid
+  .vendor-details__expiry-value {
+  color: #b91c1c;
+}
+
+.app-layout.theme-light
+  .expiry-check-banner__item--invalid
+  .expiry-check-banner__icon-svg,
+.app-layout.theme-light
+  .vendor-details__expiry-item--invalid
+  .vendor-details__expiry-icon-svg {
+  color: #b91c1c;
+}
+
+.app-layout.theme-light .expiry-check-banner__item--valid,
+.app-layout.theme-light .vendor-details__expiry-item--valid {
+  color: #15803d;
+}
+
+.app-layout.theme-light
+  .expiry-check-banner__item--valid
+  .expiry-check-banner__text,
+.app-layout.theme-light
+  .vendor-details__expiry-item--valid
+  .vendor-details__expiry-value {
+  color: #15803d;
+}
+
+.app-layout.theme-light
+  .expiry-check-banner__item:not(.expiry-check-banner__item--invalid):not(
+    .expiry-check-banner__item--valid
+  )
+  .expiry-check-banner__label,
+.app-layout.theme-light
+  .vendor-details__expiry-item:not(.vendor-details__expiry-item--invalid):not(
+    .vendor-details__expiry-item--valid
+  )
+  .vendor-details__expiry-label {
+  color: #1e40af;
+}
+
+.app-layout.theme-light
+  .expiry-check-banner__item:not(.expiry-check-banner__item--invalid):not(
+    .expiry-check-banner__item--valid
+  )
+  .expiry-check-banner__text,
+.app-layout.theme-light
+  .vendor-details__expiry-item:not(.vendor-details__expiry-item--invalid):not(
+    .vendor-details__expiry-item--valid
+  )
+  .vendor-details__expiry-value {
+  color: var(--color-text);
+}
+
+/* Rejection reason banner – light mode visibility */
+.app-layout.theme-light .reject-reason-banner {
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border-color: rgba(185, 28, 28, 0.4);
+}
+
+.app-layout.theme-light .reject-reason-banner__icon {
+  color: #b91c1c;
+}
+
+.app-layout.theme-light .reject-reason-banner__label {
+  color: #991b1b;
+}
+
+.app-layout.theme-light .reject-reason-banner__text {
+  color: #0f172a;
+}
+
+.app-layout.theme-light .list-row__meta-label {
+  color: var(--color-text-muted);
+}
+
+.app-layout.theme-light .list-row__meta-value {
+  color: var(--color-text);
+}
+
+/* Data grid row hover – light */
+.app-layout.theme-light .data-grid-row:hover {
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.app-layout.theme-light .data-grid-row-actions__trigger {
+  color: var(--color-text-muted);
+}
+
+.app-layout.theme-light .data-grid-row-actions__trigger:hover,
+.app-layout.theme-light .data-grid-row-actions__trigger--open,
+.app-layout.theme-light .data-grid-row-actions__trigger[aria-expanded="true"] {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--color-text);
+}
+
+/* Data grid row actions dropdown – light */
+.app-layout.theme-light .data-grid-row-actions__dropdown {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: var(--color-border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.app-layout.theme-light .data-grid-row-actions__list {
+  background: rgba(248, 250, 252, 0.95);
+  border-color: var(--color-border);
+}
+
+.app-layout.theme-light .data-grid-row-actions__option:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.app-layout.theme-light .data-grid-row-actions__option:active {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.app-layout.theme-light
+  .data-grid-row-actions__option
+  + .data-grid-row-actions__option {
+  border-top-color: var(--color-border);
+}
+
+.app-layout.theme-light .data-grid-row-actions__header-badge {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* Entry total row (Amount to Pay) – light */
+.app-layout.theme-light .entry-total-row {
+  background: var(--color-bg-dark);
+}
+.app-layout.theme-light .amount-to-pay-row {
+  background: rgba(59, 130, 246, 0.14);
+  border-top: 2px solid rgba(59, 130, 246, 0.6);
+}
+.app-layout.theme-light .amount-to-pay-row .entry-total-row__label {
+  color: #2563eb;
+}
+.app-layout.theme-light .amount-to-pay-row .entry-total-row__value {
+  color: #2563eb;
+}
+.app-layout.theme-light .overview-card--amount-to-pay {
+  background: rgba(59, 130, 246, 0.14);
+  border-color: rgba(59, 130, 246, 0.6);
+}
+.app-layout.theme-light .overview-card--amount-to-pay p {
+  color: #2563eb;
+}
+
+/* Tax donut charts */
+.tax-donut-wrap {
+  min-width: 88px;
+}
+.tax-donut-track {
+  color: rgba(148, 163, 184, 0.25);
+}
+.tax-donut-fill {
+  transition: stroke-dashoffset 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.4));
+}
+.tax-donut-fill--wht {
+  filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.4));
+}
+.tax-donut-value {
+  color: #38bdf8;
+  text-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
+}
+.overview-card--wht-tax .tax-donut-value {
+  color: #34d399;
+  text-shadow: 0 0 12px rgba(52, 211, 153, 0.5);
+}
+.app-layout.theme-light .tax-donut-track {
+  color: rgba(148, 163, 184, 0.35);
+}
+.app-layout.theme-light .tax-donut-value {
+  color: #0284c7;
+  text-shadow: none;
+}
+.app-layout.theme-light .overview-card--wht-tax .tax-donut-value {
+  color: #059669;
+  text-shadow: none;
+}
+
+/* Cell tax breakdown popover – light (DataGrid scoped) */
+.app-layout.theme-light .cell-tax-breakdown-popover {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: var(--color-border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  color: var(--color-text);
+}
+
+.app-layout.theme-light .cell-tax-breakdown-title,
+.app-layout.theme-light .cell-tax-breakdown-list,
+.app-layout.theme-light .cell-tax-breakdown-loading,
+.app-layout.theme-light .cell-tax-breakdown-empty {
+  color: var(--color-text-muted);
+}
+
+.app-layout.theme-light .cell-tax-breakdown-list {
+  color: var(--color-text);
+}
+
+.app-layout.theme-light .cell-tax-breakdown-sum {
+  border-top-color: var(--color-border);
+}
+
+/* Invoices view – light */
+.app-layout.theme-light .invoice-search__input {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--color-border);
+}
+
+.app-layout.theme-light .invoice-search__clear:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.app-layout.theme-light .invoice-date-range {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--color-border);
+}
+
+.app-layout.theme-light .invoice-date-range__input {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.app-layout.theme-light .invoice-date-range__input:hover,
+.app-layout.theme-light .invoice-date-range__input:focus {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.app-layout.theme-light .pdf-thumb__page {
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.app-layout.theme-light .pdf-thumb__status--neutral {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.app-layout.theme-light .pdf-thumb__title-line,
+.app-layout.theme-light .pdf-thumb__sub-line,
+.app-layout.theme-light .pdf-thumb__line {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+/* TaxView, SettingsUsersView, SettingsLogsView – search/filter + table + modal */
+.app-layout.theme-light .tax-search-bar__filter-wrap {
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  box-shadow:
+    var(--shadow-btn),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.app-layout.theme-light .tax-search-bar__filter-wrap:hover {
+  background: #ffffff;
+  border-color: rgba(148, 163, 184, 0.5);
+  box-shadow: var(--shadow-btn-hover);
+}
+
+.app-layout.theme-light .tax-search-bar__filter-wrap:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: var(--focus-ring);
+}
+
+.app-layout.theme-light .tax-search-bar__filter {
+  color: var(--color-text);
+}
+
+.app-layout.theme-light .tax-search-bar__filter option {
+  background: #ffffff;
+  color: var(--color-text);
+}
+
+.app-layout.theme-light .tax-search-bar__filter-icon,
+.app-layout.theme-light .tax-search-bar__filter-chevron {
+  color: var(--color-text-muted);
+}
+
+.app-layout.theme-light .tax-search-bar__hint {
+  color: var(--color-text-muted);
+}
+
+.app-layout.theme-light .tax-table-wrap {
+  background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
+  border: 1px solid var(--color-border);
+  box-shadow:
+    var(--shadow-card),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.app-layout.theme-light .tax-table thead {
+  background: rgba(248, 250, 252, 0.95);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.app-layout.theme-light .tax-table th {
+  color: var(--color-text-muted);
+}
+
+.app-layout.theme-light .tax-table td {
+  color: var(--color-text);
+}
+
+.app-layout.theme-light .tax-table tbody tr:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.app-layout.theme-light .tax-table__status--valid .tax-table__status-badge {
+  background: rgba(34, 197, 94, 0.15);
+  color: #15803d;
+}
+
+.app-layout.theme-light .tax-table__status--expired .tax-table__status-badge {
+  background: rgba(239, 68, 68, 0.15);
+  color: #b91c1c;
+}
+
+.app-layout.theme-light .tax-table__status--other .tax-table__status-badge {
+  background: rgba(234, 179, 8, 0.2);
+  color: #a16207;
+}
+
+.app-layout.theme-light .tax-table__sort-btn--active {
+  color: var(--color-accent);
+}
+
+.app-layout.theme-light .tax-table__edit-btn {
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.app-layout.theme-light .tax-table__edit-btn:hover {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: rgba(59, 130, 246, 0.45);
+  color: var(--color-accent);
+}
+
+.app-layout.theme-light .tax-table-loading,
+.app-layout.theme-light .tax-table-empty {
+  color: var(--color-text-muted);
+}
+
+/* Tax modal – light */
+.app-layout.theme-light .tax-modal {
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  box-shadow:
+    0 24px 48px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.app-layout.theme-light .tax-modal__close:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.app-layout.theme-light .tax-modal__error {
+  color: #991b1b;
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.app-layout.theme-light .tax-modal__error-icon {
+  color: #dc2626;
+}
+
+.app-layout.theme-light .tax-modal__select,
+.app-layout.theme-light .tax-modal__input {
+  background: #ffffff !important;
+  border: 1px solid var(--color-border) !important;
+  color: var(--color-text) !important;
+}
+
+.app-layout.theme-light .tax-modal__select:hover,
+.app-layout.theme-light .tax-modal__input:hover {
+  background: #f8fafc !important;
+  border-color: rgba(148, 163, 184, 0.5) !important;
+}
+
+.app-layout.theme-light .tax-modal__select:focus,
+.app-layout.theme-light .tax-modal__input:focus {
+  border-color: var(--color-accent) !important;
+}
+
+.app-layout.theme-light .tax-modal__input::placeholder {
+  color: var(--color-text-muted) !important;
+}
+
+/* Settings logs toolbar – light */
+.app-layout.theme-light .logs-toolbar__export {
+  color: var(--color-text);
+}
+
+.app-layout.theme-light .logs-toolbar__export .glass-input,
+.app-layout.theme-light .logs-export-btn {
+  background: #ffffff;
+  border-color: var(--color-border);
+}
+
+.app-layout.theme-light .logs-export-btn:hover:not(:disabled) {
+  background: var(--color-accent-soft);
+  border-color: var(--color-accent);
+}
+
+.app-layout.theme-light .logs-date-range {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: var(--color-border);
+}
+
+.app-layout.theme-light .logs-date-range__input {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--color-text);
+  color-scheme: light;
+}
+
+.app-layout.theme-light .logs-date-range__input:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.app-layout.theme-light .logs-date-range__input:focus {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.app-layout.theme-light .logs-date-range__clear:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* Pagination – light */
+.app-layout.theme-light .pagination__btn {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: var(--color-border);
+}
+
+.app-layout.theme-light .pagination__btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.08);
+  border-color: rgba(148, 163, 184, 0.4);
 }
 
 /* Premium input focus states */
@@ -1249,6 +2974,118 @@ button:focus-visible {
   overflow-x: auto;
 }
 
+/* Activity logs / vendors table layout – scrollable flex body */
+.logs-table-wrap {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--color-bg-card);
+  backdrop-filter: blur(var(--blur-glass));
+  -webkit-backdrop-filter: blur(var(--blur-glass));
+  border: 1px solid var(--color-border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.logs-table-body {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.logs-table-scroll {
+  overflow: auto;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.logs-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgb(30, 41, 59);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: 0 1px 0 var(--color-border);
+}
+
+.app-layout.theme-light .logs-table thead th {
+  background: rgba(248, 250, 252, 0.95);
+}
+
+/* Manage Users – status badge in light mode (more visible) */
+.app-layout.theme-light .status-badge--active {
+  background: rgba(34, 197, 94, 0.2);
+  color: #15803d;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.app-layout.theme-light .status-badge--inactive {
+  background: rgba(239, 68, 68, 0.15);
+  color: #b91c1c;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+/* Cheque collection modal stepper – light (modal is teleported to body) */
+.app-layout.theme-light .cheque-modal__step:hover,
+html.theme-light .cheque-modal__step:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.app-layout.theme-light .cheque-modal__step-num,
+html.theme-light .cheque-modal__step-num {
+  background: rgba(0, 0, 0, 0.12);
+  color: #475569;
+}
+
+.app-layout.theme-light .cheque-modal__step--active .cheque-modal__step-num,
+html.theme-light .cheque-modal__step--active .cheque-modal__step-num {
+  background: var(--color-accent);
+  color: #ffffff;
+}
+
+.app-layout.theme-light .cheque-modal__step--done .cheque-modal__step-num,
+html.theme-light .cheque-modal__step--done .cheque-modal__step-num {
+  background: rgba(34, 197, 94, 0.25);
+  color: #15803d;
+}
+
+.app-layout.theme-light .cheque-modal__step-title,
+html.theme-light .cheque-modal__step-title {
+  color: #64748b;
+}
+
+.app-layout.theme-light .cheque-modal__step--active .cheque-modal__step-title,
+html.theme-light .cheque-modal__step--active .cheque-modal__step-title {
+  color: #0f172a;
+}
+
+.app-layout.theme-light .cheque-modal__step--done .cheque-modal__step-title,
+html.theme-light .cheque-modal__step--done .cheque-modal__step-title {
+  color: #475569;
+}
+
+.app-layout.theme-light .cheque-modal__step-connector,
+html.theme-light .cheque-modal__step-connector {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.app-layout.theme-light
+  .cheque-modal__step--done
+  + .cheque-modal__step
+  .cheque-modal__step-connector,
+.app-layout.theme-light .cheque-modal__step--done .cheque-modal__step-connector,
+html.theme-light
+  .cheque-modal__step--done
+  + .cheque-modal__step
+  .cheque-modal__step-connector,
+html.theme-light .cheque-modal__step--done .cheque-modal__step-connector {
+  background: rgba(34, 197, 94, 0.5);
+}
+
 .tax-table {
   width: 100%;
   border-collapse: collapse;
@@ -1272,6 +3109,14 @@ button:focus-visible {
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--color-border);
   color: var(--color-text);
+  vertical-align: middle;
+}
+
+.tax-table__cell-type,
+.tax-table__cell-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tax-table tbody tr:last-child td {
@@ -1315,6 +3160,99 @@ button:focus-visible {
 .tax-table__status--other .tax-table__status-badge {
   background: rgba(234, 179, 8, 0.2);
   color: rgb(253, 224, 71);
+}
+
+/* Tax table – sortable with aligned columns */
+.tax-table--sortable {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.tax-table__col-type {
+  width: 12%;
+}
+.tax-table__col-name {
+  width: 22%;
+}
+.tax-table__col-rate {
+  width: 8%;
+}
+.tax-table__col-action {
+  width: 8%;
+}
+.tax-table__col-start {
+  width: 14%;
+}
+.tax-table__col-end {
+  width: 14%;
+}
+.tax-table__col-status {
+  width: 12%;
+}
+.tax-table__col-actions {
+  width: 10%;
+}
+
+.tax-table__sortable-th {
+  padding: 0.75rem 1rem;
+  vertical-align: middle;
+}
+
+/* Rate, Start Date, End Date: left-align header to match row data – button wraps content */
+.tax-table__th-rate,
+.tax-table__th-start,
+.tax-table__th-end {
+  text-align: left;
+}
+.tax-table__th-rate .tax-table__sort-btn,
+.tax-table__th-start .tax-table__sort-btn,
+.tax-table__th-end .tax-table__sort-btn {
+  width: auto;
+  min-width: 0;
+  justify-content: flex-start;
+}
+
+.tax-table__sort-btn {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.375rem;
+  margin: -0.75rem -1rem;
+  padding: 0.75rem 1rem;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+  font: inherit;
+  font-size: inherit;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.tax-table__sort-btn:hover {
+  color: var(--color-text);
+}
+
+.tax-table__sort-btn--active {
+  color: var(--color-accent);
+}
+
+.tax-table__sort-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 1rem;
+  opacity: 0.4;
+}
+
+.tax-table__sort-icon--active {
+  opacity: 1;
+}
+
+.tax-table__sort-unsorted {
+  opacity: 0.4;
 }
 
 .tax-table__actions-th {
@@ -1365,6 +3303,11 @@ button:focus-visible {
   justify-content: center;
   padding: 1rem;
   animation: taxModalFadeIn 0.2s var(--ease);
+}
+
+.teleport-modal-backdrop {
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(8px);
 }
 
 @keyframes taxModalFadeIn {
@@ -1743,10 +3686,25 @@ button:focus-visible {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
+  align-items: start;
 }
 
 .tax-modal__row .tax-modal__label {
   margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.tax-modal__row .tax-modal__label span {
+  min-height: 1.25rem;
+  flex-shrink: 0;
+}
+
+.tax-modal__row .tax-modal__label input {
+  height: 2.5rem;
+  min-height: 2.5rem;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .tax-modal__row .tax-modal__label:last-child {
@@ -1769,7 +3727,7 @@ button:focus-visible {
   color: var(--color-text-muted);
   background: transparent;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   transition:
     background 0.2s var(--ease),
@@ -1792,7 +3750,7 @@ button:focus-visible {
   color: white;
   background: rgb(249, 115, 22);
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-pill);
   box-shadow: 0 2px 8px rgba(249, 115, 22, 0.35);
   cursor: pointer;
   transition:

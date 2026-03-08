@@ -2,7 +2,7 @@
   <div
     class="content-area flex flex-col flex-1 min-h-0 w-full max-w-[1600px] mx-auto px-4 py-5 md:px-6 md:py-6 min-h-[400px]"
   >
-    <header class="shortcuts-header sticky top-0 z-10 -mx-4 -mt-5 px-4 pt-5 pb-4 md:-mx-6 md:-mt-6 md:px-6 md:pt-6 md:pb-4 mb-10 bg-[#0f172a] border-b border-[var(--color-border)]">
+    <header class="shortcuts-header sticky top-0 z-10 -mx-4 -mt-5 px-4 pt-5 pb-4 md:-mx-6 md:-mt-6 md:px-6 md:pt-6 md:pb-4 mb-10 bg-[var(--color-bg-dark)] border-b border-[var(--color-border)]">
       <router-link
         to="/settings"
         class="inline-flex items-center gap-2 text-[var(--label-size)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] no-underline mb-4 transition-colors"

@@ -46,7 +46,7 @@
           class="sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--label-size)] font-medium no-underline transition-colors"
           :class="
             route.name === 'home'
-              ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
+              ? 'sidebar-link--active bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
               : 'text-[var(--color-text-muted)] hover:bg-white/5 hover:text-[var(--color-text)]'
           "
         >
@@ -69,7 +69,7 @@
         <router-link
           v-if="isEntryOpen"
           :to="currentEntryLink"
-          class="sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--label-size)] font-medium no-underline transition-colors bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
+          class="sidebar-link sidebar-link--active flex items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--label-size)] font-medium no-underline transition-colors bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
         >
           <svg
             class="h-5 w-5 shrink-0"
@@ -88,14 +88,16 @@
             entrySidebarLabel
           }}</span>
         </router-link>
-        <!-- New entry: hidden for Manager -->
+        <!-- New entry: hidden for Manager. active-class/exact-active-class empty so we control active state (only when truly new entry, not when viewing existing) -->
         <router-link
           v-if="showForManager"
           to="/entry"
+          active-class=""
+          exact-active-class=""
           class="sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--label-size)] font-medium no-underline transition-colors"
           :class="
             route.name === 'entry' && !route.query.transRef
-              ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
+              ? 'sidebar-link--active bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
               : 'text-[var(--color-text-muted)] hover:bg-white/5 hover:text-[var(--color-text)]'
           "
         >
@@ -120,7 +122,7 @@
           class="sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--label-size)] font-medium no-underline transition-colors"
           :class="
             route.name === 'invoices'
-              ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
+              ? 'sidebar-link--active bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
               : 'text-[var(--color-text-muted)] hover:bg-white/5 hover:text-[var(--color-text)]'
           "
         >
@@ -145,7 +147,7 @@
           class="sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--label-size)] font-medium no-underline transition-colors"
           :class="
             route.name === 'cheque-collection'
-              ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
+              ? 'sidebar-link--active bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
               : 'text-[var(--color-text-muted)] hover:bg-white/5 hover:text-[var(--color-text)]'
           "
         >
@@ -170,7 +172,7 @@
           class="sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--label-size)] font-medium no-underline transition-colors"
           :class="
             route.name === 'vendors'
-              ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
+              ? 'sidebar-link--active bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
               : 'text-[var(--color-text-muted)] hover:bg-white/5 hover:text-[var(--color-text)]'
           "
         >
@@ -195,7 +197,7 @@
           class="sidebar-link flex items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--label-size)] font-medium no-underline transition-colors"
           :class="
             route.name === 'tax'
-              ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
+              ? 'sidebar-link--active bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
               : 'text-[var(--color-text-muted)] hover:bg-white/5 hover:text-[var(--color-text)]'
           "
         >
@@ -218,8 +220,8 @@
           to="/settings"
           class="sidebar-link mt-auto flex items-center gap-3 rounded-xl px-3 py-2.5 text-[var(--label-size)] font-medium no-underline transition-colors"
           :class="
-            route.name === 'settings'
-              ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
+            route.path.startsWith('/settings')
+              ? 'sidebar-link--active bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
               : 'text-[var(--color-text-muted)] hover:bg-white/5 hover:text-[var(--color-text)]'
           "
         >

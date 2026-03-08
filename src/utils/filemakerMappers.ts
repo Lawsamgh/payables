@@ -12,12 +12,15 @@ function toNum(value: string | number): number {
   return Number.isNaN(n) ? 0 : n
 }
 
-/** Invoice number for Payables_Details: use number when numeric, otherwise pass string as-is (e.g. "INV-001") */
+/** Invoice number for Payables_Details: use number when purely numeric, otherwise pass string as-is (e.g. "5/080700", "INV-001") */
 function toInvoiceNumber(value: string | number | undefined): number | string {
   if (value === undefined || value === null) return ''
   const s = String(value).trim()
   if (s === '') return ''
-  const n = typeof value === 'number' ? value : parseFloat(s)
+  if (typeof value === 'number') return Number.isNaN(value) ? s : value
+  // parseFloat("5/080700") returns 5 – stop at slash. If string has non-numeric chars, pass as string
+  if (!/^\d*\.?\d*$/.test(s)) return s
+  const n = parseFloat(s)
   return Number.isNaN(n) ? s : n
 }
 

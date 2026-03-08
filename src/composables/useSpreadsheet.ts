@@ -13,6 +13,8 @@ export const COLUMN_KEYS = [
   'amount',
   'tax',
   'reference',
+  'wht_tax',
+  'wht_tax_amount',
   'total',
 ] as const
 

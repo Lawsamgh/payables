@@ -58,6 +58,8 @@ export function emptyRow(overrides: Partial<PayableRow> = {}): PayableRow {
     status: 'Pending',
     payment_date: '',
     reference: '',
+    wht_tax: '',
+    wht_tax_amount: '',
     created_date: '',
     ...overrides,
   }

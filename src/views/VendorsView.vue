@@ -1,6 +1,6 @@
 <template>
   <div
-    class="content-area flex flex-col flex-1 min-h-0 w-full max-w-[1600px] mx-auto px-4 py-5 md:px-6 md:py-6"
+    class="content-area flex flex-col flex-1 min-h-0 w-full max-w-[1600px] mx-auto px-4 py-5 md:px-6 md:py-6 min-h-[400px]"
   >
     <header class="flex flex-wrap items-center justify-between gap-4 mb-6">
       <div class="flex flex-wrap items-center gap-3">
@@ -123,7 +123,7 @@
     </div>
 
     <!-- Table -->
-    <div class="tax-table-wrap">
+    <div class="logs-table-wrap">
       <template v-if="loading">
         <div class="tax-table-skeleton">
           <div class="tax-table-skeleton__search">
@@ -214,10 +214,11 @@
       </div>
       <div
         v-else
+        class="logs-table-body"
         :class="{ 'opacity-75 pointer-events-none': refreshing }"
       >
-        <div class="tax-table-scroll">
-          <table class="tax-table">
+        <div class="tax-table-scroll logs-table-scroll">
+          <table class="tax-table logs-table">
             <thead>
               <tr>
                 <th>Vendor ID</th>
@@ -234,7 +235,7 @@
             </thead>
             <tbody>
               <tr
-                v-for="(row, index) in vendorListToShow"
+                v-for="(row, index) in filteredVendorList"
                 :key="row.recordId || index"
               >
               <td>{{ getField(row, "Vendor_ID") }}</td>
@@ -338,33 +339,6 @@
             </tr>
           </tbody>
         </table>
-        </div>
-        <div v-if="totalPagesVendor > 1" class="pagination">
-          <button
-            type="button"
-            class="pagination__btn"
-            :disabled="currentPageVendor <= 1 || refreshing"
-            aria-label="Previous page"
-            @click="currentPageVendor = Math.max(1, currentPageVendor - 1)"
-          >
-            <svg class="pagination__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <span class="pagination__label">
-            Page {{ currentPageVendor }} of {{ totalPagesVendor }}
-          </span>
-          <button
-            type="button"
-            class="pagination__btn"
-            :disabled="currentPageVendor >= totalPagesVendor || refreshing"
-            aria-label="Next page"
-            @click="currentPageVendor = Math.min(totalPagesVendor, currentPageVendor + 1)"
-          >
-            <svg class="pagination__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
         </div>
       </div>
     </div>
@@ -625,24 +599,6 @@ const filteredVendorList = computed(() => {
       tin.includes(q)
     );
   });
-});
-
-const PAGE_SIZE = 15;
-const currentPageVendor = ref(1);
-const totalPagesVendor = computed(() =>
-  Math.max(1, Math.ceil(filteredVendorList.value.length / PAGE_SIZE)),
-);
-const vendorListToShow = computed(() => {
-  const start = (currentPageVendor.value - 1) * PAGE_SIZE;
-  return filteredVendorList.value.slice(start, start + PAGE_SIZE);
-});
-
-watch(searchQuery, () => {
-  currentPageVendor.value = 1;
-});
-watch(totalPagesVendor, (total) => {
-  if (currentPageVendor.value > total)
-    currentPageVendor.value = Math.max(1, total);
 });
 
 function formatDate(value: string | undefined): string {

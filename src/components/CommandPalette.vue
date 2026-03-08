@@ -2,8 +2,7 @@
   <Teleport to="body">
     <div
       v-if="visible"
-      class="command-palette-overlay fixed inset-0 z-[300] flex items-start justify-center pt-[15vh] px-4"
-      style="background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(12px)"
+      class="command-palette-overlay teleport-modal-backdrop fixed inset-0 z-[300] flex items-start justify-center pt-[15vh] px-4"
       role="dialog"
       aria-modal="true"
       aria-label="Command palette"
@@ -35,7 +34,7 @@
             v-model="query"
             type="text"
             class="command-palette__input flex-1 min-w-0 bg-transparent text-[var(--color-text)] placeholder-[var(--color-text-muted)] outline-none"
-            placeholder="Search commands or type TransRef (e.g. RF100000)…"
+            placeholder="Search commands, TransRef or Purchase order…"
             autocomplete="off"
             spellcheck="false"
           />
@@ -51,40 +50,47 @@
           role="listbox"
           :aria-activedescendant="selectedId"
         >
-          <li
-            v-for="(cmd, idx) in filteredCommands"
-            :id="`cmd-${idx}`"
-            :key="cmd.id"
-            role="option"
-            class="command-palette__item flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors"
-            :class="{
-              'command-palette__item--selected': idx === selectedIndex,
-            }"
-            :aria-selected="idx === selectedIndex"
-            @click="executeCommand(cmd)"
-          >
-            <span
-              class="command-palette__icon shrink-0 w-8 h-8 flex items-center justify-center rounded-lg"
-              :class="cmd.iconClass"
+          <template v-for="(item, idx) in filteredCommands" :key="item.id">
+            <li
+              v-if="item.type === 'separator'"
+              class="command-palette__separator"
+              role="presentation"
+              aria-hidden="true"
+            />
+            <li
+              v-else
+              :id="`cmd-${idx}`"
+              role="option"
+              class="command-palette__item flex items-center gap-3 px-4 py-2.5 cursor-pointer transition-colors"
+              :class="{
+                'command-palette__item--selected': idx === selectedIndex,
+              }"
+              :aria-selected="idx === selectedIndex"
+              @click="executeCommand(item)"
             >
-              <CommandIcon :name="cmd.icon" class="h-4 w-4" />
-            </span>
-            <div class="command-palette__label flex-1 min-w-0">
-              <span class="block truncate text-[var(--color-text)]">{{
-                cmd.label
-              }}</span>
               <span
-                v-if="cmd.description"
-                class="block truncate text-[11px] text-[var(--color-text-muted)]"
-                >{{ cmd.description }}</span
+                class="command-palette__icon shrink-0 w-8 h-8 flex items-center justify-center rounded-lg"
+                :class="item.iconClass"
               >
-            </div>
-            <span
-              v-if="cmd.shortcut"
-              class="command-palette__shortcut shrink-0 text-[11px] text-[var(--color-text-muted)]"
-              >{{ cmd.shortcut }}</span
-            >
-          </li>
+                <CommandIcon :name="item.icon" class="h-4 w-4" />
+              </span>
+              <div class="command-palette__label flex-1 min-w-0">
+                <span class="block truncate text-[var(--color-text)]">{{
+                  item.label
+                }}</span>
+                <span
+                  v-if="item.description"
+                  class="block truncate text-[11px] text-[var(--color-text-muted)]"
+                  >{{ item.description }}</span
+                >
+              </div>
+              <span
+                v-if="item.shortcut"
+                class="command-palette__shortcut shrink-0 text-[11px] text-[var(--color-text-muted)]"
+                >{{ item.shortcut }}</span
+              >
+            </li>
+          </template>
           <li
             v-if="filteredCommands.length === 0"
             class="px-4 py-6 text-center text-[var(--color-text-muted)] text-sm"
@@ -120,6 +126,11 @@ interface PaletteCommand {
   icon: IconName;
   iconClass: string;
   execute: () => void | Promise<void>;
+}
+
+interface PaletteSeparator {
+  type: "separator";
+  id: string;
 }
 
 const router = useRouter();
@@ -321,28 +332,38 @@ const baseFilteredCommands = computed(() => {
 
 const goToEntryCommand = computed<PaletteCommand | null>(() => {
   const q = query.value.trim();
-  if (!looksLikeTransRef(q) || !isConnected.value) return null;
+  if (!q || q.length < 2 || !isConnected.value) return null;
   return {
     id: `go-to-entry-${q}`,
     label: `Go to entry ${q}`,
-    description: "Open this payable entry",
+    description: "Open by TransRef or Purchase order",
     shortcut: undefined,
     icon: "document",
     iconClass: "bg-orange-500/20 text-orange-400",
     execute: async () => {
-      let result = await findRecordsByQueryWithIds(
-        LAYOUTS.PAYABLES_MAIN,
-        { TransRef: q },
-        1,
-      );
-      if (!result.data?.length && q !== q.toUpperCase()) {
+      let result: { data?: { fieldData?: Record<string, unknown> }[]; error?: string } | null = null;
+      if (looksLikeTransRef(q)) {
         result = await findRecordsByQueryWithIds(
           LAYOUTS.PAYABLES_MAIN,
-          { TransRef: q.toUpperCase() },
+          { TransRef: q },
+          1,
+        );
+        if (!result.data?.length && q !== q.toUpperCase()) {
+          result = await findRecordsByQueryWithIds(
+            LAYOUTS.PAYABLES_MAIN,
+            { TransRef: q.toUpperCase() },
+            1,
+          );
+        }
+      }
+      if (!result?.data?.length) {
+        result = await findRecordsByQueryWithIds(
+          LAYOUTS.PAYABLES_MAIN,
+          { PurchaseOrder: q },
           1,
         );
       }
-      const { data, error } = result;
+      const { data, error } = result ?? {};
       if (error) {
         toast.error("Could not check entry: " + error);
         paletteStore.close();
@@ -400,7 +421,9 @@ const recentEntryCommands = computed<PaletteCommand[]>(() => {
     }));
 });
 
-const filteredCommands = computed(() => {
+type PaletteItem = PaletteCommand | PaletteSeparator;
+
+const filteredCommands = computed<PaletteItem[]>(() => {
   const goTo = goToEntryCommand.value;
   const recent = recentEntryCommands.value;
   const base = baseFilteredCommands.value;
@@ -408,18 +431,23 @@ const filteredCommands = computed(() => {
   const recentFiltered = goToRef
     ? recent.filter((c) => c.id !== `recent-${goToRef}`)
     : recent;
-  const parts: PaletteCommand[] = [];
+  const parts: PaletteItem[] = [];
   if (goTo) parts.push(goTo);
-  if (recentFiltered.length > 0) parts.push(...recentFiltered);
+  if (goTo && recentFiltered.length > 0)
+    parts.push({ type: "separator", id: "sep-after-goto" });
+  if (recentFiltered.length > 0) {
+    parts.push(...recentFiltered);
+  }
+  if ((goTo || recentFiltered.length > 0) && base.length > 0)
+    parts.push({ type: "separator", id: "sep-after-recent" });
   parts.push(...base);
   return parts;
 });
 
 const selectedId = computed(() => {
-  const cmd = filteredCommands.value[selectedIndex.value];
-  if (!cmd) return undefined;
-  const idx = filteredCommands.value.indexOf(cmd);
-  return idx >= 0 ? `cmd-${idx}` : undefined;
+  const item = filteredCommands.value[selectedIndex.value];
+  if (!item || !isCommand(item)) return undefined;
+  return `cmd-${selectedIndex.value}`;
 });
 
 watch(visible, (v) => {
@@ -430,11 +458,37 @@ watch(visible, (v) => {
   }
 });
 
+function isCommand(item: PaletteItem): item is PaletteCommand {
+  return item.type !== "separator";
+}
+
+function nextSelectableIndex(current: number, delta: number): number {
+  const items = filteredCommands.value;
+  const len = items.length;
+  let next = current + delta;
+  if (delta > 0) {
+    for (let i = 0; i < len; i++) {
+      if (next >= len) next = 0;
+      if (isCommand(items[next])) return next;
+      next++;
+    }
+  } else {
+    for (let i = 0; i < len; i++) {
+      if (next < 0) next = len - 1;
+      if (isCommand(items[next])) return next;
+      next--;
+    }
+  }
+  return current;
+}
+
 watch(filteredCommands, () => {
-  selectedIndex.value = Math.min(
-    selectedIndex.value,
-    Math.max(0, filteredCommands.value.length - 1),
-  );
+  const items = filteredCommands.value;
+  const max = Math.max(0, items.length - 1);
+  let idx = Math.min(selectedIndex.value, max);
+  while (idx >= 0 && idx <= max && !isCommand(items[idx])) idx++;
+  if (idx < 0 || idx > max) idx = items.findIndex(isCommand);
+  selectedIndex.value = idx >= 0 ? idx : 0;
 });
 
 function onKeydown(e: KeyboardEvent) {
@@ -446,15 +500,12 @@ function onKeydown(e: KeyboardEvent) {
   }
   if (e.key === "ArrowDown") {
     e.preventDefault();
-    selectedIndex.value =
-      (selectedIndex.value + 1) % Math.max(1, filteredCommands.value.length);
+    selectedIndex.value = nextSelectableIndex(selectedIndex.value, 1);
     return;
   }
   if (e.key === "ArrowUp") {
     e.preventDefault();
-    selectedIndex.value =
-      (selectedIndex.value - 1 + filteredCommands.value.length) %
-      Math.max(1, filteredCommands.value.length);
+    selectedIndex.value = nextSelectableIndex(selectedIndex.value, -1);
     return;
   }
   if (e.key === "Enter") {
@@ -464,8 +515,8 @@ function onKeydown(e: KeyboardEvent) {
 }
 
 async function executeSelected() {
-  const cmd = filteredCommands.value[selectedIndex.value];
-  if (cmd) await executeCommand(cmd);
+  const item = filteredCommands.value[selectedIndex.value];
+  if (item && isCommand(item)) await executeCommand(item);
 }
 
 async function executeCommand(cmd: PaletteCommand) {
@@ -481,24 +532,55 @@ async function executeCommand(cmd: PaletteCommand) {
 
 .command-palette {
   animation: command-palette-slide 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  background: rgba(15, 23, 42, 0.98);
+  border-radius: 18px;
+  box-shadow:
+    0 18px 45px rgba(15, 23, 42, 0.75),
+    0 0 0 1px rgba(148, 163, 184, 0.35);
+}
+
+.command-palette__input-wrap {
+  background: rgba(15, 23, 42, 0.98);
 }
 
 .command-palette__input {
   font-size: var(--input-size);
 }
 
-.command-palette__item {
-  --item-bg: transparent;
-}
-
-.command-palette__item:hover,
-.command-palette__item--selected {
-  --item-bg: rgba(255, 255, 255, 0.06);
-  background: var(--item-bg);
+.command-palette__input::placeholder {
+  color: rgba(148, 163, 184, 0.75);
 }
 
 .command-palette__list {
   scroll-behavior: smooth;
+  padding: 0.25rem 0.35rem 0.4rem;
+}
+
+.command-palette__item {
+  --item-bg: transparent;
+  margin: 0.1rem 0.25rem;
+  border-radius: 10px;
+}
+
+.command-palette__item:hover,
+.command-palette__item--selected {
+  --item-bg: linear-gradient(
+    90deg,
+    rgba(34, 197, 235, 0.2),
+    rgba(56, 189, 248, 0.25)
+  );
+  background: var(--item-bg);
+}
+
+.command-palette__item--selected {
+  box-shadow: 0 0 0 1px rgba(125, 211, 252, 0.5);
+}
+
+.command-palette__separator {
+  height: 1px;
+  margin: 0.4rem 1rem;
+  background: rgba(148, 163, 184, 0.35);
+  list-style: none;
 }
 
 @keyframes command-palette-in {

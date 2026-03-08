@@ -56,8 +56,11 @@ defineEmits<{
 const payableStore = usePayableStore()
 const { isManager } = useUserRole()
 const documentSettings = useDocumentSettingsStore()
-/** Hide Add/Delete row for Posted entries, or when Manager (unless ManagerEditDraft enabled). */
+/** Hide Add/Delete for Posted/Approved. Rejected: only Officer and Admin (never Manager). Draft: Manager only if ManagerEditDraft enabled. */
 const readOnly = computed(
-  () => payableStore.mainPosted || (isManager.value && !documentSettings.managerEditDraftEnabled),
+  () =>
+    (payableStore.mainPosted && payableStore.mainStatus !== "Rejected") ||
+    (isManager.value && payableStore.mainStatus === "Rejected") ||
+    (isManager.value && !documentSettings.managerEditDraftEnabled),
 )
 </script>

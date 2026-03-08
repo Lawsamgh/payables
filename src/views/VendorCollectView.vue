@@ -114,8 +114,8 @@
                     class="vendor-collect__subtitle text-[15px] text-[var(--color-text-muted)] mt-2.5 leading-relaxed max-w-[280px] mx-auto"
                   >
                     <template v-if="!transRefValidated">
-                      Enter your TransRef sent to you in your email to start
-                      recording cheque collection
+                      Enter your Reference Number sent to you in your email to
+                      start recording cheque collection
                     </template>
                     <template v-else>
                       See the Officer for the Code to start recording cheque
@@ -134,22 +134,51 @@
                   <label class="vendor-collect__input-group mb-6 block">
                     <span
                       class="block text-[12px] text-[var(--color-text-muted)] mb-2"
-                      >TransRef</span
+                      >Reference Number</span
                     >
-                    <div class="vendor-collect__input-wrap">
-                      <input
-                        :value="transRefInput"
-                        type="text"
-                        class="vendor-collect__input vendor-collect__input--uppercase"
-                        placeholder="e.g. RF2025684"
-                        autocomplete="off"
+                    <p class="text-[13px] text-[var(--color-text-muted)] mb-3">
+                      Enter manually or scan the QR code the officer showed you
+                    </p>
+                    <div
+                      class="vendor-collect__code-input-row flex gap-2 items-stretch"
+                    >
+                      <div class="vendor-collect__input-wrap flex-1 min-w-0">
+                        <input
+                          :value="transRefInput"
+                          type="text"
+                          class="vendor-collect__input vendor-collect__input--uppercase"
+                          placeholder="e.g. PAY199030739500"
+                          autocomplete="off"
+                          :disabled="loadingPayable"
+                          @input="
+                            transRefInput = (
+                              $event.target as HTMLInputElement
+                            ).value.toUpperCase()
+                          "
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        class="vendor-collect__scan-btn shrink-0 w-14 h-[52px] rounded-2xl flex items-center justify-center bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/30 hover:border-emerald-500/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         :disabled="loadingPayable"
-                        @input="
-                          transRefInput = (
-                            $event.target as HTMLInputElement
-                          ).value.toUpperCase()
-                        "
-                      />
+                        :title="'Scan QR code for Reference Number'"
+                        @click="openQrScanner('transref')"
+                      >
+                        <svg
+                          class="w-7 h-7"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
+                          />
+                        </svg>
+                      </button>
                     </div>
                   </label>
                 </form>
@@ -166,10 +195,9 @@
                       class="block text-[12px] text-[var(--color-text-muted)] mb-2"
                       >Code</span
                     >
-                    <p
-                      class="text-[13px] text-[var(--color-text-muted)] mb-3"
-                    >
-                      Enter the code manually or scan the QR code the officer showed you
+                    <p class="text-[13px] text-[var(--color-text-muted)] mb-3">
+                      Enter the code manually or scan the QR code the officer
+                      showed you
                     </p>
                     <div
                       class="vendor-collect__code-input-row flex gap-2 items-stretch"
@@ -179,7 +207,7 @@
                           :value="codeInput"
                           type="text"
                           class="vendor-collect__input vendor-collect__input--uppercase"
-                          placeholder="e.g. C00051"
+                          placeholder="e.g. RAC0005199"
                           autocomplete="off"
                           :disabled="loadingPayable"
                           @input="
@@ -194,7 +222,7 @@
                         class="vendor-collect__scan-btn shrink-0 w-14 h-[52px] rounded-2xl flex items-center justify-center bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/30 hover:border-emerald-500/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         :disabled="loadingPayable"
                         :title="'Scan QR code'"
-                        @click="openQrScanner"
+                        @click="openQrScanner('code')"
                       >
                         <svg
                           class="w-7 h-7"
@@ -226,7 +254,7 @@
                         class="shrink-0 flex items-center justify-between px-4 py-4 border-b border-white/10"
                       >
                         <h2 class="text-lg font-semibold text-white">
-                          Scan code
+                          {{ qrScanMode === "transref" ? "Scan Reference Number" : "Scan code" }}
                         </h2>
                         <button
                           type="button"
@@ -316,198 +344,198 @@
               class="vendor-collect__form-content vendor-collect__scroll-area flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain pt-[max(1.25rem,env(safe-area-inset-top))] px-4 pb-4 space-y-5"
             >
               <div class="vendor-collect__payable-card rounded-2xl p-5">
-              <p
-                class="text-[17px] font-semibold text-[var(--color-text)] leading-snug"
-              >
-                {{ payableDisplay }}
-              </p>
-              <p
-                class="text-[13px] text-[var(--color-text-muted)] mt-1.5 opacity-90"
-              >
-                TransRef: {{ form.TransRef }}
-              </p>
-            </div>
-
-            <form
-              id="vendor-collect-form"
-              @submit.prevent="onSubmit"
-              class="space-y-6"
-            >
-              <div
-                class="vendor-collect__progress px-4 flex items-center justify-between gap-3"
-              >
-                <div class="flex items-center gap-1.5">
-                  <span
-                    v-for="n in totalFormSteps"
-                    :key="n"
-                    class="inline-flex h-1.5 rounded-full transition-all duration-200"
-                    :class="
-                      n <= activeFormStep
-                        ? 'bg-emerald-400 w-6'
-                        : 'bg-white/10 w-3'
-                    "
-                  />
-                </div>
-                <span
-                  class="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text-muted)]"
+                <p
+                  class="text-[17px] font-semibold text-[var(--color-text)] leading-snug"
                 >
-                  Step {{ activeFormStep }} of {{ totalFormSteps }}
-                </span>
+                  {{ payableDisplay }}
+                </p>
+                <p
+                  class="text-[13px] text-[var(--color-text-muted)] mt-1.5 opacity-90"
+                >
+                  TransRef: {{ form.TransRef }}
+                </p>
               </div>
 
-              <Transition name="vendor-collect-slide" mode="out-in">
-                <section
-                  v-if="activeFormStep === 1"
-                  key="cheque"
-                  class="vendor-collect__card rounded-2xl overflow-hidden"
+              <form
+                id="vendor-collect-form"
+                @submit.prevent="onSubmit"
+                class="space-y-6"
+              >
+                <div
+                  class="vendor-collect__progress px-4 flex items-center justify-between gap-3"
                 >
-                  <h2
-                    class="vendor-collect__section-title px-4 py-3 text-[13px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider"
-                  >
-                    Cheque details
-                  </h2>
-                  <div
-                    class="vendor-collect__field-list divide-y divide-white/[0.06]"
-                  >
-                    <label class="vendor-collect__field block px-4 py-3.5">
-                      <span
-                        class="block text-[12px] text-[var(--color-text-muted)] mb-2"
-                        >Bank Name <span class="text-red-400">*</span></span
-                      >
-                      <input
-                        v-model.trim="form.BankName"
-                        type="text"
-                        class="vendor-collect__field-input vendor-collect__field-input--editable"
-                        placeholder="Bank name"
-                        required
-                      />
-                    </label>
-                    <label class="vendor-collect__field block px-4 py-3.5">
-                      <span
-                        class="block text-[12px] text-[var(--color-text-muted)] mb-2"
-                        >Cheque No <span class="text-red-400">*</span></span
-                      >
-                      <input
-                        v-model.trim="form.ChequeNo"
-                        type="text"
-                        class="vendor-collect__field-input vendor-collect__field-input--editable"
-                        placeholder="Cheque number"
-                        required
-                      />
-                    </label>
-                    <div class="vendor-collect__field px-4 py-3.5">
-                      <span
-                        class="block text-[12px] text-[var(--color-text-muted)] mb-2"
-                        >Amount</span
-                      >
-                      <input
-                        :value="formatNumberDisplay(form.Amount)"
-                        type="text"
-                        class="vendor-collect__field-input vendor-collect__field-input--readonly font-medium"
-                        readonly
-                      />
-                    </div>
+                  <div class="flex items-center gap-1.5">
+                    <span
+                      v-for="n in totalFormSteps"
+                      :key="n"
+                      class="inline-flex h-1.5 rounded-full transition-all duration-200"
+                      :class="
+                        n <= activeFormStep
+                          ? 'bg-emerald-400 w-6'
+                          : 'bg-white/10 w-3'
+                      "
+                    />
                   </div>
-                </section>
+                  <span
+                    class="text-[11px] uppercase tracking-[0.16em] text-[var(--color-text-muted)]"
+                  >
+                    Step {{ activeFormStep }} of {{ totalFormSteps }}
+                  </span>
+                </div>
 
-                <section
-                  v-else-if="activeFormStep === 2"
-                  key="your-details-1"
-                  class="vendor-collect__card rounded-2xl overflow-hidden"
-                >
-                  <h2
-                    class="vendor-collect__section-title px-4 py-3 text-[13px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider"
+                <Transition name="vendor-collect-slide" mode="out-in">
+                  <section
+                    v-if="activeFormStep === 1"
+                    key="cheque"
+                    class="vendor-collect__card rounded-2xl overflow-hidden"
                   >
-                    Your details
-                  </h2>
-                  <div
-                    class="vendor-collect__field-list divide-y divide-white/[0.06]"
-                  >
-                    <label class="vendor-collect__field block px-4 py-3.5">
-                      <span
-                        class="block text-[12px] text-[var(--color-text-muted)] mb-2"
-                        >Received By <span class="text-red-400">*</span></span
-                      >
-                      <input
-                        v-model.trim="form.ReceivedBy"
-                        type="text"
-                        class="vendor-collect__field-input vendor-collect__field-input--editable"
-                        placeholder="Your full name"
-                        required
-                      />
-                    </label>
-                    <label class="vendor-collect__field block px-4 py-3.5">
-                      <span
-                        class="block text-[12px] text-[var(--color-text-muted)] mb-2"
-                        >ID No <span class="text-red-400">*</span></span
-                      >
-                      <input
-                        v-model.trim="form.IDNo"
-                        type="text"
-                        class="vendor-collect__field-input vendor-collect__field-input--editable"
-                        placeholder="ID number"
-                        required
-                      />
-                    </label>
-                    <label class="vendor-collect__field block px-4 py-3.5">
-                      <span
-                        class="block text-[12px] text-[var(--color-text-muted)] mb-2"
-                        >Contact (Phone/Email)
-                        <span class="text-red-400">*</span></span
-                      >
-                      <input
-                        v-model.trim="form.Contact"
-                        type="text"
-                        class="vendor-collect__field-input vendor-collect__field-input--editable"
-                        placeholder="Phone or email"
-                        inputmode="tel"
-                        required
-                      />
-                    </label>
-                  </div>
-                </section>
-
-                <section
-                  v-else
-                  key="your-details-2"
-                  class="vendor-collect__card rounded-2xl overflow-hidden"
-                >
-                  <h2
-                    class="vendor-collect__section-title px-4 py-3 text-[13px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider"
-                  >
-                    Tax & confirmation
-                  </h2>
-                  <div
-                    class="vendor-collect__field-list divide-y divide-white/[0.06]"
-                  >
-                    <label class="vendor-collect__field block px-4 py-3.5">
-                      <span
-                        class="block text-[12px] text-[var(--color-text-muted)] mb-2"
-                        >Tin No <span class="text-red-400">*</span></span
-                      >
-                      <input
-                        v-model.trim="form.TinNo"
-                        type="text"
-                        class="vendor-collect__field-input vendor-collect__field-input--editable"
-                        placeholder="TIN"
-                        required
-                      />
-                    </label>
-                    <div class="vendor-collect__field px-4 py-3.5">
-                      <span
-                        class="block text-[12px] text-[var(--color-text-muted)] mb-2"
-                        >Collection Date</span
-                      >
-                      <div
-                        class="vendor-collect__field-input vendor-collect__field-input--readonly vendor-collect__field-input--display"
-                      >
-                        {{ formatDateDisplay(form.CollectionDate) }}
+                    <h2
+                      class="vendor-collect__section-title px-4 py-3 text-[13px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider"
+                    >
+                      Cheque details
+                    </h2>
+                    <div
+                      class="vendor-collect__field-list divide-y divide-white/[0.06]"
+                    >
+                      <label class="vendor-collect__field block px-4 py-3.5">
+                        <span
+                          class="block text-[12px] text-[var(--color-text-muted)] mb-2"
+                          >Bank Name <span class="text-red-400">*</span></span
+                        >
+                        <input
+                          v-model.trim="form.BankName"
+                          type="text"
+                          class="vendor-collect__field-input vendor-collect__field-input--editable"
+                          placeholder="Bank name"
+                          required
+                        />
+                      </label>
+                      <label class="vendor-collect__field block px-4 py-3.5">
+                        <span
+                          class="block text-[12px] text-[var(--color-text-muted)] mb-2"
+                          >Cheque No <span class="text-red-400">*</span></span
+                        >
+                        <input
+                          v-model.trim="form.ChequeNo"
+                          type="text"
+                          class="vendor-collect__field-input vendor-collect__field-input--editable"
+                          placeholder="Cheque number"
+                          required
+                        />
+                      </label>
+                      <div class="vendor-collect__field px-4 py-3.5">
+                        <span
+                          class="block text-[12px] text-[var(--color-text-muted)] mb-2"
+                          >Amount</span
+                        >
+                        <input
+                          :value="formatNumberDisplay(form.Amount)"
+                          type="text"
+                          class="vendor-collect__field-input vendor-collect__field-input--readonly font-medium"
+                          readonly
+                        />
                       </div>
                     </div>
-                  </div>
-                </section>
-              </Transition>
-            </form>
+                  </section>
+
+                  <section
+                    v-else-if="activeFormStep === 2"
+                    key="your-details-1"
+                    class="vendor-collect__card rounded-2xl overflow-hidden"
+                  >
+                    <h2
+                      class="vendor-collect__section-title px-4 py-3 text-[13px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider"
+                    >
+                      Your details
+                    </h2>
+                    <div
+                      class="vendor-collect__field-list divide-y divide-white/[0.06]"
+                    >
+                      <label class="vendor-collect__field block px-4 py-3.5">
+                        <span
+                          class="block text-[12px] text-[var(--color-text-muted)] mb-2"
+                          >Received By <span class="text-red-400">*</span></span
+                        >
+                        <input
+                          v-model.trim="form.ReceivedBy"
+                          type="text"
+                          class="vendor-collect__field-input vendor-collect__field-input--editable"
+                          placeholder="Your full name"
+                          required
+                        />
+                      </label>
+                      <label class="vendor-collect__field block px-4 py-3.5">
+                        <span
+                          class="block text-[12px] text-[var(--color-text-muted)] mb-2"
+                          >ID No <span class="text-red-400">*</span></span
+                        >
+                        <input
+                          v-model.trim="form.IDNo"
+                          type="text"
+                          class="vendor-collect__field-input vendor-collect__field-input--editable"
+                          placeholder="ID number"
+                          required
+                        />
+                      </label>
+                      <label class="vendor-collect__field block px-4 py-3.5">
+                        <span
+                          class="block text-[12px] text-[var(--color-text-muted)] mb-2"
+                          >Contact (Phone/Email)
+                          <span class="text-red-400">*</span></span
+                        >
+                        <input
+                          v-model.trim="form.Contact"
+                          type="text"
+                          class="vendor-collect__field-input vendor-collect__field-input--editable"
+                          placeholder="Phone or email"
+                          inputmode="tel"
+                          required
+                        />
+                      </label>
+                    </div>
+                  </section>
+
+                  <section
+                    v-else
+                    key="your-details-2"
+                    class="vendor-collect__card rounded-2xl overflow-hidden"
+                  >
+                    <h2
+                      class="vendor-collect__section-title px-4 py-3 text-[13px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider"
+                    >
+                      Tax & confirmation
+                    </h2>
+                    <div
+                      class="vendor-collect__field-list divide-y divide-white/[0.06]"
+                    >
+                      <label class="vendor-collect__field block px-4 py-3.5">
+                        <span
+                          class="block text-[12px] text-[var(--color-text-muted)] mb-2"
+                          >Tin No <span class="text-red-400">*</span></span
+                        >
+                        <input
+                          v-model.trim="form.TinNo"
+                          type="text"
+                          class="vendor-collect__field-input vendor-collect__field-input--editable"
+                          placeholder="TIN"
+                          required
+                        />
+                      </label>
+                      <div class="vendor-collect__field px-4 py-3.5">
+                        <span
+                          class="block text-[12px] text-[var(--color-text-muted)] mb-2"
+                          >Collection Date</span
+                        >
+                        <div
+                          class="vendor-collect__field-input vendor-collect__field-input--readonly vendor-collect__field-input--display"
+                        >
+                          {{ formatDateDisplay(form.CollectionDate) }}
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                </Transition>
+              </form>
             </div>
 
             <footer
@@ -594,6 +622,7 @@ const collectionList = ref<
 >([]);
 const saving = ref(false);
 const qrScannerOpen = ref(false);
+const qrScanMode = ref<"transref" | "code">("code");
 let html5QrCodeInstance: Html5Qrcode | null = null;
 
 function defaultCollectionDate(): string {
@@ -696,7 +725,10 @@ function checkMobile() {
   const ua = navigator.userAgent;
   const mobileKeywords =
     /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i;
-  isMobile.value = mobileKeywords.test(ua) || window.innerWidth < 768;
+  const isTabletOrPhone =
+    mobileKeywords.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  isMobile.value = isTabletOrPhone || window.innerWidth < 768;
 }
 
 async function loadCollections() {
@@ -735,7 +767,8 @@ async function onTransRefSubmit() {
     >(LAYOUTS.PAYABLES_MAIN, { TransRef: transRef }, 1);
     const record = data?.[0];
     if (!record) {
-      lookupError.value = "TransRef not found. Please check and try again.";
+      lookupError.value =
+        "Reference Number not found. Please check and try again.";
       return;
     }
     const fd = record.fieldData as Record<string, unknown>;
@@ -747,13 +780,13 @@ async function onTransRefSubmit() {
     const transRefFromMain = String(fd.TransRef ?? fd["TransRef"] ?? "").trim();
     if (!transRefFromMain) {
       lookupError.value =
-        "This entry is missing its TransRef. Please contact the finance team.";
+        "This entry is missing its Reference Number. Please contact the finance team.";
       return;
     }
     await loadCollections();
     if (collectedTransRefs.value.has(transRefFromMain)) {
       lookupError.value =
-        "This TransRef has already been recorded as collected.";
+        "This Reference Number has already been recorded as collected.";
       return;
     }
     payableRecord.value = record;
@@ -776,13 +809,18 @@ function backToTransRef() {
 }
 
 function getCameraErrorMessage(err: unknown): string {
-  if (!(err instanceof Error)) return "Could not start camera. Please enter the code manually.";
+  if (!(err instanceof Error))
+    return "Could not start camera. Please enter the code manually.";
   const msg = err.message?.toLowerCase() ?? "";
   const name = (err as { name?: string }).name ?? "";
   if (!window.isSecureContext || window.location.protocol !== "https:") {
     return "Camera requires HTTPS. Use this page over https:// or enter the code manually.";
   }
-  if (msg.includes("permission") || name === "NotAllowedError" || msg.includes("denied")) {
+  if (
+    msg.includes("permission") ||
+    name === "NotAllowedError" ||
+    msg.includes("denied")
+  ) {
     return "Camera access was denied. Allow camera in your browser settings, then try again.";
   }
   if (name === "NotFoundError" || msg.includes("not found")) {
@@ -794,16 +832,19 @@ function getCameraErrorMessage(err: unknown): string {
   if (name === "SecurityError" || msg.includes("secure")) {
     return "Camera requires a secure connection (HTTPS). Please enter the code manually.";
   }
-  return err.message || "Could not start camera. Please enter the code manually.";
+  return (
+    err.message || "Could not start camera. Please enter the code manually."
+  );
 }
 
-async function openQrScanner() {
+async function openQrScanner(mode: "transref" | "code") {
   if (!window.isSecureContext) {
     toast.error(
-      "Camera requires HTTPS. Open this page using https:// (not http://) to scan, or enter the code manually.",
+      "Camera requires HTTPS. Open this page using https:// (not http://) to scan, or enter manually.",
     );
     return;
   }
+  qrScanMode.value = mode;
   qrScannerOpen.value = true;
   await nextTick();
   const el = document.getElementById("qr-reader");
@@ -814,7 +855,12 @@ async function openQrScanner() {
       { facingMode: "environment" },
       { fps: 10, qrbox: { width: 250, height: 250 } },
       (decodedText) => {
-        codeInput.value = decodedText.trim().toUpperCase();
+        const value = decodedText.trim().toUpperCase();
+        if (qrScanMode.value === "transref") {
+          transRefInput.value = value;
+        } else {
+          codeInput.value = value;
+        }
         closeQrScanner();
       },
       () => {},
@@ -1250,16 +1296,25 @@ onMounted(async () => {
   transform: scale(0.98);
 }
 
-/* 100svh = smallest viewport = always fits when mobile address bar visible */
+/* Fit viewport: 100dvh = dynamic viewport (iPad Safari), 100svh = smallest, no page scroll */
 .vendor-collect__root {
-  min-height: 100vh;
-  min-height: 100svh;
-  height: 100%;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .vendor-collect__desktop {
   min-height: 100vh;
-  min-height: 100svh;
+  min-height: 100dvh;
+}
+
+.vendor-collect__mobile {
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
 }
 
 .vendor-collect__desktop-card {

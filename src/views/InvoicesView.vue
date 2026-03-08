@@ -3,18 +3,69 @@
     class="content-area flex flex-col flex-1 min-h-0 w-full max-w-[1600px] mx-auto px-4 py-5 md:px-6 md:py-6 min-h-[400px] overflow-hidden"
   >
     <header
-      class="invoices-header shrink-0 -mx-4 -mt-5 px-4 pt-5 pb-4 md:-mx-6 md:-mt-6 md:px-6 md:pt-6 md:pb-4 mb-4 bg-[#0f172a] border-b border-[var(--color-border)]"
+      class="invoices-header shrink-0 -mx-4 -mt-5 px-4 pt-5 pb-4 md:-mx-6 md:-mt-6 md:px-6 md:pt-6 md:pb-4 mb-4 bg-[var(--color-bg-dark)] border-b border-[var(--color-border)]"
     >
-      <h1
-        class="text-[1.75rem] font-bold tracking-tight text-[var(--color-text)] md:text-[2rem]"
-        style="letter-spacing: -0.025em; line-height: 1.2"
-      >
-        Invoices
-      </h1>
-      <p class="mt-1.5 text-[13px] text-[var(--color-text-muted)]">
-        All payable entries as PDF-style thumbnails. Click any thumbnail to open
-        the entry.
-      </p>
+      <div class="invoices-header__top flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1
+            class="text-[1.75rem] font-bold tracking-tight text-[var(--color-text)] md:text-[2rem]"
+            style="letter-spacing: -0.025em; line-height: 1.2"
+          >
+            Invoices
+          </h1>
+          <p class="mt-1.5 text-[13px] text-[var(--color-text-muted)]">
+            All payable entries as PDF-style thumbnails. Click any thumbnail to open
+            the entry.
+          </p>
+        </div>
+        <div class="invoices-header__right flex items-center justify-end gap-4 shrink-0">
+          <div
+            class="invoice-view-toggle flex items-center gap-2"
+            role="group"
+            aria-label="View mode"
+          >
+            <span class="invoice-view-toggle__label text-[13px] font-medium text-[var(--color-text-muted)]">
+              View
+            </span>
+            <div class="segment-control segment-control--invoice">
+              <button
+                type="button"
+                class="segment-control__segment"
+                :class="{ 'segment-control__segment--active': invoiceViewMode === 'grid' }"
+                @click="invoiceViewMode = 'grid'"
+              >
+                Default
+              </button>
+              <button
+                type="button"
+                class="segment-control__segment"
+                :class="{ 'segment-control__segment--active': invoiceViewMode === 'list' }"
+                @click="invoiceViewMode = 'list'"
+              >
+                List
+              </button>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="invoice-select-mailable pill-btn"
+            :class="{
+              'invoice-select-mailable--active': invoiceMailSelection.allSelected,
+              'invoice-select-mailable--disabled': mailableInListCount === 0,
+            }"
+            :disabled="mailableInListCount === 0"
+            :title="mailableInListCount === 0 ? 'Filter to Approved + Not issued to see mailable invoices' : (invoiceMailSelection.allSelected ? 'Deselect all' : `Select all ${mailableInListCount} approved (with email, not issued)`)"
+            :aria-label="mailableInListCount === 0 ? 'No mailable invoices' : (invoiceMailSelection.allSelected ? 'Deselect all' : `Select all ${mailableInListCount} mailable`)"
+            @click="mailableInListCount > 0 && onHeaderSelectAllMail()"
+          >
+            <svg class="invoice-select-mailable__icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+            <span v-if="invoiceMailSelection.allSelected">Deselect all</span>
+            <span v-else>Select all mailable ({{ mailableInListCount }})</span>
+          </button>
+        </div>
+      </div>
       <div class="invoices-toolbar">
         <div class="invoice-search-wrap">
           <label for="invoice-search" class="sr-only">Search invoices</label>
@@ -38,7 +89,7 @@
               v-model="searchQuery"
               type="search"
               autocomplete="off"
-              placeholder="Search by ref, vendor…"
+              placeholder="Search by PO, ref, vendor…"
               class="invoice-search__input glass-input"
             />
             <button
@@ -243,7 +294,34 @@
     </header>
 
     <div class="invoices-scroll flex-1 min-h-0 overflow-y-auto -mx-4 px-4 md:-mx-6 md:px-6">
-    <div v-if="loading" class="pdf-grid">
+    <div v-if="loading && list.length === 0" class="glass rounded-2xl p-12 text-center">
+      <p class="text-[var(--color-text-muted)]">Loading invoices…</p>
+    </div>
+    <div v-else-if="loading && invoiceViewMode === 'list'" class="invoice-list-view list-view--inset">
+      <div class="invoice-list-grid">
+        <div class="invoice-list-view__header">
+          <span class="invoice-list-view__col">Ref</span>
+          <span class="invoice-list-view__col">Date</span>
+          <span class="invoice-list-view__col">PO</span>
+          <span class="invoice-list-view__col">Vendor</span>
+          <span class="invoice-list-view__col">Status</span>
+          <span class="invoice-list-view__col">Total</span>
+          <span class="invoice-list-view__col">Cheque</span>
+          <span class="invoice-list-view__col" aria-hidden="true" />
+        </div>
+        <div v-for="i in 8" :key="i" class="list-view__row invoice-list-row invoice-list-row--skeleton">
+          <span class="invoice-list-view__col"><span class="invoice-list-skeleton-line" /></span>
+          <span class="invoice-list-view__col"><span class="invoice-list-skeleton-line invoice-list-skeleton-line--short" /></span>
+          <span class="invoice-list-view__col"><span class="invoice-list-skeleton-line invoice-list-skeleton-line--short" /></span>
+          <span class="invoice-list-view__col"><span class="invoice-list-skeleton-line" /></span>
+          <span class="invoice-list-view__col"><span class="invoice-list-skeleton-line invoice-list-skeleton-line--pill" /></span>
+          <span class="invoice-list-view__col"><span class="invoice-list-skeleton-line invoice-list-skeleton-line--short" /></span>
+          <span class="invoice-list-view__col"><span class="invoice-list-skeleton-line invoice-list-skeleton-line--short" /></span>
+          <span class="invoice-list-view__col" />
+        </div>
+      </div>
+    </div>
+    <div v-else-if="loading" class="pdf-grid">
       <div v-for="i in 12" :key="i" class="pdf-tile pdf-tile--skeleton">
         <div class="pdf-thumb">
           <div class="pdf-thumb__page animate-pulse">
@@ -286,6 +364,108 @@
       <p v-if="filteredList.length === 0" class="invoices-empty-msg">
         No invoices match your {{ hasActiveFilters ? "filters" : "search" }}.
       </p>
+      <div v-else-if="invoiceViewMode === 'list'" class="invoice-list-view list-view--inset">
+        <div class="invoice-list-grid">
+          <div class="invoice-list-view__header">
+            <span class="invoice-list-view__col">Ref</span>
+            <span class="invoice-list-view__col">Date</span>
+            <span class="invoice-list-view__col">PO</span>
+            <span class="invoice-list-view__col">Vendor</span>
+            <span class="invoice-list-view__col">Status</span>
+            <span class="invoice-list-view__col">Total</span>
+            <span class="invoice-list-view__col">Cheque</span>
+            <span class="invoice-list-view__col invoice-list-view__col--actions" aria-hidden="true" />
+          </div>
+          <div
+            v-for="item in filteredList"
+            :key="item.recordId"
+            class="list-view__row invoice-list-row group"
+          >
+          <span class="invoice-list-view__col invoice-list-view__col--ref font-medium text-[var(--color-text)] truncate" :title="(item.fieldData as PayablesMainFieldData).TransRef ?? ''">
+            {{ (item.fieldData as PayablesMainFieldData).TransRef || "—" }}
+          </span>
+          <span class="invoice-list-view__col invoice-list-view__col--date text-[var(--color-text-muted)] text-sm truncate">
+            {{ formatDate((item.fieldData as PayablesMainFieldData).Date) }}
+          </span>
+          <span class="invoice-list-view__col invoice-list-view__col--po text-[var(--color-text-muted)] text-sm truncate" :title="String((item.fieldData as PayablesMainFieldData).PurchaseOrder ?? (item.fieldData as Record<string, unknown>)?.['Purchase Order'] ?? '')">
+            {{ (item.fieldData as PayablesMainFieldData).PurchaseOrder ?? (item.fieldData as Record<string, unknown>)?.['Purchase Order'] ?? "—" }}
+          </span>
+          <span class="invoice-list-view__col invoice-list-view__col--vendor text-[var(--color-text)] truncate" :title="(item.fieldData as PayablesMainFieldData).VendorName ?? ''">
+            {{ (item.fieldData as PayablesMainFieldData).VendorName || "—" }}
+          </span>
+          <span
+            class="invoice-list-view__col invoice-list-view__col--status"
+          >
+            <span
+              class="invoice-list-row__status text-xs font-medium px-2 py-0.5 rounded-full inline-block"
+              :class="statusBadgeClass((item.fieldData as PayablesMainFieldData).Status)"
+            >
+              {{ (item.fieldData as PayablesMainFieldData).Status || "—" }}
+            </span>
+          </span>
+          <span class="invoice-list-view__col invoice-list-view__col--total font-medium tabular-nums text-[var(--color-text)]">
+            {{ formatAmount(item.fieldData as PayablesMainFieldData) }}
+          </span>
+          <span class="invoice-list-view__col invoice-list-view__col--cheque text-[var(--color-text-muted)] text-sm truncate">
+            <template v-if="getChequeIssued(item.fieldData as PayablesMainFieldData) === 'Yes'">
+              {{ getChequeDisplay(item.fieldData as PayablesMainFieldData) }}
+              <span v-if="getChequeIssuedDateFormatted(item.fieldData as PayablesMainFieldData)" class="invoice-list-row__cheque-date">
+                · {{ getChequeIssuedDateFormatted(item.fieldData as PayablesMainFieldData) }}
+              </span>
+            </template>
+            <span v-else>—</span>
+          </span>
+          <div class="invoice-list-view__col invoice-list-view__col--actions flex items-center justify-end gap-2 shrink-0">
+            <button
+              v-if="canSelectForMail(item)"
+              type="button"
+              class="invoice-list-row__mail-select"
+              :class="{ 'invoice-list-row__mail-select--selected': invoiceMailSelection.isSelected((item.fieldData as PayablesMainFieldData).TransRef ?? '') }"
+              :title="invoiceMailSelection.isSelected((item.fieldData as PayablesMainFieldData).TransRef ?? '') ? 'Remove from send mail' : 'Select for send mail'"
+              :aria-label="invoiceMailSelection.isSelected((item.fieldData as PayablesMainFieldData).TransRef ?? '') ? 'Remove from send mail' : 'Select for send mail'"
+              @click.stop="invoiceMailSelection.toggle((item.fieldData as PayablesMainFieldData).TransRef ?? '')"
+            >
+              <span v-if="invoiceMailSelection.isSelected((item.fieldData as PayablesMainFieldData).TransRef ?? '')" class="invoice-list-row__mail-check">
+                <svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              </span>
+              <span v-else class="invoice-list-row__mail-box" />
+              <span class="invoice-list-row__mail-label">Mail</span>
+            </button>
+            <button
+              v-if="canShowDownload((item.fieldData as PayablesMainFieldData).Status)"
+              type="button"
+              class="invoice-list-row__download"
+              title="Download PDF"
+              aria-label="Download PDF"
+              :disabled="downloadingTransRef !== null"
+              @click.stop="onDownloadPdf((item.fieldData as PayablesMainFieldData).TransRef)"
+            >
+              <svg v-if="downloadingTransRef !== ((item.fieldData as PayablesMainFieldData).TransRef ?? '')" class="h-4 w-4 text-[var(--color-accent)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span v-else class="invoice-list-row__spinner" aria-hidden="true" />
+            </button>
+            <router-link
+              :to="{
+                name: 'entry',
+                query: {
+                  transRef: (item.fieldData as PayablesMainFieldData).TransRef ?? '',
+                  from: 'invoices',
+                },
+              }"
+              class="pill-btn glass-input inline-flex items-center gap-1.5 px-3 py-2 text-[var(--label-size)] font-medium text-[var(--color-accent)] no-underline"
+            >
+              View
+              <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
+            </router-link>
+          </div>
+          </div>
+        </div>
+      </div>
       <div v-else class="pdf-grid">
         <div
           v-for="item in filteredList"
@@ -516,6 +696,19 @@ const dateFrom = ref("");
 const dateTo = ref("");
 const statusFilter = ref<"" | "Draft" | "Posted" | "Rejected" | "Approved">("");
 const chequeFilter = ref<"" | "issued" | "not_issued">("");
+const INVOICE_VIEW_KEY = "payables-invoice-view-mode";
+/** 'grid' = default thumbnails, 'list' = compact list rows. Persisted to localStorage. */
+const invoiceViewMode = ref<"grid" | "list">(
+  (() => {
+    try {
+      const v = localStorage.getItem(INVOICE_VIEW_KEY);
+      if (v === "list" || v === "grid") return v;
+    } catch {
+      /* ignore */
+    }
+    return "grid";
+  })(),
+);
 /** TransRef of the invoice whose PDF is currently being downloaded. */
 const downloadingTransRef = ref<string | null>(null);
 /** Whether combined PDF download is in progress. */
@@ -558,7 +751,10 @@ const filteredList = computed(() => {
   const q = searchQuery.value.trim().toLowerCase();
   if (q) {
     result = result.filter((item) => {
-      const fd = item.fieldData as PayablesMainFieldData;
+      const fd = item.fieldData as PayablesMainFieldData & Record<string, unknown>;
+      const purchaseOrder = String(
+        fd?.PurchaseOrder ?? fd?.["Purchase Order"] ?? "",
+      ).toLowerCase();
       const refStr = String(fd.TransRef ?? "").toLowerCase();
       const vendor = String(fd.VendorName ?? "").toLowerCase();
       const statusStr = String(fd.Status ?? "").toLowerCase();
@@ -566,6 +762,7 @@ const filteredList = computed(() => {
       const amount = formatAmount(fd).toLowerCase();
       const curr = String(fd.Currency ?? "").toLowerCase();
       return (
+        purchaseOrder.includes(q) ||
         refStr.includes(q) ||
         vendor.includes(q) ||
         statusStr.includes(q) ||
@@ -600,6 +797,19 @@ const hasActiveFilters = computed(
     searchQuery.value.trim() !== "" ||
     dateFrom.value.trim() !== "" ||
     dateTo.value.trim() !== "",
+);
+
+const mailableInListCount = computed(
+  () => invoiceMailSelection.mailableItems.size,
+);
+
+const mailableTransRefs = computed(() =>
+  filteredList.value
+    .filter(canSelectForMail)
+    .map((item) =>
+      String((item.fieldData as PayablesMainFieldData).TransRef ?? "").trim(),
+    )
+    .filter(Boolean),
 );
 
 function getTransRef(
@@ -847,6 +1057,14 @@ function canSelectForMail(item: FindRecordWithId<PayablesMainFieldData>): boolea
   return email.length > 0 && email.includes("@") && code.length > 0;
 }
 
+function onHeaderSelectAllMail() {
+  if (invoiceMailSelection.allSelected) {
+    invoiceMailSelection.clear();
+  } else {
+    invoiceMailSelection.selectRefs(mailableTransRefs.value);
+  }
+}
+
 function updateListSummaryForInvoices() {
   const items = list.value;
   let draftCount = 0;
@@ -934,6 +1152,13 @@ watch(
   },
   { immediate: true },
 );
+watch(invoiceViewMode, (mode) => {
+  try {
+    localStorage.setItem(INVOICE_VIEW_KEY, mode);
+  } catch {
+    /* ignore */
+  }
+});
 </script>
 
 <style scoped>
@@ -947,6 +1172,191 @@ watch(
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+.invoices-header__top {
+  margin-bottom: 0;
+}
+
+.invoice-view-toggle__label {
+  white-space: nowrap;
+}
+
+.segment-control--invoice .segment-control__segment {
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+/* Override list-view--inset overflow so sticky header works (overflow: hidden breaks position: sticky) */
+.invoice-list-view.list-view--inset {
+  overflow: visible;
+}
+
+.invoice-list-grid {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) 95px minmax(70px, 0.8fr) minmax(120px, 1.2fr) 90px minmax(90px, 1fr) minmax(100px, 1.2fr) minmax(180px, auto);
+  gap: 0 1rem;
+}
+
+.invoice-list-view__header,
+.invoice-list-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: subgrid;
+  align-items: center;
+  gap: 0 1rem;
+}
+
+.invoice-list-view__header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  background: rgb(30, 41, 59);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: 0 1px 0 var(--color-border);
+}
+
+html.theme-light .invoice-list-view__header {
+  background: #f8fafc;
+  border-bottom-color: rgba(148, 163, 184, 0.35);
+  color: #475569;
+}
+
+.invoice-list-row {
+  padding: 0.75rem 1rem;
+  transition: background 0.2s var(--ease);
+}
+
+.invoice-list-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.invoice-list-row--skeleton {
+  pointer-events: none;
+}
+
+.invoice-list-skeleton-line {
+  display: block;
+  height: 14px;
+  border-radius: 6px;
+  background: rgba(148, 163, 184, 0.2);
+  animation: invoice-list-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+.invoice-list-skeleton-line--short {
+  max-width: 70%;
+}
+
+.invoice-list-skeleton-line--pill {
+  width: 60px;
+}
+
+@keyframes invoice-list-skeleton-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.invoice-list-row:active {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.invoice-list-view__col {
+  min-width: 0;
+}
+
+.invoice-list-row__cheque-date {
+  opacity: 0.85;
+}
+
+.invoice-list-row__mail-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.35rem 0.5rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+
+.invoice-list-row__mail-select:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.invoice-list-row__mail-select--selected {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.invoice-list-row__mail-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 4px;
+  background: var(--color-accent);
+  color: white;
+}
+
+.invoice-list-row__mail-box {
+  display: block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.invoice-list-row__mail-label {
+  white-space: nowrap;
+}
+
+.invoice-list-row__download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.invoice-list-row__download:hover:not(:disabled) {
+  background: var(--color-accent-soft);
+}
+
+.invoice-list-row__download:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.invoice-list-row__spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid var(--color-accent-soft);
+  border-top-color: var(--color-accent);
+  border-radius: 50%;
+  animation: invoice-list-spin 0.7s linear infinite;
+}
+
+@keyframes invoice-list-spin {
+  to { transform: rotate(360deg); }
 }
 
 .invoices-toolbar {
@@ -1203,6 +1613,66 @@ watch(
   border-color: rgba(148, 163, 184, 0.5);
   background: rgba(255, 255, 255, 0.08);
   color: var(--color-text-muted);
+}
+
+.invoice-select-mailable {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border-radius: 9999px;
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  background: rgba(52, 211, 153, 0.15);
+  color: rgb(110, 231, 183);
+  cursor: pointer;
+  transition:
+    border-color 0.2s var(--ease),
+    background 0.2s var(--ease),
+    color 0.2s var(--ease);
+}
+
+.invoice-select-mailable:hover {
+  border-color: rgba(52, 211, 153, 0.7);
+  background: rgba(52, 211, 153, 0.2);
+  color: rgb(134, 239, 172);
+}
+
+.invoice-select-mailable--active {
+  border-color: rgba(52, 211, 153, 0.6);
+  background: rgba(52, 211, 153, 0.25);
+  color: rgb(134, 239, 172);
+}
+
+.invoice-select-mailable--disabled,
+.invoice-select-mailable:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.invoice-select-mailable__icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+html.theme-light .invoice-select-mailable {
+  border-color: rgba(16, 185, 129, 0.5);
+  background: rgba(16, 185, 129, 0.12);
+  color: rgb(5, 150, 105);
+}
+
+html.theme-light .invoice-select-mailable:hover {
+  border-color: rgba(16, 185, 129, 0.6);
+  background: rgba(16, 185, 129, 0.18);
+  color: rgb(4, 120, 87);
+}
+
+html.theme-light .invoice-select-mailable--active {
+  border-color: rgba(16, 185, 129, 0.6);
+  background: rgba(16, 185, 129, 0.2);
+  color: rgb(4, 120, 87);
 }
 
 .invoice-download-all {

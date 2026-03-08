@@ -855,13 +855,13 @@ async function submit() {
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -0.025em;
-  color: var(--color-text);
+  color: white;
   margin: 0 0 0.25rem;
 }
 
 .login__subtitle {
   font-size: 0.938rem;
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.85);
   margin: 0;
 }
 
@@ -898,7 +898,7 @@ async function submit() {
 
 .login__email-value {
   font-size: 0.938rem;
-  color: var(--color-text);
+  color: white;
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -928,7 +928,7 @@ async function submit() {
   display: block;
   font-size: 0.813rem;
   font-weight: 500;
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.9);
   margin-bottom: 0.5rem;
 }
 
@@ -936,7 +936,7 @@ async function submit() {
   width: 100%;
   padding: 0.875rem 1.125rem;
   font-size: 0.938rem;
-  color: var(--color-text);
+  color: white;
   background: rgba(30, 41, 59, 0.6);
   border: 1px solid rgba(148, 163, 184, 0.15);
   border-radius: 12px;
@@ -946,7 +946,7 @@ async function submit() {
 }
 
 .login__input::placeholder {
-  color: rgba(148, 163, 184, 0.5);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .login__input:focus {
@@ -1024,7 +1024,7 @@ async function submit() {
 .login__hint {
   margin-top: 2rem;
   font-size: 0.75rem;
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.65);
   text-align: center;
 }
 

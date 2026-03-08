@@ -13,6 +13,7 @@ export type ActivityAction =
   | 'Rejected'
   | 'Approved'
   | 'Reposted'
+  | 'Deleted'
   | 'EditRequested'
   | 'EditAllowed'
 

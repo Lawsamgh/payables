@@ -16,6 +16,7 @@ const DEFAULT_VENDOR: Vendor = {
   phone_number: "",
   currency: "GHS",
   created_date: "",
+  purchase_order: "",
 };
 
 export const useVendorStore = defineStore("vendor", () => {
@@ -85,7 +86,11 @@ export const useVendorStore = defineStore("vendor", () => {
 
   function setField(field: keyof Vendor, value: string): void {
     if (Object.prototype.hasOwnProperty.call(vendor.value, field)) {
-      vendor.value = { ...vendor.value, [field]: value };
+      const normalized =
+        field === "purchase_order"
+          ? String(value ?? "").trim().toUpperCase()
+          : value;
+      vendor.value = { ...vendor.value, [field]: normalized };
     }
   }
 
@@ -105,6 +110,7 @@ export const useVendorStore = defineStore("vendor", () => {
   /** Populate vendor from a Payables_Main record. Clears selected expiry (existing entry uses payableStore). */
   function setFromMain(
     mainData: {
+      PurchaseOrder?: string;
       VendorID?: string;
       VendorName?: string;
       VendorEmail?: string;
@@ -122,6 +128,11 @@ export const useVendorStore = defineStore("vendor", () => {
     selectedVendorWhtExpiryCheck.value = null;
     vendor.value = {
       ...vendor.value,
+      purchase_order: String(
+        mainData.PurchaseOrder ?? (mainData as Record<string, unknown>)?.["Purchase Order"] ?? "",
+      )
+        .trim()
+        .toUpperCase(),
       vendor_id: String(mainData.VendorID ?? "").trim(),
       vendor_name: String(mainData.VendorName ?? "").trim(),
       contact_email: String(mainData.VendorEmail ?? "").trim(),

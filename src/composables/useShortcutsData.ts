@@ -12,8 +12,13 @@ export function modPlus(key: string): string {
   return isMac ? `⌘${key}` : `Ctrl+${key}`
 }
 
+export function modShiftPlus(key: string): string {
+  return isMac ? `⌘⇧${key}` : `Ctrl+Shift+${key}`
+}
+
 export function useShortcutsData() {
   const globalShortcuts = computed(() => [
+    { action: 'Toggle dark/light mode', keys: [modShiftPlus('L')] },
     { action: 'Command palette (search, TransRef lookup, navigate)', keys: [modPlus('K')] },
     { action: 'New entry', keys: [modPlus('N')] },
     { action: 'Previous entry in booklet', keys: [modPlus('←')] },

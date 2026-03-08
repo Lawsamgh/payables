@@ -16,9 +16,9 @@
         </p>
       </div>
       <router-link
-        v-if="showDraftTab"
+        v-if="showDraftTab && list.length > 0"
         to="/entry"
-        class="pill-btn inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2.5 text-[var(--label-size)] font-semibold text-white no-underline shadow-md hover:bg-orange-600 transition-colors"
+        class="pill-btn new-entry-btn inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-[var(--label-size)] font-semibold text-white no-underline shadow-md hover:bg-orange-600 transition-colors"
       >
         <svg
           class="h-4 w-4"
@@ -96,23 +96,111 @@
       {{ error }}
     </div>
     <template v-else-if="list.length === 0">
-      <div class="glass rounded-2xl p-12 text-center">
-        <p class="text-[var(--color-text-muted)] mb-3">
-          {{
-            isConnected
-              ? "No payables yet."
-              : "Connect to FileMaker to load payables, or create a new entry."
-          }}
+      <div
+        v-if="isConnected"
+        class="empty-state empty-state--connected"
+        @mouseenter="emptyStateHover = true"
+        @mouseleave="emptyStateHover = false"
+      >
+        <div class="empty-state__carousel">
+          <Transition name="empty-slide" mode="out-in">
+            <div
+              :key="emptySlideIndex"
+              class="empty-state__slide"
+            >
+              <div class="empty-state__icon" aria-hidden="true">
+                <svg v-if="emptySlides[emptySlideIndex].iconKey === 'documents'" width="80" height="80" viewBox="0 0 80 80" fill="none" class="empty-state__illustration">
+                  <rect x="12" y="8" width="48" height="64" rx="4" stroke="currentColor" stroke-width="2" stroke-opacity="0.2" fill="none" />
+                  <rect x="18" y="14" width="48" height="64" rx="4" stroke="currentColor" stroke-width="2" stroke-opacity="0.35" fill="none" />
+                  <rect x="24" y="20" width="48" height="64" rx="4" stroke="currentColor" stroke-width="2" stroke-opacity="0.5" fill="none" />
+                  <path d="M32 36h24M32 44h18M32 52h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.4" />
+                  <circle cx="56" cy="56" r="16" fill="var(--color-accent-soft)" stroke="var(--color-accent)" stroke-width="2" stroke-opacity="0.6" />
+                  <path d="M56 50v12M50 56h12" stroke="var(--color-accent)" stroke-width="2" stroke-linecap="round" />
+                </svg>
+                <svg v-else-if="emptySlides[emptySlideIndex].iconKey === 'workflow'" width="80" height="80" viewBox="0 0 80 80" fill="none" class="empty-state__illustration">
+                  <circle cx="16" cy="40" r="12" stroke="currentColor" stroke-width="2" stroke-opacity="0.4" fill="none" />
+                  <circle cx="40" cy="40" r="12" stroke="currentColor" stroke-width="2" stroke-opacity="0.6" fill="none" />
+                  <circle cx="64" cy="40" r="12" stroke="currentColor" stroke-width="2" fill="none" />
+                  <path d="M28 40h8M52 40h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.6" />
+                  <text x="16" y="44" text-anchor="middle" font-size="10" font-weight="700" fill="currentColor" opacity="0.7">1</text>
+                  <text x="40" y="44" text-anchor="middle" font-size="10" font-weight="700" fill="currentColor" opacity="0.8">2</text>
+                  <text x="64" y="44" text-anchor="middle" font-size="10" font-weight="700" fill="currentColor">3</text>
+                </svg>
+                <svg v-else-if="emptySlides[emptySlideIndex].iconKey === 'features'" width="80" height="80" viewBox="0 0 80 80" fill="none" class="empty-state__illustration">
+                  <rect x="14" y="12" width="36" height="48" rx="4" stroke="currentColor" stroke-width="2" stroke-opacity="0.5" fill="none" />
+                  <path d="M24 28h16M24 36h12M24 44h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.5" />
+                  <circle cx="56" cy="32" r="8" fill="var(--color-accent-soft)" stroke="var(--color-accent)" stroke-width="1.5" opacity="0.7" />
+                  <path d="M52 32l3 3 6-6" stroke="var(--color-accent)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+                </svg>
+                <svg v-else width="80" height="80" viewBox="0 0 80 80" fill="none" class="empty-state__illustration">
+                  <circle cx="40" cy="40" r="28" stroke="currentColor" stroke-width="2" stroke-opacity="0.3" fill="none" />
+                  <path d="M40 24v16l8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.6" />
+                  <circle cx="40" cy="40" r="4" fill="var(--color-accent)" opacity="0.8" />
+                </svg>
+              </div>
+              <h2 class="empty-state__title">{{ emptySlides[emptySlideIndex].title }}</h2>
+              <p class="empty-state__subtitle">{{ emptySlides[emptySlideIndex].subtitle }}</p>
+              <ul v-if="emptySlides[emptySlideIndex].steps" class="empty-state__steps" aria-label="Quick start">
+                <li v-for="(step, i) in emptySlides[emptySlideIndex].steps" :key="i">
+                  <span class="empty-state__step-num">{{ i + 1 }}</span>
+                  {{ step }}
+                </li>
+              </ul>
+              <div v-else-if="emptySlides[emptySlideIndex].items" class="empty-state__tip-list">
+                <div
+                  v-for="(item, i) in emptySlides[emptySlideIndex].items"
+                  :key="i"
+                  class="empty-state__tip-item"
+                >
+                  <span
+                    class="empty-state__tip-icon"
+                    :class="{ 'empty-state__tip-icon--badge': item.badge }"
+                  >{{ item.icon }}</span>
+                  <span>{{ item.text }}</span>
+                </div>
+              </div>
+            </div>
+          </Transition>
+        </div>
+        <div class="empty-state__footer">
+          <div class="empty-state__dots" role="tablist" aria-label="Slide navigation">
+            <button
+              v-for="(slide, i) in emptySlides"
+              :key="i"
+              type="button"
+              role="tab"
+              :aria-selected="emptySlideIndex === i"
+              :aria-label="`Go to slide ${i + 1}: ${slide.title}`"
+              class="empty-state__dot"
+              :class="{ 'empty-state__dot--active': emptySlideIndex === i }"
+              @click="emptySlideIndex = i"
+            />
+          </div>
+          <router-link
+            to="/entry"
+            class="empty-state__cta pill-btn inline-flex items-center gap-2 rounded-xl bg-orange-500 px-5 py-3 text-[var(--label-size)] font-semibold no-underline shadow-lg hover:bg-orange-600 hover:shadow-xl transition-all"
+          >
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+          Create first entry
+          </router-link>
+        </div>
+      </div>
+      <div v-else class="empty-state empty-state--disconnected">
+        <div class="empty-state__icon empty-state__icon--connect" aria-hidden="true">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.5">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+          </svg>
+        </div>
+        <h2 class="empty-state__title">Connect to load payables</h2>
+        <p class="empty-state__subtitle">
+          Connect to FileMaker to see existing entries, or create a new one locally first.
         </p>
-        <router-link
-          v-if="isConnected"
-          to="/entry"
-          class="text-[var(--color-accent)] font-medium hover:underline"
-          >Create one</router-link
-        >
-        <span v-else class="text-[var(--color-text-muted)] text-sm"
-          >Click <strong>Connect</strong> in the status bar below.</span
-        >
+        <p class="empty-state__hint">
+          Click <strong>Connect</strong> in the status bar below to sign in.
+        </p>
       </div>
     </template>
     <div v-else class="flex flex-col gap-6">
@@ -1490,7 +1578,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { setHomeTab, getHomeTab, isValidHomeTab } from "../utils/homeTab";
 import Skeleton from "../components/Skeleton.vue";
@@ -1511,6 +1599,7 @@ import {
   getApprovedDate,
   toDateKey,
   filterByStatusAndSort,
+  isPostedRecord,
   animateValue,
   loadPostedFilter,
   savePostedFilter,
@@ -1567,6 +1656,54 @@ const list = ref<FindRecordWithId<PayablesMainFieldData>[]>([]);
 const vendorCount = ref(0);
 const loading = ref(true);
 const error = ref<string | null>(null);
+
+/** Empty state carousel: slides with tips and instructions when no payables. */
+const emptySlideIndex = ref(0);
+const emptyStateHover = ref(false);
+const emptySlides = [
+  {
+    iconKey: "documents",
+    title: "Your workspace is empty",
+    subtitle: "Create your first payable entry to get started.",
+    steps: [
+      "Select a vendor from the dropdown",
+      "Add invoice lines and amounts",
+      "Post the entry for manager approval",
+    ],
+  },
+  {
+    iconKey: "workflow",
+    title: "How the workflow works",
+    subtitle: "Entries move through statuses as they’re processed.",
+    items: [
+      { icon: "Draft", text: "New or in-progress entries. Edit freely.", badge: true },
+      { icon: "Posted", text: "Submitted for approval. Manager reviews.", badge: true },
+      { icon: "Approved", text: "Ready for cheque. Or Rejected if changes needed.", badge: true },
+    ],
+  },
+  {
+    iconKey: "features",
+    title: "Handy features",
+    subtitle: "Things you can do once you have entries.",
+    items: [
+      { icon: "📄", text: "Invoices view – Thumbnails and list of all payables" },
+      { icon: "📖", text: "Booklet – Flip between entries like pages" },
+      { icon: "⬇️", text: "PDF download – Approved invoices as PDF" },
+      { icon: "✉️", text: "Send mail – Email invoices to vendors" },
+    ],
+  },
+  {
+    iconKey: "tips",
+    title: "Quick tips",
+    subtitle: "Speed up your workflow.",
+    items: [
+      { icon: "⌘", text: "Use the command palette (Cmd/Ctrl + K) for quick actions" },
+      { icon: "🔍", text: "Search by PO, ref, vendor, or amount" },
+      { icon: "📌", text: "Vendor details auto-fill when you select from the list" },
+      { icon: "🔄", text: "Refresh the page to sync with FileMaker" },
+    ],
+  },
+];
 
 const PAGE_SIZE = 5;
 const searchQuery = ref("");
@@ -1722,6 +1859,11 @@ const displayedVendors = ref(0);
 
 const draftList = computed(() => filterByStatusAndSort(list.value, "Draft"));
 const postedList = computed(() => filterByStatusAndSort(list.value, "Posted"));
+
+/** For the chart only: entries with Posted = "Yes" (and PostedDate used for selected date). Tab still uses Status. */
+const chartPostedList = computed(() =>
+  list.value.filter((item) => isPostedRecord(item)),
+);
 const rejectedList = computed(() =>
   filterByStatusAndSort(list.value, "Rejected"),
 );
@@ -1814,10 +1956,10 @@ function openRejectedCard() {
   router.push({ name: "entry", query: { transRef: refs[0] } });
 }
 
-/** Daily totals for posted entries, grouped by currency (never sum USD + GHS). Group by PostedDate. */
+/** Daily totals for posted entries (chart only: Posted = Yes), grouped by currency. Group by PostedDate. */
 const dailyPostedByCurrency = computed(() => {
   const byCurrency = new Map<string, Map<string, number>>();
-  for (const item of postedList.value) {
+  for (const item of chartPostedList.value) {
     const currency = String(item.fieldData?.Currency ?? "").trim() || "GHS";
     const dateKey = toDateKey(getPostedDate(item));
     if (!dateKey) continue;
@@ -1993,7 +2135,7 @@ const approvedCurrency = computed(() => {
   return best;
 });
 
-/** Posted totals by vendor for the selected date only (x-axis = vendor name, bar = amount). */
+/** Posted totals by vendor for the selected date only (chart: Posted = Yes and PostedDate = selected). */
 const postedByVendor = computed(() => {
   const primary = primaryCurrency.value;
   const selected = selectedChartDate.value;
@@ -2001,7 +2143,7 @@ const postedByVendor = computed(() => {
     string,
     { label: string; total: number; totalsByCurrency: Record<string, number> }
   >();
-  for (const item of postedList.value) {
+  for (const item of chartPostedList.value) {
     const itemDate = toDateKey(getPostedDate(item));
     if (!itemDate || itemDate !== selected) continue;
     const vid = String(item.fieldData?.VendorID ?? "").trim();
@@ -2043,11 +2185,11 @@ const postedCurrencyTotalsLabel = computed(() => {
   return parts.length > 0 ? parts.join(" · ") : "";
 });
 
-/** Totals for the selected date's posted only (for the chart header). */
+/** Totals for the selected date's posted only (chart header: Posted = Yes and PostedDate = selected). */
 const postedTodayTotalsLabel = computed(() => {
   const selected = selectedChartDate.value;
   const byCur: Record<string, number> = {};
-  for (const item of postedList.value) {
+  for (const item of chartPostedList.value) {
     const itemDate = toDateKey(getPostedDate(item));
     if (!itemDate || itemDate !== selected) continue;
     const currency = String(item.fieldData?.Currency ?? "").trim() || "GHS";
@@ -2230,10 +2372,10 @@ const hasResultsInAnyTab = computed(
 
 const searchPlaceholder = computed(() => {
   const t = activeSegment.value;
-  if (t === "draft") return "Search Draft (vendor, ref…)";
-  if (t === "posted") return "Search Posted (vendor, ref…)";
-  if (t === "rejected") return "Search Rejected (vendor, ref…)";
-  return "Search Approved (vendor, ref…)";
+  if (t === "draft") return "Search Draft (PO, vendor, ref…)";
+  if (t === "posted") return "Search Posted (PO, vendor, ref…)";
+  if (t === "rejected") return "Search Rejected (PO, vendor, ref…)";
+  return "Search Approved (PO, vendor, ref…)";
 });
 
 const currentTabHasNoResults = computed(() => {
@@ -2542,8 +2684,278 @@ async function load() {
   }
 }
 
+let emptySlideInterval: ReturnType<typeof setInterval> | null = null;
+
+function startEmptySlideInterval() {
+  if (emptySlideInterval) return;
+  emptySlideInterval = setInterval(() => {
+    if (emptyStateHover.value) return;
+    emptySlideIndex.value =
+      (emptySlideIndex.value + 1) % emptySlides.length;
+  }, 4500);
+}
+
+function stopEmptySlideInterval() {
+  if (emptySlideInterval) {
+    clearInterval(emptySlideInterval);
+    emptySlideInterval = null;
+  }
+}
+
+watch(
+  () => list.value.length === 0 && isConnected.value,
+  (showEmpty) => {
+    if (showEmpty) {
+      startEmptySlideInterval();
+    } else {
+      stopEmptySlideInterval();
+    }
+  },
+  { immediate: true },
+);
+
+onUnmounted(stopEmptySlideInterval);
+
 onMounted(load);
 watch(isConnected, (connected) => {
   if (connected) load();
 });
 </script>
+
+<style scoped>
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  height: 500px;
+  padding: 0;
+  overflow: hidden;
+  background: linear-gradient(
+    165deg,
+    rgba(30, 41, 59, 0.7) 0%,
+    rgba(15, 23, 42, 0.85) 100%
+  );
+  border: 1px solid var(--color-border);
+  border-radius: 1.5rem;
+  text-align: center;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+}
+
+.empty-state__icon {
+  margin-bottom: 1rem;
+  color: var(--color-text-muted);
+}
+
+.empty-state__illustration {
+  opacity: 0.8;
+}
+
+.empty-state__icon--connect {
+  opacity: 0.6;
+}
+
+.empty-state__title {
+  margin: 0 0 0.375rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--color-text);
+}
+
+.empty-state__subtitle {
+  margin: 0 0 1.25rem;
+  max-width: 26rem;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--color-text-muted);
+}
+
+.empty-state__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.empty-state__step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-right: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  background: var(--color-accent-soft);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.empty-state__carousel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
+  padding: 2rem 2rem 1rem;
+}
+
+.empty-state__slide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+}
+
+.empty-slide-enter-active,
+.empty-slide-leave-active {
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.empty-slide-enter-from {
+  opacity: 0;
+  transform: translateX(12px);
+}
+
+.empty-slide-leave-to {
+  opacity: 0;
+  transform: translateX(-12px);
+}
+
+.empty-state__footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 2rem 1.75rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.empty-state__dots {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.empty-state__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(148, 163, 184, 0.4);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.empty-state__dot:hover {
+  background: rgba(148, 163, 184, 0.6);
+}
+
+.empty-state__dot--active {
+  background: var(--color-accent);
+  transform: scale(1.2);
+}
+
+.empty-state__tip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  max-width: 22rem;
+  text-align: left;
+}
+
+.empty-state__tip-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.empty-state__tip-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  font-size: 0.8125rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+}
+
+.empty-state__tip-icon--badge {
+  font-weight: 600;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.empty-state__tip-icon:not(.empty-state__tip-icon--badge) {
+  background: rgba(148, 163, 184, 0.15);
+  font-size: 1rem;
+}
+
+.empty-state__cta {
+  color: white !important;
+}
+
+.empty-state__cta svg {
+  color: white;
+}
+
+.empty-state__hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  opacity: 0.9;
+}
+
+.empty-state--disconnected {
+  padding: 2.5rem 1.5rem;
+  justify-content: center;
+}
+
+.empty-state--disconnected .empty-state__hint {
+  margin-top: 0.5rem;
+}
+
+html.theme-light .empty-state {
+  background: linear-gradient(
+    165deg,
+    rgba(248, 250, 252, 0.95) 0%,
+    rgba(241, 245, 249, 0.9) 100%
+  );
+  border-color: rgba(148, 163, 184, 0.35);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+}
+
+html.theme-light .empty-state__footer {
+  border-top-color: rgba(148, 163, 184, 0.2);
+}
+
+html.theme-light .empty-state__cta {
+  color: white !important;
+}
+
+html.theme-light .empty-state__cta:hover {
+  background: rgb(234 88 12) !important;
+  box-shadow: 0 6px 20px rgba(234, 88, 12, 0.35);
+}
+
+html.theme-light .empty-state__cta svg {
+  color: white;
+}
+</style>

@@ -18,6 +18,8 @@ export interface Vendor {
   phone_number: string
   currency: string
   created_date: string
+  /** Purchase order from Payables_Main (entry-level). */
+  purchase_order: string
 }
 
 export type PayableStatus = 'Pending' | 'Paid' | 'Overdue'
@@ -37,6 +39,10 @@ export interface PayableRow {
   status: PayableStatus
   payment_date: string
   reference: string
+  /** WHT Tax (calculated in FileMaker Payables_Details) */
+  wht_tax?: string
+  /** WHT Tax Amount (calculated in FileMaker Payables_Details) */
+  wht_tax_amount?: string
   created_date: string
 }
 
