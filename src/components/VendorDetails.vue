@@ -31,114 +31,126 @@
 
     <Transition name="vendor-details-body">
       <div v-show="!collapsed" class="vendor-details__body">
-        <div
-          v-if="showExpiryCheck"
-          class="vendor-details__expiry-alert"
-          role="status"
-        >
+        <div class="vendor-details__top-row">
           <div
-            v-if="displayExpiryCheck"
-            class="vendor-details__expiry-item"
-            :class="{
-              'vendor-details__expiry-item--invalid': isExpiryCheckInvalid(
-                displayExpiryCheckStatus,
-              ),
-              'vendor-details__expiry-item--valid':
-                displayExpiryCheckStatus &&
-                !isExpiryCheckInvalid(displayExpiryCheckStatus),
-            }"
+            v-if="showExpiryCheck"
+            class="vendor-details__expiry-alert"
+            role="status"
           >
-            <span class="vendor-details__expiry-icon" aria-hidden="true">
-              <svg
-                v-if="
+            <div
+              v-if="displayExpiryCheck"
+              class="vendor-details__expiry-item"
+              :class="{
+                'vendor-details__expiry-item--invalid': isExpiryCheckInvalid(
+                  displayExpiryCheckStatus,
+                ),
+                'vendor-details__expiry-item--valid':
                   displayExpiryCheckStatus &&
-                  isExpiryCheckInvalid(displayExpiryCheckStatus)
-                "
-                class="vendor-details__expiry-icon-svg"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-                viewBox="0 0 24 24"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M15 9l-6 6M9 9l6 6"
-                />
-              </svg>
-              <svg
-                v-else-if="displayExpiryCheckStatus"
-                class="vendor-details__expiry-icon-svg"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <span v-else class="vendor-details__expiry-icon-placeholder" />
-            </span>
-            <strong class="vendor-details__expiry-label">GRA Expiry:</strong>
-            <span class="vendor-details__expiry-value">{{
-              displayExpiryCheck
-            }}</span>
+                  !isExpiryCheckInvalid(displayExpiryCheckStatus),
+              }"
+            >
+              <span class="vendor-details__expiry-icon" aria-hidden="true">
+                <svg
+                  v-if="
+                    displayExpiryCheckStatus &&
+                    isExpiryCheckInvalid(displayExpiryCheckStatus)
+                  "
+                  class="vendor-details__expiry-icon-svg"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  viewBox="0 0 24 24"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M15 9l-6 6M9 9l6 6"
+                  />
+                </svg>
+                <svg
+                  v-else-if="displayExpiryCheckStatus"
+                  class="vendor-details__expiry-icon-svg"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span v-else class="vendor-details__expiry-icon-placeholder" />
+              </span>
+              <strong class="vendor-details__expiry-label">GRA Expiry:</strong>
+              <span class="vendor-details__expiry-value">{{
+                displayExpiryCheck
+              }}</span>
+            </div>
+            <div
+              v-if="displayWhtExpiryCheck"
+              class="vendor-details__expiry-item"
+              :class="{
+                'vendor-details__expiry-item--invalid': isExpiryCheckInvalid(
+                  displayWhtExpiryCheckStatus,
+                ),
+                'vendor-details__expiry-item--valid':
+                  displayWhtExpiryCheckStatus &&
+                  !isExpiryCheckInvalid(displayWhtExpiryCheckStatus),
+              }"
+            >
+              <span class="vendor-details__expiry-icon" aria-hidden="true">
+                <svg
+                  v-if="
+                    displayWhtExpiryCheckStatus &&
+                    isExpiryCheckInvalid(displayWhtExpiryCheckStatus)
+                  "
+                  class="vendor-details__expiry-icon-svg"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  viewBox="0 0 24 24"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M15 9l-6 6M9 9l6 6"
+                  />
+                </svg>
+                <svg
+                  v-else-if="displayWhtExpiryCheckStatus"
+                  class="vendor-details__expiry-icon-svg"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                <span v-else class="vendor-details__expiry-icon-placeholder" />
+              </span>
+              <strong class="vendor-details__expiry-label">WHT Expiry:</strong>
+              <span class="vendor-details__expiry-value">{{
+                displayWhtExpiryCheck
+              }}</span>
+            </div>
           </div>
           <div
-            v-if="displayWhtExpiryCheck"
-            class="vendor-details__expiry-item"
-            :class="{
-              'vendor-details__expiry-item--invalid': isExpiryCheckInvalid(
-                displayWhtExpiryCheckStatus,
-              ),
-              'vendor-details__expiry-item--valid':
-                displayWhtExpiryCheckStatus &&
-                !isExpiryCheckInvalid(displayWhtExpiryCheckStatus),
-            }"
+            v-if="vendor.vendor_id?.trim() && !payableStore.currentTransRef"
+            class="vendor-details__balance-wrap"
           >
-            <span class="vendor-details__expiry-icon" aria-hidden="true">
-              <svg
-                v-if="
-                  displayWhtExpiryCheckStatus &&
-                  isExpiryCheckInvalid(displayWhtExpiryCheckStatus)
-                "
-                class="vendor-details__expiry-icon-svg"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-                viewBox="0 0 24 24"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M15 9l-6 6M9 9l6 6"
-                />
-              </svg>
-              <svg
-                v-else-if="displayWhtExpiryCheckStatus"
-                class="vendor-details__expiry-icon-svg"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <span v-else class="vendor-details__expiry-icon-placeholder" />
-            </span>
-            <strong class="vendor-details__expiry-label">WHT Expiry:</strong>
-            <span class="vendor-details__expiry-value">{{
-              displayWhtExpiryCheck
-            }}</span>
+            <VendorBalanceBanner
+              :loading="vendorStore.vendorBalanceLoading"
+              :display-value="vendorBalanceDisplay"
+              :zero-or-less="isVendorBalanceZeroOrLess"
+            />
           </div>
         </div>
         <div class="vendor-details__grid">
@@ -320,7 +332,9 @@
               :readonly="readOnly"
               @focus="advancePaymentFocused = true"
               @blur="onAdvancePaymentBlur"
-              @input="onAdvancePaymentInput(($event.target as HTMLInputElement).value)"
+              @input="
+                onAdvancePaymentInput(($event.target as HTMLInputElement).value)
+              "
             />
           </label>
           <label class="vendor-details__field">
@@ -375,6 +389,8 @@ import { usePayableStore } from "../stores/payableStore";
 import { useFileMaker } from "../composables/useFileMaker";
 import { useUserRole } from "../composables/useUserRole";
 import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
+import Skeleton from "./Skeleton.vue";
+import VendorBalanceBanner from "./VendorBalanceBanner.vue";
 import { LAYOUTS } from "../utils/filemakerApi";
 import { formatNumberDisplay } from "../utils/formatNumber";
 import type { Vendor } from "../types";
@@ -397,10 +413,25 @@ const advancePaymentDisplay = computed(() => {
   const v = payableStore.mainAdvancePayment;
   if (v == null) return "";
   if (advancePaymentFocused.value) {
-    return typeof v === "number" ? String(v) : String(v).replace(/,/g, "").trim();
+    return typeof v === "number"
+      ? String(v)
+      : String(v).replace(/,/g, "").trim();
   }
   const n = typeof v === "number" ? v : parseFloat(String(v).replace(/,/g, ""));
-  return Number.isNaN(n) ? String(v).trim() : (formatNumberDisplay(n) || "");
+  return Number.isNaN(n) ? String(v).trim() : formatNumberDisplay(n) || "";
+});
+const vendorBalanceDisplay = computed(() => {
+  const raw = vendor.value.vendor_balance ?? "";
+  if (!raw.trim()) return "";
+  const n = parseFloat(String(raw).replace(/,/g, "").trim());
+  return Number.isNaN(n) ? raw : formatNumberDisplay(n) || "";
+});
+const isVendorBalanceZeroOrLess = computed(() => {
+  if (vendorStore.vendorBalanceLoading) return false;
+  const raw = vendor.value.vendor_balance ?? "";
+  if (!raw.trim()) return false;
+  const n = parseFloat(String(raw).replace(/,/g, "").trim());
+  return !Number.isNaN(n) && n <= 0;
 });
 const collapsed = ref(false);
 const vendorDropdownRef = ref<HTMLElement | null>(null);
@@ -412,7 +443,6 @@ const readOnly = computed(
     (isManager.value && !documentSettings.managerEditDraftEnabled) ||
     (payableStore.mainPosted && payableStore.mainStatus !== "Rejected"),
 );
-
 
 /** Don't show expiry for Approved/Posted. New entry: VendorDetails. Existing Draft/Rejected: EntryView banner. */
 const displayExpiryCheck = computed(() => {
@@ -538,18 +568,26 @@ async function loadVendors() {
 function onVendorIdInput(value: string) {
   vendorSearch.value = value;
   vendorStore.setField("vendor_id", value);
-  if (!value?.trim()) vendorStore.setExpiryFromVendorRecord(undefined);
+  if (!value?.trim()) {
+    vendorStore.setExpiryFromVendorRecord(undefined);
+    vendorStore.setField("vendor_balance", "");
+    vendorStore.setField("vendor_name", "");
+    vendorStore.setField("contact_email", "");
+  }
   if (!readOnly.value) payableStore.markDirty();
   vendorDropdownOpen.value = true;
 }
 
-function onVendorSelect(
+async function onVendorSelect(
   row: FindRecordWithId<VendorTblFieldData | Record<string, unknown>>,
 ) {
   const id = getVendorId(row);
   const name = getVendorName(row);
   const email = getVendorEmail(row);
   const currency = getVendorCurrency(row);
+  if (id && isConnected.value) {
+    vendorStore.startVendorBalanceLoad();
+  }
   vendorStore.setField("vendor_id", id);
   vendorStore.setField("vendor_name", name);
   vendorStore.setField("contact_email", email);
@@ -560,6 +598,12 @@ function onVendorSelect(
   vendorSearch.value = "";
   vendorDropdownOpen.value = false;
   if (!readOnly.value) payableStore.markDirty();
+
+  if (id && isConnected.value) {
+    await vendorStore.fetchAndSetVendorBalance(id);
+  } else {
+    vendorStore.setField("vendor_balance", "");
+  }
 }
 
 function onAdvancePaymentInput(value: string): void {
@@ -707,8 +751,17 @@ watch(isConnected, (connected) => {
   padding: 1.25rem 1.25rem 1.5rem;
 }
 
-.vendor-details__expiry-alert {
+.vendor-details__top-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 1rem;
   margin-bottom: 1.25rem;
+}
+
+.vendor-details__expiry-alert {
+  flex: 1;
+  min-width: 0;
   padding: 1rem 1.25rem;
   border-radius: 10px;
   background: linear-gradient(
@@ -857,6 +910,17 @@ watch(isConnected, (connected) => {
 .vendor-details__input--duplicate:focus {
   border-color: rgb(248, 113, 113);
   box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.25);
+}
+
+.vendor-details__input--skeleton-wrap {
+  display: flex;
+  align-items: center;
+}
+
+/* Vendor balance callout - top right, inline with GRA banner */
+.vendor-details__balance-wrap {
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .vendor-details__field-error {

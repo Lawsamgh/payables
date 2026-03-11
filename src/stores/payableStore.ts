@@ -459,6 +459,10 @@ export const usePayableStore = defineStore("payable", () => {
         Date: fd?.Date as string | undefined,
         Currency: fd?.Currency as string | undefined,
       });
+      const vendorId = String(fd?.VendorID ?? fd?.["Vendor ID"] ?? "").trim();
+      if (vendorId) {
+        await vendorStore.fetchAndSetVendorBalance(vendorId);
+      }
       const { getRecord } = useFileMaker();
       const { data: mainFieldData } = await getRecord<Record<string, unknown>>(
         LAYOUTS.PAYABLES_MAIN,

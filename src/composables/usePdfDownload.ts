@@ -649,6 +649,22 @@ export function usePdfDownload() {
               },
               { text: v.currency?.trim() || "—", fontSize: 8 },
             ],
+            [
+              {
+                text: "Vendor balance in BC",
+                bold: true,
+                fillColor: "#f5f5f5",
+                fontSize: 8,
+              },
+              {
+                text:
+                  v.vendor_balance?.trim()
+                    ? (v.currency ? `${v.currency} ` : "") +
+                      formatPdfNumber(v.vendor_balance)
+                    : "—",
+                fontSize: 8,
+              },
+            ],
           ],
         },
         layout: { hLineWidth: () => 0.2, vLineWidth: () => 0.2 },

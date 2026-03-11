@@ -173,6 +173,7 @@
               >
               <div class="notification-dropdown mt-3">
                 <div
+                  v-if="!hodInitialLoading"
                   ref="dropdownTriggerRef"
                   class="notification-dropdown__trigger"
                   :class="{
@@ -211,6 +212,9 @@
                   >
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                   </svg>
+                </div>
+                <div v-else class="notification-dropdown__skeleton">
+                  <Skeleton height="2.75rem" class="w-full rounded-2xl" />
                 </div>
               </div>
               <Teleport to="body">
@@ -303,7 +307,7 @@
               </svg>
             </div>
             <div class="settings-item__content">
-              <span class="settings-item__title">Generate QR Code</span>
+            <span class="settings-item__title">Manage URL</span>
               <span class="settings-item__desc">Configure URL for vendor cheque collection QR code</span>
             </div>
             <svg
@@ -416,6 +420,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useFileMaker } from '../composables/useFileMaker'
 import { useDocumentSettingsStore } from '../stores/documentSettingsStore'
 import { useEmailListStore } from '../stores/emailListStore'
+import Skeleton from "../components/Skeleton.vue";
 import { useToastStore } from '../stores/toastStore'
 import { LAYOUTS } from '../utils/filemakerApi'
 import type { PayablesUsersFieldData } from '../utils/filemakerApi'
@@ -439,6 +444,7 @@ const dropdownTriggerRef = ref<HTMLElement | null>(null)
 const dropdownListRef = ref<HTMLElement | null>(null)
 const dropdownPosition = ref<{ top: number; left: number; width: number } | null>(null)
 const showAddEmailModal = ref(false)
+const hodInitialLoading = ref(true)
 
 const { loggedInEmail, isConnected, findRecordsByQueryWithIds, findRecordsWithIds } = useFileMaker()
 
@@ -613,7 +619,7 @@ function handleScroll() {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   document.addEventListener('click', handleClickOutside)
   window.addEventListener('scroll', handleScroll, true)
   const email = loggedInEmail.value
@@ -625,6 +631,8 @@ onMounted(() => {
     }
     loadUserRole()
   }
+  await emailList.loadEmailList()
+  hodInitialLoading.value = false
 })
 
 onUnmounted(() => {
@@ -723,7 +731,8 @@ a.settings-item:hover {
   padding: 0.625rem 1rem;
   font-size: 0.9375rem;
   color: var(--color-text);
-  background: rgba(255, 255, 255, 0.05);
+  /* Default: use card background; dark-mode override below makes it near-black */
+  background-color: var(--color-bg-card);
   border: 1px solid var(--color-border);
   border-radius: 12px;
   cursor: pointer;
@@ -731,7 +740,7 @@ a.settings-item:hover {
 }
 
 .notification-dropdown__trigger:hover:not(.notification-dropdown__trigger--disabled) {
-  background: rgba(255, 255, 255, 0.08);
+  background-color: var(--color-bg-card);
   border-color: rgba(148, 163, 184, 0.25);
 }
 
@@ -776,6 +785,7 @@ a.settings-item:hover {
   min-width: 18rem;
   max-height: 240px;
   overflow-y: auto;
+  /* Match solid trigger background (theme-aware) */
   background: var(--color-bg-card);
   border: 1px solid var(--color-border);
   border-radius: 12px;
@@ -798,20 +808,75 @@ a.settings-item:hover {
   font-size: 0.875rem;
   text-align: left;
   color: var(--color-text);
-  background: transparent;
+  /* Solid item background so list isn’t see-through */
+  background-color: var(--color-bg-card);
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background-color 0.15s ease;
 }
 
 .notification-dropdown__item:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background-color: var(--color-bg-card);
 }
 
 .notification-dropdown__item--selected {
-  background: rgba(251, 146, 60, 0.15);
+  background-color: rgba(251, 146, 60, 0.18);
   color: var(--color-accent);
+}
+
+/* Dark mode overrides: keep solid near-black background */
+html:not(.theme-light) .notification-dropdown__trigger {
+  background-color: #020617;
+}
+
+html:not(.theme-light) .notification-dropdown__trigger:hover:not(.notification-dropdown__trigger--disabled) {
+  background-color: #020617;
+}
+
+html:not(.theme-light) .notification-dropdown__list {
+  background: #020617;
+}
+
+html:not(.theme-light) .notification-dropdown__item {
+  background-color: #020617;
+}
+
+html:not(.theme-light) .notification-dropdown__item:hover {
+  background-color: #020617;
+}
+
+html:not(.theme-light) .notification-dropdown__item--selected {
+  background-color: #1e293b;
+}
+
+/* Light mode overrides for notification dropdown */
+html.theme-light .notification-dropdown__trigger {
+  background-color: #f9fafb;
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+html.theme-light .notification-dropdown__trigger:hover:not(.notification-dropdown__trigger--disabled) {
+  background-color: #ffffff;
+  border-color: rgba(148, 163, 184, 0.7);
+}
+
+html.theme-light .notification-dropdown__list {
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+html.theme-light .notification-dropdown__item {
+  background-color: #ffffff;
+}
+
+html.theme-light .notification-dropdown__item:hover {
+  background-color: #f3f4f6;
+}
+
+html.theme-light .notification-dropdown__item--selected {
+  background-color: #fee2e2;
+  color: #b91c1c;
 }
 
 .notification-dropdown__item-label {

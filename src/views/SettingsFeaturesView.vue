@@ -99,6 +99,29 @@
           </label>
         </div>
         <div
+          class="feature-option feature-option--number"
+          :class="{ 'feature-option--enabled': documentSettings.tokenExpiryMinutes > 0 }"
+        >
+          <span class="feature-option__icon feature-option__icon--default">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </span>
+          <span class="feature-option__content">
+            <span class="feature-option__title">Token expiry</span>
+            <span class="feature-option__desc">Session token expiry time in minutes (0–1440)</span>
+            <input
+              v-model.number="tokenExpiryInput"
+              type="number"
+              min="0"
+              max="1440"
+              class="glass-input mt-3 w-24 px-3 py-2 text-[var(--label-size)]"
+              :disabled="savingTokenExpiry"
+              @blur="onTokenExpiryBlur"
+            />
+          </span>
+        </div>
+        <div
           class="feature-option"
           :class="{ 'feature-option--enabled': documentSettings.editRequestEnabled }"
         >
@@ -367,10 +390,17 @@ const savingFeatureFlags = ref<Record<string, boolean>>({
 
 const overdueDaysInput = ref(7)
 const savingOverdueDays = ref(false)
+const tokenExpiryInput = ref(0)
+const savingTokenExpiry = ref(false)
 
 watch(
   () => documentSettings.overdueDays,
   (v) => { overdueDaysInput.value = v },
+  { immediate: true },
+)
+watch(
+  () => documentSettings.tokenExpiryMinutes,
+  (v) => { tokenExpiryInput.value = v },
   { immediate: true },
 )
 
@@ -384,6 +414,19 @@ async function onOverdueDaysBlur() {
   if (error) {
     toast.error(error)
     overdueDaysInput.value = documentSettings.overdueDays
+  }
+}
+
+async function onTokenExpiryBlur() {
+  const val = Math.max(0, Math.min(1440, Math.round(tokenExpiryInput.value) || 0))
+  if (val === documentSettings.tokenExpiryMinutes) return
+  tokenExpiryInput.value = val
+  savingTokenExpiry.value = true
+  const { error } = await documentSettings.saveTokenExpiry(val)
+  savingTokenExpiry.value = false
+  if (error) {
+    toast.error(error)
+    tokenExpiryInput.value = documentSettings.tokenExpiryMinutes
   }
 }
 

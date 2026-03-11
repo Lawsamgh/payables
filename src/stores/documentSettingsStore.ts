@@ -61,6 +61,8 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
   const sessionTimeoutWarningEnabled = ref(true);
   const editRequestEnabled = ref(true);
   const overdueDays = ref(7);
+  /** Token expiry in minutes (from Payables_Settings.TokenExpiry). 0 when empty. */
+  const tokenExpiryMinutes = ref(0);
   const overdueIndicatorEnabled = ref(true);
   const commandPaletteEnabled = ref(true);
   const bookletEnabled = ref(true);
@@ -71,6 +73,8 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
   const onboardingEnabled = ref(true);
   /** Admin-configured URL for vendor cheque collection QR code. Empty = use default /vendor-collect. */
   const vendorCollectQrUrl = ref("");
+  /** Admin-configured URL used in password-set emails (Payables_Settings.SetPasswordURL). */
+  const setPasswordUrl = ref("");
 
   const { findRecordsWithIds, updateRecord, isConnected } = useFileMaker();
 
@@ -103,6 +107,10 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
     const od = fd?.OverdueDays;
     const odNum = typeof od === "number" ? od : (od != null && od !== "" ? parseInt(String(od), 10) : NaN);
     overdueDays.value = Number.isFinite(odNum) && odNum >= 1 && odNum <= 365 ? odNum : 7;
+    const raw = fd as Record<string, unknown> | undefined;
+    const te = raw?.["TokenExpiry"] ?? raw?.["Token Expiry"] ?? raw?.["tokenExpiry"];
+    const teNum = typeof te === "number" ? te : (te != null && te !== "" ? parseInt(String(te), 10) : NaN);
+    tokenExpiryMinutes.value = Number.isFinite(teNum) && teNum >= 0 && teNum <= 1440 ? teNum : 0;
     overdueIndicatorEnabled.value = parseYesNo(fd?.OverdueIndicatorEnabled, true);
     commandPaletteEnabled.value = parseYesNo(fd?.CommandPaletteEnabled, true);
     bookletEnabled.value = parseYesNo(fd?.BookletEnabled, true);
@@ -113,6 +121,8 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
     onboardingEnabled.value = parseYesNo(fd?.OnboardingEnabled, true);
     const qrUrl = fd?.VendorCollectURL ?? (fd as Record<string, unknown>)?.["Vendor Collect URL"] ?? fd?.URL ?? "";
     vendorCollectQrUrl.value = typeof qrUrl === "string" ? qrUrl.trim() : "";
+    const spUrl = fd?.SetPasswordURL ?? (fd as Record<string, unknown>)?.["SetPasswordURL"] ?? (fd as Record<string, unknown>)?.["Set Password URL"];
+    setPasswordUrl.value = typeof spUrl === "string" ? spUrl.trim() : "";
     try {
       localStorage.setItem(STORAGE_KEY, invoiceDownloadWhen.value);
     } catch {
@@ -178,6 +188,20 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
     return { error };
   }
 
+  async function saveTokenExpiry(value: number): Promise<{ error: string | null }> {
+    if (!isConnected.value || !settingsRecordId.value) {
+      return { error: "Not connected" };
+    }
+    const clamped = Math.max(0, Math.min(1440, Math.round(value)));
+    const { error } = await updateRecord(
+      LAYOUTS.PAYABLES_SETTINGS,
+      settingsRecordId.value,
+      { TokenExpiry: clamped },
+    );
+    if (!error) tokenExpiryMinutes.value = clamped;
+    return { error };
+  }
+
   async function saveToFileMaker(): Promise<void> {
     if (!isConnected.value || !settingsRecordId.value) return;
     const fmValue = internalToFm(invoiceDownloadWhen.value);
@@ -220,6 +244,21 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
     return { error };
   }
 
+  async function saveSetPasswordUrl(value: string): Promise<{ error: string | null }> {
+    if (!isConnected.value || !settingsRecordId.value) {
+      return { error: "Not connected" };
+    }
+    const trimmed = value.trim();
+    setPasswordUrl.value = trimmed;
+    const { error } = await updateRecord(
+      LAYOUTS.PAYABLES_SETTINGS,
+      settingsRecordId.value,
+      { SetPasswordURL: trimmed },
+      { allowEmptyStrings: true },
+    );
+    return { error };
+  }
+
   async function saveHodEmail(value: string): Promise<{ error: string | null }> {
     if (!isConnected.value || !settingsRecordId.value) {
       return { error: "Not connected" };
@@ -254,9 +293,13 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
     setInvoiceDownloadWhen,
     loadFromFileMaker,
     vendorCollectQrUrl,
+    setPasswordUrl,
     saveVendorCollectQrUrl,
+    saveSetPasswordUrl,
     saveHodEmail,
     saveFeatureFlag,
     saveOverdueDays,
+    tokenExpiryMinutes,
+    saveTokenExpiry,
   };
 });

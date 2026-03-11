@@ -30,7 +30,7 @@
             class="text-[1.75rem] font-bold tracking-tight text-[var(--color-text)] md:text-[2rem]"
             style="letter-spacing: -0.025em; line-height: 1.2"
           >
-            Generate QR Code
+            Manage URL
           </h1>
           <p class="mt-1.5 text-[13px] text-[var(--color-text-muted)]">
             Configure the URL that vendors scan to record cheque collection.
@@ -67,7 +67,7 @@
       >
         Vendor self-service URL
       </label>
-      <div class="flex gap-3">
+      <div v-if="!initialLoading" class="flex gap-3">
         <input
           v-model.trim="urlInput"
           type="url"
@@ -86,11 +86,62 @@
           {{ saving ? "Saving…" : "Save" }}
         </button>
       </div>
+      <div v-else class="flex gap-3 items-center">
+        <Skeleton
+          class="flex-1"
+          height="3rem"
+        />
+        <Skeleton
+          width="6rem"
+          height="3rem"
+          class="rounded-xl"
+        />
+      </div>
       <p class="mt-2 text-[12px] text-[var(--color-text-muted)]">
         Use a full URL (e.g.
         <code class="px-1 py-0.5 rounded bg-white/10"
           >https://yourdomain.com/vendor-collect</code
         >) or leave empty for the default app URL.
+      </p>
+    </section>
+    <section class="qr-url-section w-full mt-8">
+      <label
+        class="block text-[var(--label-size)] font-medium text-[var(--color-text-muted)] mb-2"
+      >
+        Set password URL
+      </label>
+      <div v-if="!initialLoading" class="flex gap-3">
+        <input
+          v-model.trim="setPasswordInput"
+          type="url"
+          class="glass-input flex-1 min-w-0 px-4 py-3 rounded-xl border border-[var(--color-border)] bg-white/5 text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:border-transparent"
+          placeholder="https://yoursite.com/set-password"
+          autocomplete="url"
+        />
+        <button
+          type="button"
+          class="pill-btn glass-input px-6 py-3 rounded-xl font-medium text-[var(--color-text)] hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+          :disabled="
+            savingSetPassword || setPasswordInput === (documentSettings.setPasswordUrl ?? '')
+          "
+          @click="onSaveSetPassword"
+        >
+          {{ savingSetPassword ? 'Saving…' : 'Save' }}
+        </button>
+      </div>
+      <div v-else class="flex gap-3 items-center">
+        <Skeleton
+          class="flex-1"
+          height="3rem"
+        />
+        <Skeleton
+          width="6rem"
+          height="3rem"
+          class="rounded-xl"
+        />
+      </div>
+      <p class="mt-2 text-[12px] text-[var(--color-text-muted)]">
+        Stored in <code>Payables_Settings.SetPasswordURL</code> and used in password setup emails.
       </p>
     </section>
   </div>
@@ -99,6 +150,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from "vue";
 import QRCode from "qrcode";
+import Skeleton from "../components/Skeleton.vue";
 import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
 import { useToastStore } from "../stores/toastStore";
 import { useLoadingOverlayStore } from "../stores/loadingOverlayStore";
@@ -107,8 +159,11 @@ const documentSettings = useDocumentSettingsStore();
 const toast = useToastStore();
 
 const urlInput = ref("");
+const setPasswordInput = ref("");
 const saving = ref(false);
+const savingSetPassword = ref(false);
 const downloadingPdf = ref(false);
+const initialLoading = ref(true);
 
 function getVendorCollectUrl(): string {
   const custom = (
@@ -128,12 +183,21 @@ function getVendorCollectUrl(): string {
 onMounted(async () => {
   await documentSettings.loadFromFileMaker();
   urlInput.value = documentSettings.vendorCollectQrUrl ?? "";
+  setPasswordInput.value = documentSettings.setPasswordUrl ?? "";
+  initialLoading.value = false;
 });
 
 watch(
   () => documentSettings.vendorCollectQrUrl,
   (v) => {
     urlInput.value = v ?? "";
+  },
+);
+
+watch(
+  () => documentSettings.setPasswordUrl,
+  (v) => {
+    setPasswordInput.value = v ?? "";
   },
 );
 
@@ -153,6 +217,25 @@ async function onSave() {
     }
   } finally {
     saving.value = false;
+  }
+}
+
+async function onSaveSetPassword() {
+  if (savingSetPassword.value) return;
+  savingSetPassword.value = true;
+  try {
+    const { error } = await documentSettings.saveSetPasswordUrl(
+      setPasswordInput.value,
+    );
+    if (error) {
+      toast.error(error);
+    } else {
+      toast.success(
+        "Set password URL saved. Password setup emails will use this URL.",
+      );
+    }
+  } finally {
+    savingSetPassword.value = false;
   }
 }
 

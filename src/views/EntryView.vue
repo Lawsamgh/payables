@@ -359,9 +359,17 @@
       </ul>
     </section>
 
-    <!-- Vendor expiry checks: show for Draft, Rejected, or Posted. NOT for Approved only. -->
-    <div v-if="showExpiryCheckBanner" class="expiry-check-banner" role="status">
-      <span class="expiry-check-banner__icon" aria-hidden="true">
+    <!-- Vendor expiry checks: show for Draft, Rejected, or Posted. NOT for Approved only. GRA banner + Vendor balance (outside) on same row. -->
+    <div
+      v-if="showExpiryCheckBanner || showHeaderBalanceBanner"
+      class="expiry-balance-row"
+    >
+      <div
+        v-if="showExpiryCheckBanner"
+        class="expiry-check-banner"
+        role="status"
+      >
+        <span class="expiry-check-banner__icon" aria-hidden="true">
         <svg
           width="28"
           height="28"
@@ -501,6 +509,20 @@
             displayWhtExpiryCheckBanner
           }}</span>
         </div>
+      </div>
+      </div>
+      <!-- Vendor balance in BC: outside GRA banner. Full width when Approved (no GRA), else inline on right -->
+      <div
+        v-if="showHeaderBalanceBanner"
+        class="expiry-balance-row__balance"
+        :class="{ 'expiry-balance-row__balance--full-width': !showExpiryCheckBanner }"
+      >
+        <VendorBalanceBanner
+          :loading="vendorStore.vendorBalanceLoading"
+          :display-value="headerVendorBalanceDisplay"
+          :zero-or-less="headerVendorBalanceZeroOrLess"
+          compact
+        />
       </div>
     </div>
 
@@ -726,10 +748,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, watchEffect, onMounted } from "vue";
+import { computed, ref, watch, watchEffect, onMounted, onUnmounted } from "vue";
 import { useRoute, useRouter, onBeforeRouteLeave } from "vue-router";
 import { getHomeRoute } from "../utils/homeTab";
 import VendorDetails from "../components/VendorDetails.vue";
+import VendorBalanceBanner from "../components/VendorBalanceBanner.vue";
 import UnsavedChangesModal from "../components/UnsavedChangesModal.vue";
 import RejectReasonModal from "../components/RejectReasonModal.vue";
 import EditRequestModal from "../components/EditRequestModal.vue";
@@ -758,6 +781,7 @@ import {
   formatTimestampForFileMaker,
   formatDateOnlyForFileMaker,
 } from "../utils/filemakerMappers";
+import { formatNumberDisplay } from "../utils/formatNumber";
 import { writeActivityLog } from "../utils/activityLog";
 import { useToastStore } from "../stores/toastStore";
 import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
@@ -781,6 +805,28 @@ const backToListRoute = computed(() => {
   if (from === "overdue")
     return { path: "/home", query: { tab: "posted", openOverdue: "1" } };
   return getHomeRoute();
+});
+
+/** Show Vendor balance in BC inline with expiry row when we have a saved entry and vendor. */
+const showHeaderBalanceBanner = computed(
+  () =>
+    !!payableStore.currentTransRef &&
+    (vendorStore.vendor?.vendor_id ?? "").trim().length > 0,
+);
+
+const headerVendorBalanceDisplay = computed(() => {
+  const raw = vendorStore.vendor?.vendor_balance ?? "";
+  if (!raw.trim()) return "";
+  const n = parseFloat(String(raw).replace(/,/g, "").trim());
+  return Number.isNaN(n) ? raw : formatNumberDisplay(n) || "";
+});
+
+const headerVendorBalanceZeroOrLess = computed(() => {
+  if (vendorStore.vendorBalanceLoading) return false;
+  const raw = vendorStore.vendor?.vendor_balance ?? "";
+  if (!raw.trim()) return false;
+  const n = parseFloat(String(raw).replace(/,/g, "").trim());
+  return !Number.isNaN(n) && n <= 0;
 });
 
 const spreadsheet = useSpreadsheet();
@@ -1003,7 +1049,21 @@ function goToPage(index: number) {
   if (ref) router.push(entryQuery(ref));
 }
 
-onMounted(loadForRoute);
+function onBeforeUnload(e: BeforeUnloadEvent) {
+  if (payableStore.isDirty || sessionPayableInvoice.createdIds.length > 0) {
+    e.preventDefault();
+    e.returnValue = "";
+  }
+}
+
+onMounted(() => {
+  loadForRoute();
+  window.addEventListener("beforeunload", onBeforeUnload);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("beforeunload", onBeforeUnload);
+});
 
 const showLeaveConfirmModal = ref(false);
 const showRejectModal = ref(false);
@@ -1897,6 +1957,22 @@ async function downloadApprovedPdf() {
                 },
                 { text: v.currency?.trim() || "—", fontSize: 8 },
               ],
+              [
+                {
+                  text: "Vendor balance in BC",
+                  bold: true,
+                  fillColor: "#f5f5f5",
+                  fontSize: 8,
+                },
+                {
+                  text:
+                    v.vendor_balance?.trim()
+                      ? (v.currency ? `${v.currency} ` : "") +
+                        formatPdfNumber(v.vendor_balance)
+                      : "—",
+                  fontSize: 8,
+                },
+              ],
             ],
           },
           layout: { hLineWidth: () => 0.2, vLineWidth: () => 0.2 },
@@ -2309,6 +2385,31 @@ async function downloadApprovedPdf() {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.expiry-balance-row {
+  display: flex;
+  align-items: stretch;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.expiry-balance-row .expiry-check-banner {
+  flex: 1;
+  min-width: 0;
+  margin-bottom: 0;
+}
+.expiry-balance-row__balance {
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.expiry-balance-row__balance--full-width {
+  flex: 1;
+  min-width: 0;
+  margin-left: 0;
+}
+.expiry-balance-row__balance--full-width :deep(.vendor-balance-banner) {
+  width: 100%;
+  min-width: 0;
 }
 .expiry-check-banner__item {
   display: grid;

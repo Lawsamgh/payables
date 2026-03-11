@@ -59,6 +59,12 @@ const router = createRouter({
       meta: { title: 'Collect cheque', layout: 'login', requiresAuth: false },
     },
     {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: () => import('../views/ResetPasswordFirstTimeView.vue'),
+      meta: { title: 'Set password', layout: 'login', requiresAuth: false },
+    },
+    {
       path: '/settings',
       name: 'settings',
       component: () => import('../views/SettingsView.vue'),
@@ -98,7 +104,7 @@ const router = createRouter({
       path: '/settings/qr-code',
       name: 'settings-qr-code',
       component: () => import('../views/SettingsQrCodeView.vue'),
-      meta: { title: 'Generate QR Code', requiresAuth: true, requireAdmin: true },
+      meta: { title: 'Manage URL', requiresAuth: true, requireAdmin: true },
     },
     {
       path: '/settings/shortcuts',

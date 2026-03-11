@@ -197,7 +197,8 @@ export interface PayablesEditRequestFieldData {
  * Vendor_TBL fields (from schema):
  * Vendor_ID, Vendor_Name, Vendor_Location, Vendor_Email, GRA_Expiry_Date,
  * Received_Date, Tin_Number, WHT_Expiry_Date, Received_WHT_Date,
- * Expiry_Check, WHT_Expiry_Check (calculation fields)
+ * Expiry_Check, WHT_Expiry_Check (calculation fields),
+ * VendorBalance (from BC via GetVendorBalanceFromBC script)
  */
 export interface VendorTblFieldData {
   Vendor_ID?: string;
@@ -211,6 +212,7 @@ export interface VendorTblFieldData {
   Received_WHT_Date?: string;
   Expiry_Check?: string;
   WHT_Expiry_Check?: string;
+  VendorBalance?: string | number;
 }
 
 /**
@@ -244,11 +246,13 @@ function getFieldValue(
  * Result of checking if an email exists in Payables_Users.
  * - exists: true if the email was found AND the account is active
  * - inactive: true if the email was found but Status is "Inactive"
+ * - firstLoginRequired: true if FirstLoginRequired is "Yes" (user must set password via reset link)
  * - error: set if a connection or unexpected error occurred
  */
 export interface CheckEmailResult {
   exists: boolean;
   inactive?: boolean;
+  firstLoginRequired?: boolean;
   error?: string;
 }
 
@@ -342,7 +346,15 @@ export async function checkEmailExistsInPayablesUsers(
       return { exists: false, inactive: true };
     }
 
-    return { exists: true };
+    // Check FirstLoginRequired on first active match
+    const activeMatch = matchingRecords.find((r) => {
+      const status = getFieldValue(r?.fieldData, "Status").toLowerCase();
+      return status !== "inactive";
+    });
+    const firstLoginVal = getFieldValue(activeMatch?.fieldData, "FirstLoginRequired").toLowerCase();
+    const firstLoginRequired = firstLoginVal === "yes" || firstLoginVal === "1";
+
+    return { exists: true, firstLoginRequired };
   } catch (err) {
     const msg = parseFileMakerError(err);
     if (
@@ -353,6 +365,106 @@ export async function checkEmailExistsInPayablesUsers(
       return { exists: false };
     }
     return { exists: false, error: msg };
+  }
+}
+
+/**
+ * Run a FileMaker script using service credentials (VITE_FILEMAKER_USER / VITE_FILEMAKER_PASSWORD).
+ * Used for public flows like reset password where the user is not authenticated.
+ * Returns scriptResult and scriptError; error is set for connection/auth failures.
+ */
+export async function runScriptWithServiceAuth(
+  layout: string,
+  scriptName: string,
+  scriptParam?: string,
+): Promise<{
+  error: string | null;
+  scriptResult?: string | null;
+  scriptError?: string;
+}> {
+  const base = getBaseUrl()?.trim();
+  if (!base)
+    return {
+      error: "FileMaker URL not set",
+      scriptResult: null,
+      scriptError: undefined,
+    };
+
+  const envUser = (import.meta.env?.VITE_FILEMAKER_USER as string) || "";
+  const envPass = (import.meta.env?.VITE_FILEMAKER_PASSWORD as string) || "";
+  if (!envUser.trim() || !envPass) {
+    return {
+      error: "Service credentials not configured",
+      scriptResult: null,
+      scriptError: undefined,
+    };
+  }
+
+  const urlBase = base.replace(/\/$/, "");
+
+  try {
+    const sessRes = await axios.post<{ response?: { token?: string } }>(
+      `${urlBase}/sessions`,
+      {},
+      {
+        auth: { username: envUser.trim(), password: envPass },
+        headers: { "Content-Type": "application/json" },
+        timeout: 15000,
+      },
+    );
+    const token =
+      sessRes.data?.response?.token ??
+      (sessRes.headers?.["x-fm-data-access-token"] as string) ??
+      (sessRes.headers?.["X-FM-Data-Access-Token"] as string);
+
+    if (!token) {
+      return {
+        error: "Could not connect to FileMaker",
+        scriptResult: null,
+        scriptError: undefined,
+      };
+    }
+
+    const path = `/layouts/${encodeURIComponent(layout)}/script/${encodeURIComponent(scriptName)}`;
+    const url =
+      scriptParam != null && scriptParam !== ""
+        ? `${path}?script.param=${encodeURIComponent(scriptParam)}`
+        : path;
+
+    const res = await axios.get<{
+      response?: { scriptError?: string; scriptResult?: string };
+      messages?: Array<{ code?: string; message?: string }>;
+    }>(`${urlBase}${path.startsWith("/") ? "" : "/"}${url}`, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      timeout: 15000,
+    });
+
+    const scriptError = res.data?.response?.scriptError ?? "0";
+    const scriptResult = res.data?.response?.scriptResult ?? null;
+
+    if (scriptError !== "0") {
+      const raw = (scriptResult ?? "").trim();
+      const msg = res.data?.messages?.[0]?.message?.trim();
+      const errMsg =
+        raw && raw !== "0" && raw !== "OK"
+          ? raw
+          : msg && msg !== "OK" && msg.length > 2
+            ? msg
+            : `Script error (code ${scriptError})`;
+      return { error: errMsg, scriptResult, scriptError };
+    }
+
+    return { error: null, scriptResult, scriptError };
+  } catch (err) {
+    const msg = parseFileMakerError(err);
+    return {
+      error: msg,
+      scriptResult: null,
+      scriptError: undefined,
+    };
   }
 }
 
@@ -384,6 +496,7 @@ export interface EmailListFieldData {
  * VendorsViewEnabled: "Yes" | "No" – show Vendors section
  * ApprovalEmailToOfficer: "Yes" | "No" – email poster + CC officers when entry approved
  * OnboardingEnabled: "Yes" | "No" – show onboarding modal for new users
+ * TokenExpiry: number – token expiry time in minutes
  */
 export interface PayablesSettingsFieldData {
   DocOption?: string;
@@ -401,8 +514,12 @@ export interface PayablesSettingsFieldData {
   TaxViewEnabled?: string;
   VendorsViewEnabled?: string;
   OnboardingEnabled?: string;
-  /** Admin-configured URL for vendor cheque collection QR code (Settings > Generate QR Code). */
+  /** Admin-configured URL for vendor cheque collection QR code (Settings > Manage URL). */
   VendorCollectURL?: string;
+  /** Admin-configured URL used in password-set emails (Payables_Settings.SetPasswordURL). */
+  SetPasswordURL?: string;
+  /** Token expiry time in minutes. */
+  TokenExpiry?: string | number;
 }
 
 /**

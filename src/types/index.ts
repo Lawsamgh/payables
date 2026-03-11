@@ -20,6 +20,8 @@ export interface Vendor {
   created_date: string
   /** Purchase order from Payables_Main (entry-level). */
   purchase_order: string
+  /** Vendor balance from Business Central (read-only, from FileMaker). */
+  vendor_balance?: string
 }
 
 export type PayableStatus = 'Pending' | 'Paid' | 'Overdue'

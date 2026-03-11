@@ -296,6 +296,7 @@ async function proceed() {
     const {
       exists,
       inactive,
+      firstLoginRequired,
       error: checkErr,
     } = await checkEmailExistsInPayablesUsers(email.value.trim());
 
@@ -315,6 +316,15 @@ async function proceed() {
     // Email not registered at all
     if (!exists) {
       toast.error("This email is not registered. Contact your administrator.");
+      emailFieldError.value = true;
+      return;
+    }
+
+    // User must set password via reset link first
+    if (firstLoginRequired) {
+      toast.error(
+        "Please set your password using the link sent to your email, then sign in.",
+      );
       emailFieldError.value = true;
       return;
     }

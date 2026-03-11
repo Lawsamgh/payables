@@ -182,6 +182,10 @@
                 <th>Full Name</th>
                 <th>Role</th>
                 <th>Status</th>
+                <th>Reset Token</th>
+                <th>Reset Expires</th>
+                <th>First Login</th>
+                <th>Reset Used At</th>
                 <th class="tax-table__actions-th">Active</th>
                 <th class="tax-table__actions-th"></th>
               </tr>
@@ -199,6 +203,10 @@
                   {{ getField(row, 'Status') || '—' }}
                 </span>
               </td>
+              <td>{{ formatResetToken(getFieldRaw(row, 'ResetToken')) }}</td>
+              <td>{{ formatTimestamp(getFieldRaw(row, 'ResetTokenExpiresAt')) }}</td>
+              <td>{{ getField(row, 'FirstLoginRequired') }}</td>
+              <td>{{ formatTimestamp(getFieldRaw(row, 'ResetTokenUsedAt')) }}</td>
               <td class="tax-table__actions-td">
                 <button
                   type="button"
@@ -234,6 +242,17 @@
                   >
                     <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l11.964-11.964A6 6 0 1121 9z" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    class="tax-table__edit-btn tax-table__edit-btn--icon tax-table__edit-btn--danger"
+                    aria-label="Delete user"
+                    :disabled="deletingRecordId === row.recordId"
+                    @click.stop="openDeleteUserModal(row)"
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                   </button>
                 </div>
@@ -337,6 +356,65 @@
       </div>
     </Teleport>
 
+    <!-- Delete user confirmation modal -->
+    <Teleport to="body">
+      <Transition name="delete-user-modal">
+        <div
+          v-if="showDeleteUserModal"
+          class="delete-user-modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-user-modal-title"
+          aria-describedby="delete-user-modal-desc"
+        >
+          <div class="delete-user-modal">
+            <div class="delete-user-modal__icon-wrap">
+              <svg
+                class="delete-user-modal__icon"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+            </div>
+            <h2 id="delete-user-modal-title" class="delete-user-modal__title">
+              Delete user?
+            </h2>
+            <p id="delete-user-modal-desc" class="delete-user-modal__message">
+              <span v-if="deleteUserDisplay">{{ deleteUserDisplay }}</span>
+              <br /><br />
+              This will remove the account and user record. This action cannot be undone.
+            </p>
+            <div class="delete-user-modal__actions">
+              <button
+                type="button"
+                class="delete-user-modal__btn delete-user-modal__btn--cancel"
+                :disabled="deletingRecordId !== null"
+                @click="closeDeleteUserModal"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                class="delete-user-modal__btn delete-user-modal__btn--danger"
+                :disabled="deletingRecordId !== null"
+                @click="confirmDeleteUser"
+              >
+                {{ deletingRecordId ? "Deleting…" : "Delete user" }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
     <!-- Reset password (admin) modal -->
     <Teleport to="body">
       <div v-if="showResetPasswordModal" class="tax-modal-backdrop">
@@ -402,6 +480,7 @@ import type { FindRecordWithId } from "../composables/useFileMaker";
 import { LAYOUTS } from "../utils/filemakerApi";
 import type { PayablesUsersFieldData } from "../utils/filemakerApi";
 import { useToastStore } from "../stores/toastStore";
+import { useLoadingOverlayStore } from "../stores/loadingOverlayStore";
 import Skeleton from "../components/Skeleton.vue";
 
 const router = useRouter();
@@ -411,6 +490,7 @@ const DEFAULT_PASSWORD = "123456789";
 const DEFAULT_RESET_PASSWORD = "123456789";
 const ROLE_OPTIONS = ["Admin", "Manager", "Officer"] as const;
 const toast = useToastStore();
+const loadingOverlay = useLoadingOverlayStore();
 const userList = ref<FindRecordWithId<PayablesUsersFieldData | Record<string, unknown>>[]>([]);
 const loading = ref(true);
 const loadError = ref<string | null>(null);
@@ -425,6 +505,9 @@ const form = ref<PayablesUsersFieldData>({
 const formError = ref<string | null>(null);
 const saving = ref(false);
 const togglingRecordId = ref<string | null>(null);
+const deletingRecordId = ref<string | null>(null);
+const showDeleteUserModal = ref(false);
+const deleteUserRow = ref<FindRecordWithId<PayablesUsersFieldData | Record<string, unknown>> | null>(null);
 const showResetPasswordModal = ref(false);
 const resetPasswordEmail = ref("");
 const resetPasswordNew = ref("");
@@ -597,10 +680,38 @@ function getField(
   row: FindRecordWithId<PayablesUsersFieldData | Record<string, unknown>>,
   key: string
 ): string {
-  const fd = row.fieldData as Record<string, unknown>;
-  const v = fd[key] ?? fd[key.replace(/([A-Z])/g, " $1").trim()];
+  const v = getFieldRaw(row, key);
   if (v == null || v === "") return "—";
   return String(v).trim();
+}
+
+function getFieldRaw(
+  row: FindRecordWithId<PayablesUsersFieldData | Record<string, unknown>>,
+  key: string
+): string {
+  const fd = row.fieldData as Record<string, unknown>;
+  const v = fd[key] ?? fd[key.replace(/([A-Z])/g, " $1").trim()];
+  if (v == null || v === "") return "";
+  return String(v).trim();
+}
+
+function formatResetToken(value: string): string {
+  if (!value?.trim()) return "—";
+  return "Set";
+}
+
+function formatTimestamp(value: string): string {
+  if (!value?.trim()) return "—";
+  const s = value.trim();
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return s;
+  return d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function isActive(row: FindRecordWithId<PayablesUsersFieldData | Record<string, unknown>>): boolean {
@@ -669,6 +780,62 @@ function openEdit(row: FindRecordWithId<PayablesUsersFieldData | Record<string, 
 function closeModal() {
   showAddModal.value = false;
   editingRecordId.value = null;
+}
+
+const deleteUserDisplay = computed(() => {
+  const row = deleteUserRow.value;
+  if (!row) return "";
+  const email = getField(row, "Email");
+  const name = getField(row, "FullName");
+  if (email === "—" || !email.trim()) return "";
+  return name && name !== "—" ? `${name} (${email})` : email;
+});
+
+function openDeleteUserModal(row: FindRecordWithId<PayablesUsersFieldData | Record<string, unknown>>) {
+  const email = getField(row, "Email");
+  if (email === "—" || !email.trim()) {
+    toast.error("Cannot delete: no email for this user.");
+    return;
+  }
+  deleteUserRow.value = row;
+  showDeleteUserModal.value = true;
+}
+
+function closeDeleteUserModal() {
+  if (deletingRecordId.value) return;
+  showDeleteUserModal.value = false;
+  deleteUserRow.value = null;
+}
+
+async function confirmDeleteUser() {
+  const row = deleteUserRow.value;
+  if (!row) return;
+  const email = getField(row, "Email").trim();
+  if (!email || email === "—") return;
+  deletingRecordId.value = row.recordId;
+  try {
+    const scriptParam = JSON.stringify({ email });
+    const { error, scriptResult, scriptError } = await runScript(
+      LAYOUTS.PAYABLES_USERS,
+      "DeleteAccount",
+      scriptParam,
+    );
+    const code = (scriptError ?? "0").trim();
+    if (error || code !== "0") {
+      const msg = (typeof scriptResult === "string" ? scriptResult : null) || error || "Could not delete user.";
+      toast.error(msg);
+      return;
+    }
+    toast.success("User deleted.");
+    showDeleteUserModal.value = false;
+    deleteUserRow.value = null;
+    const deletedRecordId = row.recordId;
+    userList.value = userList.value.filter((r) => r.recordId !== deletedRecordId);
+    await new Promise((r) => setTimeout(r, 400));
+    await loadUsers();
+  } finally {
+    deletingRecordId.value = null;
+  }
 }
 
 function openResetPassword(row: FindRecordWithId<PayablesUsersFieldData | Record<string, unknown>>) {
@@ -794,17 +961,25 @@ async function submit() {
     } else {
       const email = form.value.Email?.trim() ?? "";
       const role = form.value.Role?.trim() ?? "";
-      const scriptParam = JSON.stringify({ email, password: DEFAULT_PASSWORD, role });
-      const { error } = await createRecord(LAYOUTS.PAYABLES_USERS, fieldData, {
-        script: "CreateSecurityAccount",
-        scriptParam,
-      });
-      if (error) {
-        toast.error(error);
-        formError.value = null;
-        return;
+      const fullname = form.value.FullName?.trim() ?? "";
+      const scriptParam = JSON.stringify({ email, password: DEFAULT_PASSWORD, role, fullname });
+      loadingOverlay.show("Creating user…", "Sending password setup email.");
+      try {
+        const { error } = await createRecord(LAYOUTS.PAYABLES_USERS, fieldData, {
+          script: "CreateSecurityAccount",
+          scriptParam,
+        });
+        if (error) {
+          toast.error(error);
+          formError.value = null;
+          return;
+        }
+        toast.success("User added successfully.");
+        // Brief pause so FileMaker can fully persist script-set fields before we refetch
+        await new Promise((r) => setTimeout(r, 300));
+      } finally {
+        loadingOverlay.hide();
       }
-      toast.success("User added successfully.");
     }
     closeModal();
     resetForm();
@@ -872,6 +1047,22 @@ watch(showAddModal, (open) => {
   padding-right: 0.5rem;
 }
 
+.tax-table__edit-btn--danger {
+  color: rgb(248, 113, 113);
+}
+
+.tax-table__edit-btn--danger:hover:not(:disabled) {
+  color: rgb(239, 68, 68);
+}
+
+html.theme-light .tax-table__edit-btn--danger {
+  color: rgb(220, 38, 38);
+}
+
+html.theme-light .tax-table__edit-btn--danger:hover:not(:disabled) {
+  color: rgb(185, 28, 28);
+}
+
 .user-toggle {
   display: inline-flex;
   align-items: center;
@@ -913,6 +1104,156 @@ watch(showAddModal, (open) => {
 }
 .user-toggle--busy .user-toggle__thumb {
   opacity: 0.6;
+}
+
+/* Delete user confirmation modal */
+.delete-user-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(12px);
+}
+
+.delete-user-modal {
+  width: 100%;
+  max-width: 22rem;
+  padding: 1.75rem 1.5rem;
+  background: linear-gradient(
+    180deg,
+    rgba(30, 41, 59, 0.98) 0%,
+    rgba(15, 23, 42, 0.98) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  box-shadow:
+    0 24px 48px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  text-align: center;
+}
+
+.delete-user-modal__icon-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  margin: 0 auto 1.25rem;
+  background: rgba(239, 68, 68, 0.12);
+  border-radius: 50%;
+}
+
+.delete-user-modal__icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  color: #ef4444;
+}
+
+.delete-user-modal__title {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+
+.delete-user-modal__message {
+  margin: 0 0 1.5rem;
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--color-text-muted);
+}
+
+.delete-user-modal__actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.delete-user-modal__btn {
+  min-width: 5.5rem;
+  padding: 0.625rem 1.5rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.1s ease;
+}
+
+.delete-user-modal__btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.delete-user-modal__btn--cancel {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--color-text);
+}
+
+.delete-user-modal__btn--cancel:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.delete-user-modal__btn--danger {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+}
+
+.delete-user-modal__btn--danger:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4);
+}
+
+html.theme-light .delete-user-modal-backdrop {
+  background: rgba(15, 23, 42, 0.3);
+}
+
+html.theme-light .delete-user-modal {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-color: var(--color-border);
+}
+
+html.theme-light .delete-user-modal__btn--cancel {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+html.theme-light .delete-user-modal__btn--cancel:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.1);
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+.delete-user-modal-enter-active,
+.delete-user-modal-leave-active {
+  transition: opacity 0.2s ease;
+}
+
+.delete-user-modal-enter-active .delete-user-modal,
+.delete-user-modal-leave-active .delete-user-modal {
+  transition: transform 0.2s ease;
+}
+
+.delete-user-modal-enter-from,
+.delete-user-modal-leave-to {
+  opacity: 0;
+}
+
+.delete-user-modal-enter-from .delete-user-modal,
+.delete-user-modal-leave-to .delete-user-modal {
+  transform: scale(0.96) translateY(-8px);
 }
 
 .status-badge {

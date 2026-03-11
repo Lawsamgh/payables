@@ -11,7 +11,7 @@ import { LAYOUTS } from '../utils/filemakerApi'
 import { useCurrentUserFromPayablesStore } from '../stores/currentUserFromPayablesStore'
 
 export function useOnboarding() {
-  const { updateRecord } = useFileMaker()
+  const { runScript, loggedInEmail } = useFileMaker()
   const userStore = useCurrentUserFromPayablesStore()
   const { recordId: userRecordId, onboarded, loaded: onboardLoaded } = storeToRefs(userStore)
 
@@ -22,10 +22,16 @@ export function useOnboarding() {
   const roleLower = computed(() => (userStore.role ?? '').trim().toLowerCase())
 
   async function markOnboarded(): Promise<boolean> {
-    const rid = userRecordId.value
-    if (!rid) return false
-    const { error } = await updateRecord(LAYOUTS.PAYABLES_USERS, rid, { Onboarded: '1' })
-    if (error) return false
+    const email = loggedInEmail.value?.trim()
+    if (!email) return false
+    const scriptParam = JSON.stringify({ email })
+    const { error, scriptError } = await runScript(
+      LAYOUTS.PAYABLES_USERS,
+      'UpdateOnboardingField',
+      scriptParam
+    )
+    const code = (scriptError ?? '0').trim()
+    if (error || code !== '0') return false
     userStore.markOnboardedComplete()
     return true
   }

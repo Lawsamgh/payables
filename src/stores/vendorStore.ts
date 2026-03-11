@@ -17,6 +17,7 @@ const DEFAULT_VENDOR: Vendor = {
   currency: "GHS",
   created_date: "",
   purchase_order: "",
+  vendor_balance: "",
 };
 
 export const useVendorStore = defineStore("vendor", () => {
@@ -107,6 +108,66 @@ export const useVendorStore = defineStore("vendor", () => {
     return s;
   }
 
+  const vendorBalanceLoading = ref(false);
+
+  /** Set loading true before starting a balance fetch (e.g. when selecting vendor) so UI shows "Loading…" immediately. */
+  function startVendorBalanceLoad(): void {
+    vendorBalanceLoading.value = true;
+  }
+
+  /** Fetch vendor balance from BC via FileMaker script and update vendor_balance. */
+  async function fetchAndSetVendorBalance(vendorId: string): Promise<void> {
+    if (!vendorId?.trim()) {
+      vendor.value = { ...vendor.value, vendor_balance: "" };
+      vendorBalanceLoading.value = false;
+      return;
+    }
+    const { runScript, findRecordsByQuery, isConnected } = useFileMaker();
+    if (!isConnected.value) {
+      vendor.value = { ...vendor.value, vendor_balance: "" };
+      vendorBalanceLoading.value = false;
+      return;
+    }
+    vendorBalanceLoading.value = true;
+    const minLoadingMs = 400;
+    const start = Date.now();
+    try {
+      const { LAYOUTS } = await import("../utils/filemakerApi");
+      const scriptParam = JSON.stringify({ vendorid: vendorId.trim() });
+      const { error: scriptErr } = await runScript(
+        LAYOUTS.VENDOR_TBL,
+        "GetVendorBalanceFromBC",
+        scriptParam,
+      );
+      if (scriptErr) {
+        vendor.value = { ...vendor.value, vendor_balance: "" };
+        return;
+      }
+      const { data } = await findRecordsByQuery<Record<string, unknown>>(
+        LAYOUTS.VENDOR_TBL,
+        { Vendor_ID: vendorId.trim() },
+        1,
+      );
+      const fd = data?.[0];
+      const vendorBalanceVal = fd
+        ? String(
+            fd.VendorBalance ?? fd["Vendor Balance"] ?? "",
+          ).trim()
+        : "";
+      vendor.value = { ...vendor.value, vendor_balance: vendorBalanceVal };
+    } finally {
+      const elapsed = Date.now() - start;
+      const remaining = Math.max(0, minLoadingMs - elapsed);
+      if (remaining > 0) {
+        setTimeout(() => {
+          vendorBalanceLoading.value = false;
+        }, remaining);
+      } else {
+        vendorBalanceLoading.value = false;
+      }
+    }
+  }
+
   /** Populate vendor from a Payables_Main record. Clears selected expiry (existing entry uses payableStore). */
   function setFromMain(
     mainData: {
@@ -126,6 +187,7 @@ export const useVendorStore = defineStore("vendor", () => {
     selectedVendorWhtExpiryCheckDis.value = null;
     selectedVendorExpiryCheck.value = null;
     selectedVendorWhtExpiryCheck.value = null;
+    const vendorId = String(mainData.VendorID ?? "").trim();
     vendor.value = {
       ...vendor.value,
       purchase_order: String(
@@ -133,12 +195,15 @@ export const useVendorStore = defineStore("vendor", () => {
       )
         .trim()
         .toUpperCase(),
-      vendor_id: String(mainData.VendorID ?? "").trim(),
+      vendor_id: vendorId,
       vendor_name: String(mainData.VendorName ?? "").trim(),
       contact_email: String(mainData.VendorEmail ?? "").trim(),
       payment_terms: fileMakerDateToInput(mainData.Date),
       currency: String(mainData.Currency ?? "").trim() || vendor.value.currency,
+      vendor_balance: "",
     };
+    // Show loading in balance field immediately so we don't flash "—" before fetch runs
+    vendorBalanceLoading.value = !!vendorId;
   }
 
   async function loadById(vendorId: string): Promise<void> {
@@ -211,6 +276,7 @@ export const useVendorStore = defineStore("vendor", () => {
 
   return {
     vendor: computed(() => vendor.value),
+    vendorBalanceLoading: computed(() => vendorBalanceLoading.value),
     loading,
     error,
     isEmpty,
@@ -228,6 +294,8 @@ export const useVendorStore = defineStore("vendor", () => {
     setField,
     setFromMain,
     setExpiryFromVendorRecord,
+    startVendorBalanceLoad,
+    fetchAndSetVendorBalance,
     loadById,
     save,
   };
