@@ -21,10 +21,18 @@ export const useSessionPayableInvoiceStore = defineStore(
       createdIds.value = [];
     }
 
+    /** Remove specific IDs (e.g. when a grid row with tax is deleted). */
+    function removeCreatedIds(idsToRemove: string[]): void {
+      const set = new Set(idsToRemove.map((id) => String(id).trim()).filter(Boolean));
+      if (set.size === 0) return;
+      createdIds.value = createdIds.value.filter((id) => !set.has(String(id).trim()));
+    }
+
     return {
       createdIds: computed(() => [...createdIds.value]),
       addCreatedId,
       clear,
+      removeCreatedIds,
     };
   },
 );

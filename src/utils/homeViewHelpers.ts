@@ -156,6 +156,13 @@ export function isPostedRecord(
   return v === "yes" || v === "1" || v === "true" || v === "y";
 }
 
+const STATUS_VARIANTS: Record<string, string> = {
+  draft: "Draft",
+  posted: "Posted",
+  rejected: "Rejected",
+  approved: "Approved",
+};
+
 /** Resolve Status from record: Status field, or derived from Approved/Rejected/Posted (Draft if none). */
 export function getStatus(
   item: FindRecordWithId<PayablesMainFieldData>,
@@ -163,13 +170,23 @@ export function getStatus(
   const fd = item?.fieldData as Record<string, unknown> | undefined;
   if (!fd) return "Draft";
   const status = fd.Status ?? fd.status;
-  if (status != null && String(status).trim()) return String(status).trim();
+  if (status != null && String(status).trim()) {
+    const s = String(status).trim();
+    const lower = s.toLowerCase();
+    if (STATUS_VARIANTS[lower]) return STATUS_VARIANTS[lower];
+    if (lower.startsWith("rejected")) return "Rejected";
+    if (lower.startsWith("approved")) return "Approved";
+    if (lower.startsWith("posted")) return "Posted";
+    if (lower.startsWith("draft")) return "Draft";
+    return s;
+  }
   const approved = fd.Approved ?? fd.approved;
   const rejected = fd.Rejected ?? fd.rejected;
   const posted = fd.Posted ?? fd.posted;
   if (approved != null && String(approved).trim()) return "Approved";
   if (rejected != null && String(rejected).trim()) return "Rejected";
-  if (posted != null && String(posted).trim() === "Yes") return "Posted";
+  if (posted != null && String(posted).trim().toLowerCase() === "yes")
+    return "Posted";
   return "Draft";
 }
 

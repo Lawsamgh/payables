@@ -1,6 +1,6 @@
 <template>
   <div
-    class="data-grid-wrapper flex flex-col flex-1 min-h-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] shadow-sm overflow-hidden"
+    class="data-grid-wrapper flex flex-col flex-1 min-h-0 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] shadow-sm"
   >
     <div
       ref="gridRef"
@@ -10,9 +10,10 @@
       @contextmenu.prevent="onContextMenu"
     >
       <table
-        class="data-grid-table border-collapse font-mono text-[var(--input-size)]"
+        class="data-grid-table font-mono text-[var(--input-size)]"
         :style="{
           ...tableStyle,
+          '--checkbox-col-width': '44px',
           '--row-header-width': ROW_HEADER_WIDTH + 'px',
         }"
       >
@@ -22,20 +23,26 @@
         >
           <tr>
             <th
-              class="row-header-th sticky left-0 top-0 z-20 border-b border-r border-[var(--color-border)] px-3 py-2 text-[var(--label-size)] font-medium text-[var(--color-text-muted)] bg-[var(--color-bg-dark)]"
+              class="row-delete-th sticky left-0 top-0 z-20 border-r border-[var(--color-border)] px-2 py-2 bg-[var(--color-bg-dark)]"
+            >
+              <span class="sr-only">Delete</span>
+            </th>
+            <th
+              class="row-header-th sticky top-0 z-20 border-r border-[var(--color-border)] px-2 py-2 text-[var(--label-size)] font-medium text-[var(--color-text-muted)] bg-[var(--color-bg-dark)]"
             >
               #
             </th>
             <th
-              v-for="(key, colIndex) in COLUMN_KEYS"
+              v-for="(key, _colIndex) in COLUMN_KEYS"
               :key="key"
-              class="border-b border-r border-[var(--color-border)] px-3 py-2 text-left text-[var(--label-size)] font-medium text-[var(--color-text-muted)] whitespace-nowrap bg-[var(--color-bg-dark)]"
+              class="border-r border-[var(--color-border)] px-3 py-2 text-[var(--label-size)] font-medium text-[var(--color-text-muted)] whitespace-nowrap bg-[var(--color-bg-dark)]"
+              :class="NUMERIC_COL_KEYS.includes(key) ? 'text-right tabular-nums' : 'text-left'"
               :style="colMinWidthStyle(key)"
             >
               {{ childHeaderLabel(key) }}
             </th>
             <th
-              class="data-grid-actions-th border-b border-[var(--color-border)] px-2 py-2 text-[var(--label-size)] font-medium text-[var(--color-text-muted)] w-14 bg-[var(--color-bg-dark)]"
+              class="data-grid-actions-th sticky right-0 border-l border-[var(--color-border)] px-2 py-2 text-[var(--label-size)] font-medium text-[var(--color-text-muted)] w-14 bg-[var(--color-bg-dark)]"
             >
               <span class="sr-only">Options</span>
             </th>
@@ -48,24 +55,48 @@
             class="data-grid-row hover:bg-white/[0.04] transition-colors"
           >
             <td
-              class="row-header-td sticky left-0 z-10 border-b border-r border-[var(--color-border)] bg-[var(--color-bg-card)] px-3 py-2 text-center text-[var(--color-text-muted)] tabular-nums"
+              class="row-delete-td sticky left-0 z-10 border-b border-r border-[var(--color-border)] bg-[var(--color-bg-card)] px-2 py-2"
+            >
+              <div
+                v-if="!readOnly && totalRows > 1"
+                class="flex items-center justify-center"
+              >
+                <button
+                  type="button"
+                  class="row-delete-btn"
+                  aria-label="Delete row"
+                  @click.stop="emit('delete-row', realIndex)"
+                >
+                  <svg class="row-delete-btn__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+            </td>
+            <td
+              class="row-header-td sticky z-10 border-b border-r border-[var(--color-border)] bg-[var(--color-bg-card)] px-2 py-2 text-center text-[var(--color-text-muted)] tabular-nums"
               :class="{
                 'bg-[var(--color-accent-soft)]': selectedRow === realIndex,
               }"
               @click="selectCell(realIndex, 0)"
             >
-              {{ realIndex + 1 }}
+              <span class="row-header-number cursor-pointer select-none">{{
+                realIndex + 1
+              }}</span>
             </td>
             <td
               v-for="(key, colIndex) in COLUMN_KEYS"
               :key="`${realIndex}-${key}`"
-              class="border-b border-r border-[var(--color-border)] px-3 py-2 text-left whitespace-nowrap"
-              :class="cellClass(realIndex, colIndex)"
+              class="border-b border-r border-[var(--color-border)] px-3 py-2 whitespace-nowrap"
+              :class="[
+                cellClass(realIndex, colIndex),
+                NUMERIC_COL_KEYS.includes(key) ? 'text-right tabular-nums' : 'text-left',
+              ]"
               :style="colMinWidthStyle(key)"
               @click="onCellClick(realIndex, colIndex)"
             >
               <template v-if="isTaxCol(key)">
-                <div class="cell-tax-wrap flex items-center gap-1 min-w-0">
+                <div class="cell-tax-wrap flex items-center justify-end gap-1 min-w-0">
                   <span class="cell-display flex-1 min-w-0">{{
                     getCombinedTaxRateDisplay(realIndex)
                   }}</span>
@@ -139,7 +170,7 @@
                 </div>
               </template>
               <template v-else-if="key === 'wht_tax'">
-                <div class="cell-tax-wrap flex items-center gap-1 min-w-0">
+                <div class="cell-tax-wrap flex items-center justify-end gap-1 min-w-0">
                   <span class="cell-display flex-1 min-w-0">{{
                     displayValue(realIndex, colIndex)
                   }}</span>
@@ -295,7 +326,7 @@
               </template>
             </td>
             <td
-              class="data-grid-actions-td border-b border-[var(--color-border)] px-2 py-2 w-14 align-middle"
+              class="data-grid-actions-td sticky right-0 border-b border-l border-[var(--color-border)] px-2 py-2 w-14 align-middle bg-[var(--color-bg-card)]"
               @click.stop
             >
               <div v-if="!readOnly" class="data-grid-row-actions">
@@ -309,7 +340,7 @@
                   :aria-expanded="rowMenuOpen === realIndex"
                   aria-haspopup="true"
                   aria-label="Row options"
-                  @click="toggleRowMenu(realIndex)"
+                  @click="toggleRowMenu(realIndex, $event)"
                 >
                   <svg
                     class="data-grid-row-actions__icon"
@@ -323,13 +354,15 @@
                   </svg>
                 </button>
                 <Transition name="row-menu">
-                  <div
-                    v-if="rowMenuOpen === realIndex"
-                    class="data-grid-row-actions__dropdown"
-                    role="menu"
-                    @click.stop
-                  >
-                    <div class="data-grid-row-actions__panel">
+                  <Teleport to="body">
+                    <div
+                      v-if="rowMenuOpen === realIndex && rowMenuDropdownStyle"
+                      class="data-grid-row-actions__dropdown data-grid-row-actions__dropdown--fixed"
+                      role="menu"
+                      :style="rowMenuDropdownStyle"
+                      @click.stop
+                    >
+                      <div class="data-grid-row-actions__panel">
                       <div
                         v-if="expandedTaxType"
                         class="data-grid-row-actions__header"
@@ -544,7 +577,8 @@
                         </template>
                       </template>
                     </div>
-                  </div>
+                    </div>
+                  </Teleport>
                 </Transition>
               </div>
             </td>
@@ -610,6 +644,7 @@ import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
 import { useSessionPayableInvoiceStore } from "../stores/sessionPayableInvoiceStore";
 import ContextMenu from "./ContextMenu.vue";
 
+const emit = defineEmits<{ "delete-row": [rowIndex: number] }>();
 const spreadsheet = useSpreadsheet();
 const { isManager } = useUserRole();
 const documentSettings = useDocumentSettingsStore();
@@ -675,6 +710,8 @@ const AMOUNT_COL_INDEX = COLUMN_KEYS.indexOf("amount");
 const INV_COL_INDEX = COLUMN_KEYS.indexOf("invoice_number");
 const rowMenuOpen = ref<number | null>(null);
 const expandedTaxType = ref<string | null>(null);
+const rowMenuTriggerRef = ref<HTMLElement | null>(null);
+const rowMenuDropdownStyle = ref<{ top: string; right: string } | null>(null);
 
 // Duplicate detection state
 const duplicateInvoiceNumbers = ref<Set<number>>(new Set());
@@ -725,7 +762,7 @@ async function openTaxBreakdown(
   rowIndex: number,
   event: MouseEvent,
   type: "Add" | "Sub",
-): void {
+): Promise<void> {
   const inv = getCellValue(rowIndex, INV_COL_INDEX);
   const invStr =
     inv != null && String(inv).trim() !== "" ? String(inv).trim() : "";
@@ -882,7 +919,7 @@ function currentRowTaxDisplay(rowIndex: number): string {
 }
 
 /** True if this rate matches the row’s current tax value (so we can show “Current”). */
-function isCurrentTaxForRow(
+function _isCurrentTaxForRow(
   rowIndex: number,
   rate: number | string | undefined,
 ): boolean {
@@ -912,15 +949,30 @@ async function loadRowPayableInvoiceCache(rowIndex: number): Promise<void> {
   );
 }
 
-function toggleRowMenu(rowIndex: number): void {
+function toggleRowMenu(rowIndex: number, event?: Event): void {
   if (rowMenuOpen.value === rowIndex) {
     rowMenuOpen.value = null;
     expandedTaxType.value = null;
+    rowMenuTriggerRef.value = null;
+    rowMenuDropdownStyle.value = null;
   } else {
+    const trigger = event?.currentTarget as HTMLElement | undefined;
+    rowMenuTriggerRef.value = trigger ?? null;
     rowMenuOpen.value = rowIndex;
     expandedTaxType.value = null;
     loadRowPayableInvoiceCache(rowIndex);
+    nextTick(() => updateRowMenuDropdownPosition());
   }
+}
+
+function updateRowMenuDropdownPosition(): void {
+  const trigger = rowMenuTriggerRef.value;
+  if (!trigger) return;
+  const rect = trigger.getBoundingClientRect();
+  rowMenuDropdownStyle.value = {
+    top: `${rect.bottom + 4}px`,
+    right: `${window.innerWidth - rect.right}px`,
+  };
 }
 
 /** Resolve Action for a tax from Tax_Value by matching TaxName and Rate. */
@@ -948,6 +1000,7 @@ function getActionForTax(
 function getEffectiveTaxCacheForRow(
   rowIndex: number,
 ): { TaxName?: string; Rate?: number; Action?: "Add" | "Sub" }[] {
+  void taxCacheVersion.value; // ensure re-eval when cache shifts after row delete
   const fmCache = rowPayableInvoiceCache.value.get(rowIndex) ?? [];
   const localCache = rowLocalTaxCache.value.get(rowIndex) ?? [];
   const fromFm = fmCache.map((r) => {
@@ -968,10 +1021,10 @@ function getEffectiveTaxCacheForRow(
   return [...fromFm, ...fromLocal];
 }
 
-/** Normalize rate: FileMaker may return as percentage (12.5) or decimal (0.125). Return percentage. */
+/** Normalize rate: FileMaker may return as percentage (1, 12.5) or decimal (0.01, 0.125). Return percentage. */
 function normalizeRate(value: number): number {
   if (Number.isNaN(value)) return 0;
-  if (value > 0 && value <= 1) return value * 100;
+  if (value > 0 && value < 1) return value * 100;
   return value;
 }
 
@@ -1036,7 +1089,7 @@ function getCombinedWhtTaxRateForRow(rowIndex: number): number {
 }
 
 /** Display string for combined WHT (Sub) rate (e.g. "10%" or "7.5%"). Rounded to avoid percentage decimals. */
-function getCombinedWhtTaxRateDisplay(rowIndex: number): string {
+function _getCombinedWhtTaxRateDisplay(rowIndex: number): string {
   const rate = getCombinedWhtTaxRateForRow(rowIndex);
   if (rate === 0) return "";
   return `${Math.round(rate * 100) / 100}%`;
@@ -1134,7 +1187,7 @@ async function applyTaxToRow(
   taxName?: string,
   taxType?: string,
 ): Promise<void> {
-  const rateNum = rate != null && rate !== "" ? Number(rate) : 0;
+  const _rateNum = rate != null && rate !== "" ? Number(rate) : 0;
   const transRef = payableStore.currentTransRef;
 
   // If there are unsaved changes and we have a saved entry, save first so refetch doesn't overwrite edits
@@ -1274,6 +1327,8 @@ async function applyTaxToRow(
 function closeRowMenu(): void {
   rowMenuOpen.value = null;
   expandedTaxType.value = null;
+  rowMenuTriggerRef.value = null;
+  rowMenuDropdownStyle.value = null;
 }
 
 watch(
@@ -1285,6 +1340,124 @@ watch(
     }
   },
   { immediate: true },
+);
+
+/** Cache version bumped after row delete/undo to force template re-evaluation of tax display. */
+const taxCacheVersion = ref(0);
+
+/** Saved tax cache for the last deleted row, restored on Undo. */
+const lastDeletedPayableInvoiceCache = ref<PayableInvoiceFieldData[]>([]);
+const lastDeletedLocalTaxCache = ref<
+  { TaxName: string; Rate: number; Action?: string }[]
+>([]);
+
+/** When a row is deleted, save its tax cache, then shift remaining entries. Run synchronously so cache is correct before any render. */
+watch(
+  () => payableStore.lastDeletedRowIndex,
+  (deletedIndex) => {
+    if (deletedIndex == null || deletedIndex < 0) return;
+    lastDeletedPayableInvoiceCache.value =
+      rowPayableInvoiceCache.value.get(deletedIndex) ?? [];
+    lastDeletedLocalTaxCache.value =
+      rowLocalTaxCache.value.get(deletedIndex) ?? [];
+    const shiftMap = <V>(m: Map<number, V>): Map<number, V> => {
+      const next = new Map<number, V>();
+      for (const [k, v] of m) {
+        if (k < deletedIndex) next.set(k, v);
+        else if (k > deletedIndex) next.set(k - 1, v);
+      }
+      return next;
+    };
+    rowPayableInvoiceCache.value = shiftMap(rowPayableInvoiceCache.value);
+    rowLocalTaxCache.value = shiftMap(rowLocalTaxCache.value);
+    taxCacheVersion.value++;
+    if (taxBreakdownRow.value === deletedIndex) {
+      closeTaxBreakdown();
+    } else if (taxBreakdownRow.value != null && taxBreakdownRow.value > deletedIndex) {
+      taxBreakdownRow.value = taxBreakdownRow.value - 1;
+    }
+    if (rowMenuOpen.value === deletedIndex) {
+      rowMenuOpen.value = null;
+    } else if (rowMenuOpen.value != null && rowMenuOpen.value > deletedIndex) {
+      rowMenuOpen.value = rowMenuOpen.value - 1;
+    }
+    payableStore.clearLastDeletedRowIndex();
+    nextTick().then(async () => {
+      if (isConnected.value) {
+        const list = rows.value;
+        for (let i = 0; i < list.length; i++) {
+          const inv =
+            list[i]?.invoice_number != null
+              ? String(list[i]?.invoice_number ?? "").trim()
+              : "";
+          if (inv) await loadRowPayableInvoiceCache(i);
+        }
+        taxCacheVersion.value++;
+      }
+    });
+  },
+  { flush: "sync" },
+);
+
+/** When Undo Delete restores a row, unshift caches, restore the saved tax data, and re-create Payable_Invoice records in FileMaker for new unsaved entries. */
+watch(
+  () => payableStore.lastUndoneRowIndex,
+  (restoredIndex) => {
+    if (restoredIndex == null || restoredIndex < 0) return;
+    const savedPayable = lastDeletedPayableInvoiceCache.value;
+    const savedLocal = lastDeletedLocalTaxCache.value;
+    const unshiftAndRestore = <T>(
+      m: Map<number, T>,
+      saved: T,
+    ): Map<number, T> => {
+      const next = new Map<number, T>();
+      for (const [k, v] of m) {
+        if (k < restoredIndex) next.set(k, v);
+        else next.set(k + 1, v);
+      }
+      next.set(restoredIndex, saved);
+      return next;
+    };
+    rowPayableInvoiceCache.value = unshiftAndRestore(
+      rowPayableInvoiceCache.value,
+      savedPayable,
+    );
+    rowLocalTaxCache.value = unshiftAndRestore(
+      rowLocalTaxCache.value,
+      savedLocal,
+    );
+    taxCacheVersion.value++;
+    if (
+      taxBreakdownRow.value != null &&
+      taxBreakdownRow.value >= restoredIndex
+    ) {
+      taxBreakdownRow.value = taxBreakdownRow.value + 1;
+    }
+    if (rowMenuOpen.value != null && rowMenuOpen.value >= restoredIndex) {
+      rowMenuOpen.value = rowMenuOpen.value + 1;
+    }
+    payableStore.clearLastUndoneRowIndex();
+    if (isConnected.value && savedPayable.length > 0) {
+      nextTick().then(async () => {
+        for (const fd of savedPayable) {
+          const inv = (fd.invoiceNumber ?? "").trim();
+          if (!inv) continue;
+          const fieldData: PayableInvoiceFieldData = {
+            invoiceNumber: inv,
+            Tax_Type: fd.Tax_Type,
+            TaxName: fd.TaxName ?? "",
+            Rate: fd.Rate ?? 0,
+          };
+          const { id } = await createRecord(
+            LAYOUTS.PAYABLE_INVOICE,
+            fieldData,
+          );
+          if (id) sessionPayableInvoice.addCreatedId(id);
+        }
+      });
+    }
+  },
+  { flush: "sync" },
 );
 
 /** Populate Payable Invoice cache when entry loads so Tax Rate and breakdown use correct data. */
@@ -1379,6 +1552,19 @@ watch(selectedCellStoreValue, (val) => {
   }
 });
 
+function sanitizeNumericInput(raw: string): string {
+  let value = raw.replace(/[^\d.,-]/g, "");
+  if (value.includes("-")) {
+    value = value.replace(/-/g, "");
+    value = "-" + value;
+  }
+  const parts = value.split(".");
+  if (parts.length > 2) {
+    value = parts[0] + "." + parts.slice(1).join("");
+  }
+  return value;
+}
+
 function commitEdit(): void {
   let val = editingValue.value.trim();
   const colKey = COLUMN_KEYS[selectedCol.value];
@@ -1392,7 +1578,11 @@ function commitEdit(): void {
 }
 
 function onCellInput(rowIndex: number, colIndex: number, value: string): void {
-  editingValue.value = value;
+  if (COLUMN_KEYS[colIndex] === "amount") {
+    editingValue.value = sanitizeNumericInput(value);
+  } else {
+    editingValue.value = value;
+  }
   // Check for duplicates in real-time if this is invoice_number column
   if (COLUMN_KEYS[colIndex] === "invoice_number") {
     checkDuplicatesInGrid();
@@ -1476,11 +1666,10 @@ async function checkFileMakerDuplicate(
       duplicateInvoiceNumbers.value.add(rowIndex);
     } else {
       // Only remove if not a grid duplicate
-      const currentInv = getCellValue(rowIndex, INV_COL_INDEX);
-      const currentInvStr =
-        currentInv != null && String(currentInv).trim() !== ""
-          ? String(currentInv).trim().toLowerCase()
-          : "";
+      const _currentInv = getCellValue(rowIndex, INV_COL_INDEX);
+      void (_currentInv != null && String(_currentInv).trim() !== ""
+        ? String(_currentInv).trim().toLowerCase()
+        : "");
       // Re-check grid duplicates to see if this is still a duplicate within grid
       checkDuplicatesInGrid();
     }
@@ -1556,7 +1745,7 @@ function childHeaderLabel(key: ColumnKey): string {
 }
 
 function isStatusCol(key: ColumnKey): boolean {
-  return key === "status";
+  return (key as string) === "status";
 }
 
 function isTaxCol(key: ColumnKey): boolean {
@@ -1636,7 +1825,7 @@ function colMinWidthStyle(key: ColumnKey) {
 
 const tableStyle = computed(() => ({
   tableLayout: "auto" as const,
-  minWidth: "100%",
+  minWidth: "max(100%, 1100px)", /* Ensure table overflows to trigger horizontal scroll + sticky */
 }));
 
 function cellClass(
@@ -1758,19 +1947,125 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* No overflow on wrapper - overflow-hidden/clip creates scroll context that breaks position:sticky */
+.data-grid-scroll {
+  border-radius: 12px;
+  overflow: auto;
+}
+
 .data-grid-scroll:focus {
   outline: none;
 }
 .data-grid-table {
   width: max-content;
   min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
 }
+
+/* Ensure tbody paints below sticky header so body borders don't overlay header during scroll */
+.data-grid-table tbody {
+  position: relative;
+  z-index: 0;
+}
+.row-delete-th,
+.row-delete-td {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  width: var(--checkbox-col-width, 44px);
+  min-width: var(--checkbox-col-width, 44px);
+  max-width: var(--checkbox-col-width, 44px);
+}
+
+.row-delete-th {
+  background: var(--color-bg-dark) !important;
+}
+
+.row-delete-td {
+  background: var(--color-bg-card) !important;
+}
+
 .row-header-th,
 .row-header-td {
-  width: var(--row-header-width, 52px);
-  min-width: var(--row-header-width, 52px);
-  max-width: var(--row-header-width, 52px);
+  position: sticky;
+  left: var(--checkbox-col-width, 44px);
+  z-index: 10;
+  width: var(--row-header-width, 44px);
+  min-width: var(--row-header-width, 44px);
+  max-width: var(--row-header-width, 44px);
+  box-shadow: 1px 0 0 0 var(--color-border);
 }
+
+.row-header-th {
+  background: var(--color-bg-dark) !important;
+}
+
+.row-header-td {
+  background: var(--color-bg-card) !important;
+}
+
+.row-delete-th,
+.row-header-th {
+  z-index: 20;
+}
+
+.data-grid-actions-th,
+.data-grid-actions-td {
+  position: sticky;
+  right: 0;
+  z-index: 10;
+  box-shadow: -1px 0 0 0 var(--color-border);
+}
+
+.data-grid-actions-th {
+  z-index: 20;
+  background: var(--color-bg-dark) !important;
+}
+
+.data-grid-actions-td {
+  background: var(--color-bg-card) !important;
+}
+
+.row-delete-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgb(239 68 68);
+  cursor: pointer;
+  transition: background 0.2s ease, opacity 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.row-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.row-delete-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.row-delete-btn__icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+}
+
+.row-header-number {
+  user-select: none;
+  display: inline-block;
+  min-width: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
 .cell-input {
   font: inherit;
   font-family: var(--font-mono);

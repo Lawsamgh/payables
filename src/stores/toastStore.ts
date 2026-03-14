@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
-export type ToastType = 'success' | 'error' | 'info'
+export type ToastType = 'success' | 'error' | 'info' | 'warning'
 
 export interface ToastItem {
   id: number
@@ -60,9 +60,13 @@ export const useToastStore = defineStore('toast', () => {
     return show(message, 'info', duration)
   }
 
+  function warning(message: string, duration = DEFAULT_DURATION) {
+    return show(message, 'warning', duration)
+  }
+
   function dismiss(id: number) {
     items.value = items.value.filter((t) => t.id !== id)
   }
 
-  return { items: computed(() => items.value), show, success, error, info, dismiss }
+  return { items: computed(() => items.value), show, success, error, info, warning, dismiss }
 })

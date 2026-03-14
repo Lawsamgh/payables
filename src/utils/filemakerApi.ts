@@ -501,8 +501,12 @@ export interface EmailListFieldData {
 export interface PayablesSettingsFieldData {
   DocOption?: string;
   HODEmail?: string;
+  /** Second HOD to CC when officer posts an entry (NotifyManagerOnPost). */
+  CopyHODEmail?: string;
   BulkApprove?: string;
   ApprovalEmailToOfficer?: string;
+  /** Copy officer on post: CC logged-in officer when sending invoice emails to vendors. */
+  CopyOfficerOnPost?: string;
   ManagerEditDraft?: string;
   SessionTimeoutWarning?: string;
   EditRequestEnabled?: string;
@@ -518,6 +522,8 @@ export interface PayablesSettingsFieldData {
   VendorCollectURL?: string;
   /** Admin-configured URL used in password-set emails (Payables_Settings.SetPasswordURL). */
   SetPasswordURL?: string;
+  /** Max number of invoices that can be selected for Send mail at once. */
+  EmailMaxLimit?: string | number;
   /** Token expiry time in minutes. */
   TokenExpiry?: string | number;
 }

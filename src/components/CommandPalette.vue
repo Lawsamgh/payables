@@ -111,7 +111,6 @@ import { useFileMaker } from "../composables/useFileMaker";
 import { useUserRole } from "../composables/useUserRole";
 import { useToastStore } from "../stores/toastStore";
 import { useRecentEntriesStore } from "../stores/recentEntriesStore";
-import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
 import { useRoute } from "vue-router";
 import { LAYOUTS } from "../utils/filemakerApi";
 import { getHomeRoute } from "../utils/homeTab";
@@ -119,6 +118,7 @@ import CommandIcon from "./CommandPaletteIcon.vue";
 import type { IconName } from "./CommandPaletteIcon.vue";
 
 interface PaletteCommand {
+  type?: "command";
   id: string;
   label: string;
   description?: string;
@@ -138,7 +138,6 @@ const route = useRoute();
 const paletteStore = useCommandPaletteStore();
 const toast = useToastStore();
 const recentEntries = useRecentEntriesStore();
-const documentSettings = useDocumentSettingsStore();
 const { isConnected, findRecordsByQueryWithIds } = useFileMaker();
 const { showForManager, isAdmin, roleLoaded } = useUserRole();
 
@@ -341,27 +340,19 @@ const goToEntryCommand = computed<PaletteCommand | null>(() => {
     icon: "document",
     iconClass: "bg-orange-500/20 text-orange-400",
     execute: async () => {
-      let result: { data?: { fieldData?: Record<string, unknown> }[]; error?: string } | null = null;
+      type FindResultType = { data?: { fieldData?: Record<string, unknown> }[]; error?: string | null };
+      let result: FindResultType | null = null;
       if (looksLikeTransRef(q)) {
-        result = await findRecordsByQueryWithIds(
-          LAYOUTS.PAYABLES_MAIN,
-          { TransRef: q },
-          1,
-        );
-        if (!result.data?.length && q !== q.toUpperCase()) {
-          result = await findRecordsByQueryWithIds(
-            LAYOUTS.PAYABLES_MAIN,
-            { TransRef: q.toUpperCase() },
-            1,
-          );
+        const r1 = await findRecordsByQueryWithIds(LAYOUTS.PAYABLES_MAIN, { TransRef: q }, 1);
+        result = { data: r1.data, error: r1.error };
+        if (!result?.data?.length && q !== q.toUpperCase()) {
+          const r2 = await findRecordsByQueryWithIds(LAYOUTS.PAYABLES_MAIN, { TransRef: q.toUpperCase() }, 1);
+          result = { data: r2.data, error: r2.error };
         }
       }
       if (!result?.data?.length) {
-        result = await findRecordsByQueryWithIds(
-          LAYOUTS.PAYABLES_MAIN,
-          { PurchaseOrder: q },
-          1,
-        );
+        const r3 = await findRecordsByQueryWithIds(LAYOUTS.PAYABLES_MAIN, { PurchaseOrder: q }, 1);
+        result = { data: r3.data, error: r3.error };
       }
       const { data, error } = result ?? {};
       if (error) {
@@ -459,7 +450,7 @@ watch(visible, (v) => {
 });
 
 function isCommand(item: PaletteItem): item is PaletteCommand {
-  return item.type !== "separator";
+  return !("type" in item && item.type === "separator");
 }
 
 function nextSelectableIndex(current: number, delta: number): number {

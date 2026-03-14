@@ -438,6 +438,104 @@
           </p>
         </div>
         <div
+          v-if="
+            payableStore.mainStatus === 'Approved' &&
+            (payableStore.mainApprovedBy ||
+              payableStore.mainCreatedName ||
+              payableStore.mainPostedName)
+          "
+          class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
+        >
+          <p
+            class="mb-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--color-text-muted)]"
+          >
+            Entry flow
+          </p>
+          <div class="flow-timeline relative flex flex-col gap-0">
+            <div
+              v-if="payableStore.mainCreatedName"
+              class="flow-timeline__step flex items-start gap-3"
+            >
+              <div
+                class="flow-timeline__node mt-1.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-emerald-500/60 bg-emerald-500/10 text-emerald-500"
+                aria-hidden="true"
+              >
+                <svg class="h-2.5 w-2.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    fill-rule="evenodd"
+                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </div>
+              <div class="min-w-0 flex-1 pb-3">
+                <p class="text-[11px] font-medium text-[var(--color-text-muted)]">
+                  Created by
+                </p>
+                <p
+                  class="text-[15px] font-medium text-[var(--color-text)] leading-snug"
+                >
+                  {{ payableStore.mainCreatedName }}
+                </p>
+              </div>
+            </div>
+            <div
+              v-if="payableStore.mainPostedName"
+              class="flow-timeline__step flex items-start gap-3"
+            >
+              <div
+                class="flow-timeline__node flow-timeline__node--mid mt-1.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-blue-500/60 bg-blue-500/10 text-blue-400"
+                aria-hidden="true"
+              >
+                <svg class="h-2.5 w-2.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    fill-rule="evenodd"
+                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </div>
+              <div class="min-w-0 flex-1 pb-3">
+                <p class="text-[11px] font-medium text-[var(--color-text-muted)]">
+                  Posted by
+                </p>
+                <p
+                  class="text-[15px] font-medium text-[var(--color-text)] leading-snug"
+                >
+                  {{ payableStore.mainPostedName }}
+                </p>
+              </div>
+            </div>
+            <div
+              v-if="payableStore.mainApprovedBy"
+              class="flow-timeline__step flex items-start gap-3"
+            >
+              <div
+                class="flow-timeline__node flow-timeline__node--last flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-emerald-500/60 bg-emerald-500/15 text-emerald-400"
+                aria-hidden="true"
+              >
+                <svg class="h-2.5 w-2.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    fill-rule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="text-[11px] font-medium text-[var(--color-text-muted)]">
+                  Approved by
+                </p>
+                <p
+                  class="text-[15px] font-medium text-[var(--color-text)] leading-snug"
+                >
+                  {{ payableStore.mainApprovedBy }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div
           v-if="payableStore.mainStatus === 'Approved' && payableStore.mainCode"
           class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
         >
@@ -1022,7 +1120,7 @@
       :visible="showOverdueModal && documentSettings.overdueIndicatorEnabled"
       :entries="listSummary.overdueEntries"
       :loading="listSummary.overdueLoading"
-      @close="(payload) => onOverdueModalClose(payload)"
+      @close="onOverdueModalClose"
     />
   </aside>
 </template>
@@ -1072,7 +1170,8 @@ watch(
 
 function onOverdueModalClose(payload?: { navigating?: boolean }) {
   showOverdueModal.value = false;
-  if (payload?.navigating) return;
+  const p = payload as { navigating?: boolean } | undefined;
+  if (p?.navigating) return;
   if (route.name === "home" && route.query.openOverdue === "1") {
     const q = { ...route.query };
     delete q.openOverdue;
@@ -1241,6 +1340,31 @@ function totalsByCurrencyLines(
 </script>
 
 <style scoped>
+/* Entry flow timeline: vertical line connecting nodes */
+.flow-timeline::before {
+  content: "";
+  position: absolute;
+  left: 9px;
+  top: 1.25rem;
+  bottom: 1.25rem;
+  width: 2px;
+  background: linear-gradient(
+    to bottom,
+    rgba(34, 197, 94, 0.35),
+    rgba(59, 130, 246, 0.25),
+    rgba(34, 197, 94, 0.45)
+  );
+  border-radius: 1px;
+  pointer-events: none;
+}
+.flow-timeline__node {
+  position: relative;
+  z-index: 1;
+}
+.flow-timeline__node--last {
+  box-shadow: 0 0 0 2px var(--color-bg-card);
+}
+
 .overview-card-wrap {
   position: relative;
 }

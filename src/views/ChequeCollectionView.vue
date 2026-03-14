@@ -533,11 +533,11 @@
                             item.fieldData?.TransRef ?? "—"
                           }}</span>
                           <span class="payable-select-item__vendor">{{
-                            item.fieldData?.VendorName ?? item.fieldData?.["Vendor Name"] ?? item.fieldData?.Vendor_Name ?? "—"
+                            item.fieldData?.VendorName ?? (item.fieldData as Record<string, unknown>)?.["Vendor Name"] ?? (item.fieldData as Record<string, unknown>)?.["Vendor_Name"] ?? "—"
                           }}</span>
                           <span class="payable-select-item__amount">
                             {{ (item.fieldData as Record<string, unknown>)?.Currency ?? "" }}
-                            {{ formatAmount(item.fieldData?.Total) }}
+                            {{ formatAmount(item.fieldData?.Total as string | number | undefined) }}
                           </span>
                         </button>
                       </li>

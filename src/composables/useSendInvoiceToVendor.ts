@@ -5,12 +5,14 @@
 
 import { useFileMaker } from "./useFileMaker";
 import { useToastStore } from "../stores/toastStore";
+import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
 import { LAYOUTS } from "../utils/filemakerApi";
 import { formatNumberDisplay } from "../utils/formatNumber";
 import type { MailableItem } from "../stores/invoiceMailSelectionStore";
 
 export function useSendInvoiceToVendor() {
-  const { runScript } = useFileMaker();
+  const { runScript, loggedInEmail } = useFileMaker();
+  const documentSettings = useDocumentSettingsStore();
   const toast = useToastStore();
 
   async function sendToVendors(
@@ -30,6 +32,11 @@ export function useSendInvoiceToVendor() {
       };
     }
 
+    const copyToEmail =
+      documentSettings.copyOfficerOnPostEnabled && loggedInEmail.value?.trim()
+        ? loggedInEmail.value.trim()
+        : "";
+
     const scriptParam = JSON.stringify({
       items: valid.map((i) => ({
         // Match FileMaker script JSON paths:
@@ -40,6 +47,7 @@ export function useSendInvoiceToVendor() {
         code: i.code.trim(),
         total: formatNumberDisplay(Number(i.total) || 0) || "0.00",
       })),
+      copyToEmail,
     });
 
     const { error, scriptError, scriptResult } = await runScript(
@@ -68,13 +76,18 @@ export function useSendInvoiceToVendor() {
 
     if (scriptResult && String(scriptResult).trim()) {
       const trimmed = String(scriptResult).trim();
+      const ccNote = copyToEmail !== "" ? " You were CC'd." : "";
       toast.success(
-        `Email sent to ${valid.length} vendor(s). Script result: ${trimmed}`,
+        `Email sent to ${valid.length} vendor(s). Script result: ${trimmed}${ccNote}`,
       );
       // eslint-disable-next-line no-console
       console.info("[SendInvoiceToVendor] scriptResult", { scriptResult: trimmed });
     } else {
-      toast.success(`Email sent to ${valid.length} vendor(s).`);
+      const msg =
+        copyToEmail !== ""
+          ? `Email sent to ${valid.length} vendor(s); you were CC'd.`
+          : `Email sent to ${valid.length} vendor(s).`;
+      toast.success(msg);
     }
     return { error: null };
   }

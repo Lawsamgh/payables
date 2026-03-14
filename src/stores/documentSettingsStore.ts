@@ -15,6 +15,8 @@ export type InvoiceDownloadWhen =
   | "none";         // Do not show
 
 const STORAGE_KEY = "invoice-download-when";
+const TOKEN_EXPIRY_STORAGE_KEY = "document-settings-token-expiry";
+const COPY_OFFICER_STORAGE_KEY = "document-settings-copy-officer-on-post";
 
 /** FileMaker DocOption value → internal value */
 function fmToInternal(fm: string | undefined): InvoiceDownloadWhen {
@@ -42,6 +44,30 @@ function loadFromStorage(): InvoiceDownloadWhen {
   return "approved_only";
 }
 
+function loadTokenExpiryFromStorage(): number {
+  try {
+    const v = localStorage.getItem(TOKEN_EXPIRY_STORAGE_KEY);
+    if (v != null && v !== "") {
+      const n = parseInt(v, 10);
+      if (Number.isFinite(n) && n >= 0 && n <= 1440) return n;
+    }
+  } catch {
+    /* ignore */
+  }
+  return 0;
+}
+
+function loadCopyOfficerOnPostFromStorage(): boolean {
+  try {
+    const v = localStorage.getItem(COPY_OFFICER_STORAGE_KEY);
+    if (v === "true" || v === "1") return true;
+    if (v === "false" || v === "0") return false;
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
 /** Parse FileMaker "Yes"/"1" as true; "No"/"0"/empty as false. Default when empty. */
 function parseYesNo(value: string | undefined, defaultWhenEmpty: boolean): boolean {
   const v = (value ?? "").trim().toLowerCase();
@@ -54,6 +80,8 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
   const settingsRecordId = ref<string | null>(null);
   /** HOD Email: recipient for notification mails (from Payables_Settings.HODEmail). */
   const hodEmail = ref<string>("");
+  /** Copy HOD: second recipient CC'd when officer posts (Payables_Settings.CopyHODEmail). */
+  const copyHodEmail = ref<string>("");
 
   /** Feature flags from Payables_Settings (admin-configurable). */
   const bulkApproveEnabled = ref(true);
@@ -62,7 +90,9 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
   const editRequestEnabled = ref(true);
   const overdueDays = ref(7);
   /** Token expiry in minutes (from Payables_Settings.TokenExpiry). 0 when empty. */
-  const tokenExpiryMinutes = ref(0);
+  const tokenExpiryMinutes = ref(loadTokenExpiryFromStorage());
+  /** Max invoices selectable for Send mail in InvoicesView (from Payables_Settings.EmailMaxLimit). Defaults to 5. */
+  const emailMaxLimit = ref(5);
   const overdueIndicatorEnabled = ref(true);
   const commandPaletteEnabled = ref(true);
   const bookletEnabled = ref(true);
@@ -70,6 +100,8 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
   const taxViewEnabled = ref(true);
   const vendorsViewEnabled = ref(true);
   const approvalEmailToOfficerEnabled = ref(true);
+  /** CC logged-in officer when sending invoice emails to vendors (Payables_Settings.CopyOfficerOnPost). */
+  const copyOfficerOnPostEnabled = ref(loadCopyOfficerOnPostFromStorage());
   const onboardingEnabled = ref(true);
   /** Admin-configured URL for vendor cheque collection QR code. Empty = use default /vendor-collect. */
   const vendorCollectQrUrl = ref("");
@@ -100,6 +132,8 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
     invoiceDownloadWhen.value = fmToInternal(docOpt);
     const hod = fd?.HODEmail ?? (fd as Record<string, unknown>)?.["HOD Email"] ?? (fd as Record<string, unknown>)?.["hodEmail"] ?? "";
     hodEmail.value = typeof hod === "string" ? hod.trim() : "";
+    const copyHod = fd?.CopyHODEmail ?? (fd as Record<string, unknown>)?.["Copy HOD Email"] ?? (fd as Record<string, unknown>)?.["CopyHODEmail"] ?? "";
+    copyHodEmail.value = typeof copyHod === "string" ? copyHod.trim() : "";
     bulkApproveEnabled.value = parseYesNo(fd?.BulkApprove, true);
     managerEditDraftEnabled.value = parseYesNo(fd?.ManagerEditDraft, false);
     sessionTimeoutWarningEnabled.value = parseYesNo(fd?.SessionTimeoutWarning, true);
@@ -111,6 +145,11 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
     const te = raw?.["TokenExpiry"] ?? raw?.["Token Expiry"] ?? raw?.["tokenExpiry"];
     const teNum = typeof te === "number" ? te : (te != null && te !== "" ? parseInt(String(te), 10) : NaN);
     tokenExpiryMinutes.value = Number.isFinite(teNum) && teNum >= 0 && teNum <= 1440 ? teNum : 0;
+    try {
+      localStorage.setItem(TOKEN_EXPIRY_STORAGE_KEY, String(tokenExpiryMinutes.value));
+    } catch {
+      /* ignore */
+    }
     overdueIndicatorEnabled.value = parseYesNo(fd?.OverdueIndicatorEnabled, true);
     commandPaletteEnabled.value = parseYesNo(fd?.CommandPaletteEnabled, true);
     bookletEnabled.value = parseYesNo(fd?.BookletEnabled, true);
@@ -118,11 +157,32 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
     taxViewEnabled.value = parseYesNo(fd?.TaxViewEnabled, true);
     vendorsViewEnabled.value = parseYesNo(fd?.VendorsViewEnabled, true);
     approvalEmailToOfficerEnabled.value = parseYesNo(fd?.ApprovalEmailToOfficer, true);
+    copyOfficerOnPostEnabled.value = parseYesNo(
+      fd?.CopyOfficerOnPost ?? (raw?.["Copy Officer On Post"] as string),
+      false,
+    );
+    try {
+      localStorage.setItem(COPY_OFFICER_STORAGE_KEY, String(copyOfficerOnPostEnabled.value));
+    } catch {
+      /* ignore */
+    }
     onboardingEnabled.value = parseYesNo(fd?.OnboardingEnabled, true);
-    const qrUrl = fd?.VendorCollectURL ?? (fd as Record<string, unknown>)?.["Vendor Collect URL"] ?? fd?.URL ?? "";
+    const qrUrl = fd?.VendorCollectURL ?? (fd as Record<string, unknown>)?.["Vendor Collect URL"] ?? (fd as Record<string, unknown>)?.["URL"] ?? "";
     vendorCollectQrUrl.value = typeof qrUrl === "string" ? qrUrl.trim() : "";
     const spUrl = fd?.SetPasswordURL ?? (fd as Record<string, unknown>)?.["SetPasswordURL"] ?? (fd as Record<string, unknown>)?.["Set Password URL"];
     setPasswordUrl.value = typeof spUrl === "string" ? spUrl.trim() : "";
+    const emailLimitRaw =
+      (raw?.["EmailMaxLimit"] as unknown) ?? (raw?.["Email Max Limit"] as unknown);
+    const emailLimitNum =
+      typeof emailLimitRaw === "number"
+        ? emailLimitRaw
+        : emailLimitRaw != null && emailLimitRaw !== ""
+          ? parseInt(String(emailLimitRaw), 10)
+          : NaN;
+    emailMaxLimit.value =
+      Number.isFinite(emailLimitNum) && emailLimitNum >= 1 && emailLimitNum <= 50
+        ? emailLimitNum
+        : 5;
     try {
       localStorage.setItem(STORAGE_KEY, invoiceDownloadWhen.value);
     } catch {
@@ -142,6 +202,7 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
     | "TaxViewEnabled"
     | "VendorsViewEnabled"
     | "ApprovalEmailToOfficer"
+    | "CopyOfficerOnPost"
     | "OnboardingEnabled";
 
   async function saveFeatureFlag(
@@ -158,7 +219,14 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
       { [field]: fmValue },
     );
     if (!error) {
-      if (field === "BulkApprove") bulkApproveEnabled.value = value;
+      if (field === "CopyOfficerOnPost") {
+        copyOfficerOnPostEnabled.value = value;
+        try {
+          localStorage.setItem(COPY_OFFICER_STORAGE_KEY, String(value));
+        } catch {
+          /* ignore */
+        }
+      } else if (field === "BulkApprove") bulkApproveEnabled.value = value;
       else if (field === "ManagerEditDraft") managerEditDraftEnabled.value = value;
       else if (field === "SessionTimeoutWarning") sessionTimeoutWarningEnabled.value = value;
       else if (field === "EditRequestEnabled") editRequestEnabled.value = value;
@@ -198,7 +266,28 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
       settingsRecordId.value,
       { TokenExpiry: clamped },
     );
-    if (!error) tokenExpiryMinutes.value = clamped;
+    if (!error) {
+      tokenExpiryMinutes.value = clamped;
+      try {
+        localStorage.setItem(TOKEN_EXPIRY_STORAGE_KEY, String(clamped));
+      } catch {
+        /* ignore */
+      }
+    }
+    return { error };
+  }
+
+  async function saveEmailMaxLimit(value: number): Promise<{ error: string | null }> {
+    if (!isConnected.value || !settingsRecordId.value) {
+      return { error: "Not connected" };
+    }
+    const clamped = Math.max(1, Math.min(50, Math.round(value) || 5));
+    const { error } = await updateRecord(
+      LAYOUTS.PAYABLES_SETTINGS,
+      settingsRecordId.value,
+      { EmailMaxLimit: clamped },
+    );
+    if (!error) emailMaxLimit.value = clamped;
     return { error };
   }
 
@@ -274,9 +363,25 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
     return { error };
   }
 
+  async function saveCopyHodEmail(value: string): Promise<{ error: string | null }> {
+    if (!isConnected.value || !settingsRecordId.value) {
+      return { error: "Not connected" };
+    }
+    const trimmed = value.trim();
+    copyHodEmail.value = trimmed;
+    const { error } = await updateRecord(
+      LAYOUTS.PAYABLES_SETTINGS,
+      settingsRecordId.value,
+      { CopyHODEmail: trimmed },
+      { allowEmptyStrings: true },
+    );
+    return { error };
+  }
+
   return {
     invoiceDownloadWhen,
     hodEmail,
+    copyHodEmail,
     bulkApproveEnabled,
     managerEditDraftEnabled,
     sessionTimeoutWarningEnabled,
@@ -289,14 +394,18 @@ export const useDocumentSettingsStore = defineStore("documentSettings", () => {
     taxViewEnabled,
     vendorsViewEnabled,
     approvalEmailToOfficerEnabled,
+    copyOfficerOnPostEnabled,
     onboardingEnabled,
     setInvoiceDownloadWhen,
     loadFromFileMaker,
     vendorCollectQrUrl,
+    emailMaxLimit,
     setPasswordUrl,
     saveVendorCollectQrUrl,
+    saveEmailMaxLimit,
     saveSetPasswordUrl,
     saveHodEmail,
+    saveCopyHodEmail,
     saveFeatureFlag,
     saveOverdueDays,
     tokenExpiryMinutes,

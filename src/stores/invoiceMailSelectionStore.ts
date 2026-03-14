@@ -45,14 +45,22 @@ export const useInvoiceMailSelectionStore = defineStore(
       selectedTransRefs.value = newSet;
     }
 
-    function toggle(transRef: string): void {
+    function toggle(transRef: string, max?: number): { ok: boolean; reason?: string } {
       const key = norm(transRef);
-      if (!key) return;
-      if (!mailableItems.value.has(key)) return;
+      if (!key) return { ok: false, reason: "invalid" };
+      if (!mailableItems.value.has(key)) return { ok: false, reason: "not_mailable" };
       const next = new Set(selectedTransRefs.value);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      if (next.has(key)) {
+        next.delete(key);
+        selectedTransRefs.value = next;
+        return { ok: true };
+      }
+      if (typeof max === "number" && max > 0 && next.size >= max) {
+        return { ok: false, reason: "limit" };
+      }
+      next.add(key);
       selectedTransRefs.value = next;
+      return { ok: true };
     }
 
     function isSelected(transRef: string): boolean {
@@ -64,13 +72,20 @@ export const useInvoiceMailSelectionStore = defineStore(
     }
 
     /** Select the given transRefs. Uses component's mailable list as source of truth. */
-    function selectRefs(refs: string[]): void {
+    function selectRefs(refs: string[], max?: number): { limited: boolean } {
       const next = new Set<string>();
+      let limited = false;
       for (const r of refs) {
         const key = norm(r);
-        if (key) next.add(key);
+        if (!key) continue;
+        if (typeof max === "number" && max > 0 && next.size >= max) {
+          limited = true;
+          break;
+        }
+        next.add(key);
       }
       selectedTransRefs.value = next;
+      return { limited };
     }
 
     const allSelected = computed(() => {

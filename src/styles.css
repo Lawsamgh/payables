@@ -242,6 +242,40 @@ html.theme-light .delete-draft-modal__btn--cancel:hover:not(:disabled) {
   border-color: rgba(148, 163, 184, 0.5) !important;
 }
 
+/* Delete rows modal – light */
+html.theme-light .delete-rows-modal-backdrop {
+  background: rgba(15, 23, 42, 0.3) !important;
+}
+
+html.theme-light .delete-rows-modal {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+  border-color: rgba(148, 163, 184, 0.35) !important;
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.12) !important;
+}
+
+html.theme-light .delete-rows-modal__icon-wrap {
+  background: rgba(239, 68, 68, 0.12) !important;
+}
+
+html.theme-light .delete-rows-modal__title {
+  color: #0f172a !important;
+}
+
+html.theme-light .delete-rows-modal__message {
+  color: #475569 !important;
+}
+
+html.theme-light .delete-rows-modal__btn--cancel {
+  background: rgba(0, 0, 0, 0.06) !important;
+  border-color: rgba(148, 163, 184, 0.5) !important;
+  color: #0f172a !important;
+}
+
+html.theme-light .delete-rows-modal__btn--cancel:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.1) !important;
+  border-color: rgba(148, 163, 184, 0.6) !important;
+}
+
 /* Overdue modal uses .glass – light glass is already set; ensure pill-btn hover */
 html.theme-light .glass {
   background: rgba(255, 255, 255, 0.95);
@@ -1310,6 +1344,18 @@ html.theme-light .payable-select-dropdown .payable-select-item__vendor {
   color: var(--color-accent);
 }
 
+/* Data grid sticky columns – light (opaque so content doesn't show through) */
+.app-layout.theme-light .row-delete-th,
+.app-layout.theme-light .row-header-th,
+.app-layout.theme-light .data-grid-actions-th {
+  background: #ffffff !important;
+}
+.app-layout.theme-light .row-delete-td,
+.app-layout.theme-light .row-header-td,
+.app-layout.theme-light .data-grid-actions-td {
+  background: #ffffff !important;
+}
+
 /* Data grid wrapper – light */
 .app-layout.theme-light .data-grid-wrapper {
   background: linear-gradient(180deg, #ffffff 0%, #fafbfc 100%);
@@ -1427,6 +1473,15 @@ html.theme-light .payable-select-dropdown .payable-select-item__vendor {
 
 .app-layout.theme-light .list-row__meta-value {
   color: var(--color-text);
+}
+
+/* Row delete button – light mode */
+.app-layout.theme-light .row-delete-btn {
+  color: #dc2626;
+}
+
+.app-layout.theme-light .row-delete-btn:hover {
+  background: rgba(220, 38, 38, 0.15);
 }
 
 /* Data grid row hover – light */
@@ -1838,38 +1893,38 @@ button:focus-visible {
   font-family: var(--font-mono);
 }
 
-/* Aligned list rows: same column widths so all lines align */
+/* Aligned list rows: same column widths (Vendor ID | Ref | Created by | Total) */
 .list-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 120px 140px 120px auto;
+  grid-template-columns: minmax(0, 1fr) 100px 130px 150px 100px auto;
   align-items: center;
   gap: 0.75rem; /* gap-3 */
 }
 
 /* Draft rows with booklet-select checkbox */
 .list-row--draft {
-  grid-template-columns: 2rem minmax(0, 1fr) 120px 140px 120px auto;
+  grid-template-columns: 2rem minmax(0, 1fr) 100px 130px 150px 100px auto;
 }
 
 /* When booklet disabled: no checkbox column */
 .list-row--draft-no-booklet {
-  grid-template-columns: minmax(0, 1fr) 120px 140px 120px auto;
+  grid-template-columns: minmax(0, 1fr) 100px 130px 150px 100px auto;
 }
 
 /* Posted rows with bulk-approve checkbox */
 .list-row--posted {
-  grid-template-columns: 2rem minmax(0, 1fr) 120px 140px 120px auto;
+  grid-template-columns: 2rem minmax(0, 1fr) 100px 130px 150px 100px auto;
 }
 
 /* When bulk approve disabled: no checkbox column */
 .list-row--posted-no-bulk {
-  grid-template-columns: minmax(0, 1fr) 120px 140px 120px auto;
+  grid-template-columns: minmax(0, 1fr) 100px 130px 150px 100px auto;
 }
 
 /* List header row (Posted tab bulk approve) */
 .list-view__header {
   display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr) 120px 140px 120px auto;
+  grid-template-columns: 2rem minmax(0, 1fr) 100px 130px 150px 100px auto;
   align-items: center;
   gap: 0.75rem;
   padding: 0.5rem 1rem;
@@ -1883,14 +1938,14 @@ button:focus-visible {
 }
 
 .list-view__header--no-bulk {
-  grid-template-columns: minmax(0, 1fr) 120px 140px 120px auto;
+  grid-template-columns: minmax(0, 1fr) 100px 130px 150px 100px auto;
 }
 
-/* Right-side meta: label above value, columnar */
+/* Right-side meta: label above value, columnar (Vendor ID | Ref | Created by | Total) */
 .list-row__meta {
-  grid-column: span 3;
+  grid-column: span 4;
   display: grid;
-  grid-template-columns: 120px 140px 120px;
+  grid-template-columns: 100px 130px 150px 100px;
   align-items: start;
   gap: 0.75rem;
   min-width: 0;
@@ -3856,10 +3911,23 @@ html.theme-light .cheque-modal__step--done .cheque-modal__step-connector {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
+/* Teleported dropdown: fixed to viewport to avoid clipping by scroll containers */
+.data-grid-row-actions__dropdown--fixed {
+  position: fixed;
+  margin-top: 0;
+  min-width: 18rem;
+  max-height: min(26rem, calc(100vh - 2rem));
+  z-index: 9999;
+}
+
 .data-grid-row-actions__panel {
   overflow-y: auto;
   max-height: 26rem;
   padding: 0.5rem 0;
+}
+
+.data-grid-row-actions__dropdown--fixed .data-grid-row-actions__panel {
+  max-height: min(24rem, calc(100vh - 4rem));
 }
 
 /* Header — only when in add mode or submenu */
@@ -3887,6 +3955,8 @@ html.theme-light .cheque-modal__step--done .cheque-modal__step-connector {
   padding: 0.2rem 0.5rem;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 /* Loading / empty state */

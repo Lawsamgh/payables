@@ -48,14 +48,14 @@
                   class="shortcuts-cheatsheet__row"
                 >
                   <span class="shortcuts-cheatsheet__action">{{ row.action }}</span>
-                  <div v-if="row.keys" class="shortcuts-cheatsheet__keys">
+                  <div v-if="'keys' in row && row.keys" class="shortcuts-cheatsheet__keys">
                     <kbd
                       v-for="key in row.keys"
                       :key="key"
                       class="shortcuts-cheatsheet__kbd"
                     >{{ key }}</kbd>
                   </div>
-                  <span v-else-if="row.desc" class="shortcuts-cheatsheet__desc">{{ row.desc }}</span>
+                  <span v-else-if="'desc' in row && row.desc" class="shortcuts-cheatsheet__desc">{{ row.desc }}</span>
                 </div>
               </div>
             </div>
@@ -93,7 +93,7 @@ const sections = computed(() => [
   { title: 'Global', rows: globalShortcuts.value },
   { title: 'Entry view', rows: entryShortcuts.value },
   { title: 'Data grid', rows: gridShortcuts.value },
-  { title: 'Context menu', rows: contextShortcuts.value },
+  { title: 'Context menu', rows: contextShortcuts },
 ])
 
 function onKeydown(e: KeyboardEvent) {

@@ -20,7 +20,7 @@ export const COLUMN_KEYS = [
 
 export type ColumnKey = (typeof COLUMN_KEYS)[number]
 
-const ROW_HEADER_WIDTH = 60
+const ROW_HEADER_WIDTH = 44
 const COL_WIDTH = 150
 const COL_COUNT = COLUMN_KEYS.length
 
@@ -30,6 +30,7 @@ interface SelectedCell {
 }
 
 const selectedCell = ref<SelectedCell>({ row: 0, col: 0 })
+const selectedRowIndices = ref<Set<number>>(new Set())
 const clipboard = ref<string | number | null>(null)
 const clipboardIsCut = ref(false)
 
@@ -77,6 +78,26 @@ export function useSpreadsheet() {
     const c = Math.max(0, Math.min(col, COL_COUNT - 1))
     selectedCell.value = { row: r, col: c }
   }
+
+  function toggleRowSelection(rowIndex: number): void {
+    if (rowIndex < 0 || rowIndex >= rowCount.value) return
+    const next = new Set(selectedRowIndices.value)
+    if (next.has(rowIndex)) next.delete(rowIndex)
+    else next.add(rowIndex)
+    selectedRowIndices.value = next
+  }
+
+  function isRowSelected(rowIndex: number): boolean {
+    return selectedRowIndices.value.has(rowIndex)
+  }
+
+  function clearRowSelection(): void {
+    selectedRowIndices.value = new Set()
+  }
+
+  const selectedRowIndicesArray = computed(() =>
+    Array.from(selectedRowIndices.value).sort((a, b) => a - b),
+  )
 
   function moveSelection(direction: SelectionDirection): void {
     const { row, col } = selectedCell.value
@@ -168,6 +189,10 @@ export function useSpreadsheet() {
     selected,
     selectedRow,
     selectedCol,
+    selectedRowIndicesArray,
+    toggleRowSelection,
+    isRowSelected,
+    clearRowSelection,
     headerToCol,
     getCellValue,
     setCellValue,

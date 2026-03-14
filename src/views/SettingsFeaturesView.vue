@@ -110,15 +110,33 @@
           <span class="feature-option__content">
             <span class="feature-option__title">Token expiry</span>
             <span class="feature-option__desc">Session token expiry time in minutes (0–1440)</span>
-            <input
-              v-model.number="tokenExpiryInput"
-              type="number"
-              min="0"
-              max="1440"
-              class="glass-input mt-3 w-24 px-3 py-2 text-[var(--label-size)]"
-              :disabled="savingTokenExpiry"
-              @blur="onTokenExpiryBlur"
-            />
+            <div class="feature-number-input mt-3">
+              <button
+                type="button"
+                class="feature-number-input__btn"
+                :disabled="savingTokenExpiry"
+                @click="onTokenExpiryStep(-5)"
+              >
+                −
+              </button>
+              <input
+                v-model.number="tokenExpiryInput"
+                type="number"
+                min="0"
+                max="1440"
+                class="glass-input feature-number-input__input"
+                :disabled="savingTokenExpiry"
+                @blur="onTokenExpiryBlur"
+              />
+              <button
+                type="button"
+                class="feature-number-input__btn"
+                :disabled="savingTokenExpiry"
+                @click="onTokenExpiryStep(5)"
+              >
+                +
+              </button>
+            </div>
           </span>
         </div>
         <div
@@ -194,6 +212,30 @@
           </label>
         </div>
         <div
+          class="feature-option"
+          :class="{ 'feature-option--enabled': documentSettings.copyOfficerOnPostEnabled }"
+        >
+          <span class="feature-option__icon feature-option__icon--default">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+            </svg>
+          </span>
+          <span class="feature-option__content">
+            <span class="feature-option__title">Copy officer on post</span>
+            <span class="feature-option__desc">When sending invoice emails to vendors from Invoices, CC the logged-in officer</span>
+          </span>
+          <label class="feature-option__toggle">
+            <input
+              :checked="documentSettings.copyOfficerOnPostEnabled"
+              type="checkbox"
+              class="feature-option__toggle-input"
+              :disabled="savingFeatureFlags.CopyOfficerOnPost"
+              @change="onFeatureFlagChange('CopyOfficerOnPost', ($event.target as HTMLInputElement).checked)"
+            />
+            <span class="feature-option__track" />
+          </label>
+        </div>
+        <div
           class="feature-option feature-option--number"
           :class="{ 'feature-option--enabled': documentSettings.overdueDays > 0 }"
         >
@@ -205,15 +247,74 @@
           <span class="feature-option__content">
             <span class="feature-option__title">Overdue days</span>
             <span class="feature-option__desc">Days threshold for Posted entries to be marked overdue (1–365)</span>
-            <input
-              v-model.number="overdueDaysInput"
-              type="number"
-              min="1"
-              max="365"
-              class="glass-input mt-3 w-24 px-3 py-2 text-[var(--label-size)]"
-              :disabled="savingOverdueDays"
-              @blur="onOverdueDaysBlur"
-            />
+            <div class="feature-number-input mt-3">
+              <button
+                type="button"
+                class="feature-number-input__btn"
+                :disabled="savingOverdueDays"
+                @click="onOverdueStep(-1)"
+              >
+                −
+              </button>
+              <input
+                v-model.number="overdueDaysInput"
+                type="number"
+                min="1"
+                max="365"
+                class="glass-input feature-number-input__input"
+                :disabled="savingOverdueDays"
+                @blur="onOverdueDaysBlur"
+              />
+              <button
+                type="button"
+                class="feature-number-input__btn"
+                :disabled="savingOverdueDays"
+                @click="onOverdueStep(1)"
+              >
+                +
+              </button>
+            </div>
+          </span>
+        </div>
+        <div
+          class="feature-option feature-option--number"
+          :class="{ 'feature-option--enabled': documentSettings.emailMaxLimit > 0 }"
+        >
+          <span class="feature-option__icon feature-option__icon--default">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          </span>
+          <span class="feature-option__content">
+            <span class="feature-option__title">Email max limit</span>
+            <span class="feature-option__desc">Maximum invoices selectable for Send mail at once (1–50). Defaults to 5 when empty.</span>
+            <div class="feature-number-input mt-3">
+              <button
+                type="button"
+                class="feature-number-input__btn"
+                :disabled="savingEmailMaxLimit"
+                @click="onEmailMaxLimitStep(-1)"
+              >
+                −
+              </button>
+              <input
+                v-model.number="emailMaxLimitInput"
+                type="number"
+                min="1"
+                max="50"
+                class="glass-input feature-number-input__input"
+                :disabled="savingEmailMaxLimit"
+                @blur="onEmailMaxLimitBlur"
+              />
+              <button
+                type="button"
+                class="feature-number-input__btn"
+                :disabled="savingEmailMaxLimit"
+                @click="onEmailMaxLimitStep(1)"
+              >
+                +
+              </button>
+            </div>
           </span>
         </div>
         <div
@@ -379,6 +480,7 @@ const savingFeatureFlags = ref<Record<string, boolean>>({
   SessionTimeoutWarning: false,
   EditRequestEnabled: false,
   ApprovalEmailToOfficer: false,
+  CopyOfficerOnPost: false,
   OnboardingEnabled: false,
   OverdueIndicatorEnabled: false,
   CommandPaletteEnabled: false,
@@ -392,6 +494,8 @@ const overdueDaysInput = ref(7)
 const savingOverdueDays = ref(false)
 const tokenExpiryInput = ref(0)
 const savingTokenExpiry = ref(false)
+const emailMaxLimitInput = ref(5)
+const savingEmailMaxLimit = ref(false)
 
 watch(
   () => documentSettings.overdueDays,
@@ -401,6 +505,13 @@ watch(
 watch(
   () => documentSettings.tokenExpiryMinutes,
   (v) => { tokenExpiryInput.value = v },
+  { immediate: true },
+)
+watch(
+  () => documentSettings.emailMaxLimit,
+  (v) => {
+    emailMaxLimitInput.value = v
+  },
   { immediate: true },
 )
 
@@ -417,6 +528,37 @@ async function onOverdueDaysBlur() {
   }
 }
 
+async function onOverdueStep(delta: number) {
+  if (savingOverdueDays.value) return
+  overdueDaysInput.value = Math.max(
+    1,
+    Math.min(365, (overdueDaysInput.value || 7) + delta),
+  )
+  await onOverdueDaysBlur()
+}
+
+async function onEmailMaxLimitBlur() {
+  const val = Math.max(1, Math.min(50, Math.round(emailMaxLimitInput.value) || 5))
+  if (val === documentSettings.emailMaxLimit) return
+  emailMaxLimitInput.value = val
+  savingEmailMaxLimit.value = true
+  const { error } = await documentSettings.saveEmailMaxLimit(val)
+  savingEmailMaxLimit.value = false
+  if (error) {
+    toast.error(error)
+    emailMaxLimitInput.value = documentSettings.emailMaxLimit
+  }
+}
+
+async function onEmailMaxLimitStep(delta: number) {
+  if (savingEmailMaxLimit.value) return
+  emailMaxLimitInput.value = Math.max(
+    1,
+    Math.min(50, (emailMaxLimitInput.value || 5) + delta),
+  )
+  await onEmailMaxLimitBlur()
+}
+
 async function onTokenExpiryBlur() {
   const val = Math.max(0, Math.min(1440, Math.round(tokenExpiryInput.value) || 0))
   if (val === documentSettings.tokenExpiryMinutes) return
@@ -430,6 +572,15 @@ async function onTokenExpiryBlur() {
   }
 }
 
+async function onTokenExpiryStep(delta: number) {
+  if (savingTokenExpiry.value) return
+  tokenExpiryInput.value = Math.max(
+    0,
+    Math.min(1440, (tokenExpiryInput.value || 0) + delta),
+  )
+  await onTokenExpiryBlur()
+}
+
 async function onFeatureFlagChange(
   field:
     | 'BulkApprove'
@@ -437,6 +588,7 @@ async function onFeatureFlagChange(
     | 'SessionTimeoutWarning'
     | 'EditRequestEnabled'
     | 'ApprovalEmailToOfficer'
+    | 'CopyOfficerOnPost'
     | 'OnboardingEnabled'
     | 'OverdueIndicatorEnabled'
     | 'CommandPaletteEnabled'
@@ -537,6 +689,57 @@ async function onFeatureFlagChange(
   font-size: 0.8125rem;
   line-height: 1.4;
   color: var(--color-text-muted);
+}
+
+.feature-number-input {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  background: rgba(15, 23, 42, 0.7);
+  width: fit-content;
+  margin-left: auto;
+}
+
+.feature-number-input__input {
+  width: 3rem;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  text-align: center;
+}
+
+.feature-number-input__btn {
+  width: 2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.feature-number-input__btn:hover:not(:disabled) {
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--color-text);
+}
+
+.feature-number-input__btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+html.theme-light .feature-number-input {
+  background: #f9fafb;
+}
+
+html.theme-light .feature-number-input__btn:hover:not(:disabled) {
+  background: #e5e7eb;
 }
 
 .feature-option__toggle {

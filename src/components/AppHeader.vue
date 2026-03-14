@@ -532,20 +532,15 @@ async function notifyManagerOnPost(): Promise<void> {
       ? `${currency} ${formatNumberDisplay(total)}`
       : formatNumberDisplay(total) || "—";
 
-  const { data: settingsRecords } = await findRecordsWithIds<
-    Record<string, unknown>
-  >(LAYOUTS.PAYABLES_SETTINGS, { limit: 1 });
-  const settings = settingsRecords[0]?.fieldData;
-  const email =
-    settings?.HODEmail != null && String(settings.HODEmail).trim() !== ""
-      ? String(settings.HODEmail).trim()
-      : null;
+  const email = documentSettings.hodEmail?.trim() || null;
   if (!email) return;
 
   const entryUrl = new URL(
     router.resolve({ name: "entry", query: { transRef } }).href,
     window.location.origin,
   ).href;
+
+  const copyEmail = documentSettings.copyHodEmail?.trim() || undefined;
 
   const scriptParam = JSON.stringify({
     url: entryUrl,
@@ -555,6 +550,7 @@ async function notifyManagerOnPost(): Promise<void> {
     vendorname: vendorName,
     transref: transRef,
     amount: amountStr,
+    ...(copyEmail ? { copyEmail } : {}),
   });
 
   const { error } = await runScript(

@@ -13,6 +13,8 @@
 
         <div class="flex flex-1 flex-col min-h-0 min-w-0">
           <AppHeader />
+          <NetworkStatusBanner />
+          <HostUnreachableBanner :enabled="showAppLayout && hasBaseUrl" />
           <main
             class="app-main flex-1 flex flex-col min-h-0 min-w-0 overflow-auto"
           >
@@ -77,6 +79,8 @@ import ConnectionModal from "./components/ConnectionModal.vue";
 import SessionTimeoutModal from "./components/SessionTimeoutModal.vue";
 import OnboardingModal from "./components/OnboardingModal.vue";
 import LoadingOverlay from "./components/LoadingOverlay.vue";
+import NetworkStatusBanner from "./components/NetworkStatusBanner.vue";
+import HostUnreachableBanner from "./components/HostUnreachableBanner.vue";
 import { useCommandPaletteStore } from "./stores/commandPaletteStore";
 import { useShortcutsCheatsheetStore } from "./stores/shortcutsCheatsheetStore";
 import { useFileMaker } from "./composables/useFileMaker";
@@ -111,7 +115,7 @@ const paletteStore = useCommandPaletteStore();
 const shortcutsCheatsheetStore = useShortcutsCheatsheetStore();
 const recentEntries = useRecentEntriesStore();
 const { showForManager } = useUserRole();
-const { isConnected } = useFileMaker();
+const { isConnected, hasBaseUrl } = useFileMaker();
 const documentSettings = useDocumentSettingsStore();
 const sessionTimeout = useSessionTimeout();
 const onboarding = useOnboarding();
@@ -129,6 +133,13 @@ watch(
 );
 
 const showAppLayout = computed(() => route.meta?.layout !== "login");
+
+// When session expires (logout called from 401), redirect to login if on protected route
+watch(isConnected, (connected, wasConnected) => {
+  if (wasConnected && !connected && showAppLayout.value) {
+    router.replace("/");
+  }
+});
 
 async function onOnboardingDismiss() {
   onboardingSaving.value = true;

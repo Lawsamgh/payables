@@ -654,17 +654,17 @@ function openEdit(
     Vendor_Location: String(fd.Vendor_Location ?? fd["Vendor Location"] ?? ""),
     Vendor_Email: String(fd.Vendor_Email ?? fd["Vendor Email"] ?? ""),
     GRA_Expiry_Date: fileMakerDateToInput(
-      fd.GRA_Expiry_Date ?? (fd["GRA Expiry Date"] as string | undefined),
+      String(fd.GRA_Expiry_Date ?? fd["GRA Expiry Date"] ?? "").trim() || undefined,
     ),
     Received_Date: fileMakerDateToInput(
-      fd.Received_Date ?? (fd["Received Date"] as string | undefined),
+      String(fd.Received_Date ?? fd["Received Date"] ?? "").trim() || undefined,
     ),
     Tin_Number: String(fd.Tin_Number ?? fd["Tin Number"] ?? ""),
     WHT_Expiry_Date: fileMakerDateToInput(
-      fd.WHT_Expiry_Date ?? (fd["WHT Expiry Date"] as string | undefined),
+      String(fd.WHT_Expiry_Date ?? fd["WHT Expiry Date"] ?? "").trim() || undefined,
     ),
     Received_WHT_Date: fileMakerDateToInput(
-      fd.Received_WHT_Date ?? (fd["Received WHT Date"] as string | undefined),
+      String(fd.Received_WHT_Date ?? fd["Received WHT Date"] ?? "").trim() || undefined,
     ),
   };
   editingRecordId.value = row.recordId;

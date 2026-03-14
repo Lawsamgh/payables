@@ -4,7 +4,7 @@
  * Data is loaded once via currentUserFromPayablesStore and shared across all consumers.
  */
 
-import { ref, computed, watch } from 'vue'
+import { computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useFileMaker } from './useFileMaker'
 import { useCurrentUserFromPayablesStore } from '../stores/currentUserFromPayablesStore'

@@ -154,7 +154,7 @@
                 >
                   <span
                     class="empty-state__tip-icon"
-                    :class="{ 'empty-state__tip-icon--badge': item.badge }"
+                    :class="{ 'empty-state__tip-icon--badge': 'badge' in item && item.badge }"
                   >{{ item.icon }}</span>
                   <span>{{ item.text }}</span>
                 </div>
@@ -849,6 +849,14 @@
                     >{{ item.fieldData.TransRef || "—" }}</span
                   >
                 </div>
+                <div class="list-row__meta-col">
+                  <span class="list-row__meta-label">Created by</span>
+                  <span
+                    class="list-row__meta-value truncate"
+                    :title="getCreatorFromItem(item) || ''"
+                    >{{ formatCreatorDisplay(getCreatorFromItem(item)) || "—" }}</span
+                  >
+                </div>
                 <div class="list-row__meta-col list-row__meta-col--total">
                   <span class="list-row__meta-label">Total</span>
                   <span
@@ -1078,9 +1086,10 @@
                 </button>
               </span>
               <span>Vendor</span>
-              <span aria-hidden="true"></span>
-              <span aria-hidden="true"></span>
-              <span aria-hidden="true"></span>
+              <span>Vendor ID</span>
+              <span>Ref</span>
+              <span>Created by</span>
+              <span>Total</span>
               <span aria-hidden="true"></span>
             </div>
             <div
@@ -1190,6 +1199,14 @@
                     class="list-row__meta-value truncate"
                     :title="item.fieldData.TransRef || ''"
                     >{{ item.fieldData.TransRef || "—" }}</span
+                  >
+                </div>
+                <div class="list-row__meta-col">
+                  <span class="list-row__meta-label">Created by</span>
+                  <span
+                    class="list-row__meta-value truncate"
+                    :title="getCreatorFromItem(item) || ''"
+                    >{{ formatCreatorDisplay(getCreatorFromItem(item)) || "—" }}</span
                   >
                 </div>
                 <div class="list-row__meta-col list-row__meta-col--total">
@@ -1332,6 +1349,14 @@
                     >{{ item.fieldData.TransRef || "—" }}</span
                   >
                 </div>
+                <div class="list-row__meta-col">
+                  <span class="list-row__meta-label">Created by</span>
+                  <span
+                    class="list-row__meta-value truncate"
+                    :title="getCreatorFromItem(item) || ''"
+                    >{{ formatCreatorDisplay(getCreatorFromItem(item)) || "—" }}</span
+                  >
+                </div>
                 <div class="list-row__meta-col list-row__meta-col--total">
                   <span class="list-row__meta-label">Total</span>
                   <span
@@ -1468,6 +1493,14 @@
                     class="list-row__meta-value truncate"
                     :title="item.fieldData.TransRef || ''"
                     >{{ item.fieldData.TransRef || "—" }}</span
+                  >
+                </div>
+                <div class="list-row__meta-col">
+                  <span class="list-row__meta-label">Created by</span>
+                  <span
+                    class="list-row__meta-value truncate"
+                    :title="getCreatorFromItem(item) || ''"
+                    >{{ formatCreatorDisplay(getCreatorFromItem(item)) || "—" }}</span
                   >
                 </div>
                 <div class="list-row__meta-col list-row__meta-col--total">
@@ -1643,6 +1676,31 @@ const selectedDraftRefsInOrder = computed(() =>
 
 function openInBooklet(transRef: string) {
   booklet.addOpenEntry(transRef);
+}
+
+function getCreatorFromItem(
+  item: FindRecordWithId<PayablesMainFieldData | Record<string, unknown>>,
+): string {
+  const fd = item.fieldData as Record<string, unknown>;
+  const v =
+    fd?.CreatedName ??
+    fd?.CreatorFullName ??
+    fd?.CreatedByFullName ??
+    fd?.CreatedBy ??
+    fd?.["Creator Full Name"] ??
+    fd?.["Created By"] ??
+    fd?.["Created By Full Name"];
+  if (v == null || v === "") return "";
+  return String(v).trim();
+}
+
+/** Display-friendly creator (full value for title, shorthand for compact display) */
+function formatCreatorDisplay(raw: string): string {
+  const s = raw.trim();
+  if (!s) return "";
+  const at = s.indexOf("@");
+  if (at > 0) return s.slice(0, at);
+  return s;
 }
 
 function openBookletWithSelected() {
@@ -1995,7 +2053,7 @@ const primaryCurrency = computed(() => {
 });
 
 /** All unique posting days (across all currencies) so the chart shows every day with activity. */
-const allPostedDateKeys = computed(() => {
+const _allPostedDateKeys = computed(() => {
   const byCur = dailyPostedByCurrency.value;
   const set = new Set<string>();
   for (const data of Object.values(byCur)) {
@@ -2029,9 +2087,7 @@ const calendarGrid = computed(() => {
   const last = new Date(y, m, 0);
   const firstDay = first.getDay();
   const daysInMonth = last.getDate();
-  const cells:
-    | { dateKey: string; day: number; isSelected: boolean; isToday: boolean }
-    | null[] = [];
+  const cells: Array<{ dateKey: string; day: number; isSelected: boolean; isToday: boolean } | null> = [];
   for (let i = 0; i < firstDay; i++) cells.push(null);
   const today = todayDateKey();
   for (let d = 1; d <= daysInMonth; d++) {
@@ -2174,7 +2230,7 @@ const postedByVendor = computed(() => {
 });
 
 /** Header label: one total per currency so we never mix USD and GHS (e.g. "GHS 1,064,354.65 · USD 2,500.00"). */
-const postedCurrencyTotalsLabel = computed(() => {
+const _postedCurrencyTotalsLabel = computed(() => {
   const byCur = dailyPostedByCurrency.value;
   const parts = Object.entries(byCur)
     .map(([currency, data]) => {
@@ -2265,7 +2321,7 @@ const approvedTodayTotalsLabel = computed(() => {
 
 const postedCurrency = computed(() => primaryCurrency.value);
 
-const totalEntries = computed(
+const _totalEntries = computed(
   () =>
     draftList.value.length +
     postedList.value.length +

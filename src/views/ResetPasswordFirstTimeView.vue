@@ -549,27 +549,30 @@ onMounted(() => {
 }
 
 .reset-pw__email-badge {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  width: 100%;
   margin-top: 1rem;
-  padding: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 9999px;
+  border-radius: 0;
+  box-sizing: border-box;
 }
 
 .reset-pw__email-icon {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   color: rgba(148, 163, 184, 0.9);
   flex-shrink: 0;
 }
 
 .reset-pw__email-value {
-  font-size: 0.875rem;
+  font-size: 0.938rem;
   font-weight: 500;
   color: rgba(255, 255, 255, 0.95);
+  word-break: break-all;
 }
 
 .reset-pw__state {

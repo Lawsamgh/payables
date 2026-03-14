@@ -1001,7 +1001,7 @@ function validateForm(): string | null {
   if (!Tax_Name?.trim()) missing.push("Tax Name");
   if (
     Tax_Rate == null ||
-    Tax_Rate === "" ||
+    (typeof Tax_Rate === "string" && Tax_Rate === "") ||
     (typeof Tax_Rate === "number" && Number.isNaN(Tax_Rate))
   )
     missing.push("Tax Rate");
@@ -1044,7 +1044,9 @@ async function submit() {
       Tax_Type: typeValue,
       Tax_Name: Tax_Name?.trim() || undefined,
       Tax_Rate:
-        Tax_Rate != null && Tax_Rate !== "" ? Number(Tax_Rate) : undefined,
+        Tax_Rate != null && (typeof Tax_Rate !== "string" || Tax_Rate !== "")
+          ? Number(Tax_Rate)
+          : undefined,
       Action: actionValue,
       Start_Date: toFileMakerDate(Start_Date),
       End_Date: toFileMakerDate(End_Date),

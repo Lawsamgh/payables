@@ -389,7 +389,6 @@ import { usePayableStore } from "../stores/payableStore";
 import { useFileMaker } from "../composables/useFileMaker";
 import { useUserRole } from "../composables/useUserRole";
 import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
-import Skeleton from "./Skeleton.vue";
 import VendorBalanceBanner from "./VendorBalanceBanner.vue";
 import { LAYOUTS } from "../utils/filemakerApi";
 import { formatNumberDisplay } from "../utils/formatNumber";
@@ -678,7 +677,7 @@ function handleClickOutside(e: MouseEvent) {
 }
 
 watch(
-  () => vendor.purchase_order,
+  () => vendor.value.purchase_order,
   (val) => {
     if (!val?.trim()) purchaseOrderDuplicate.value = false;
   },

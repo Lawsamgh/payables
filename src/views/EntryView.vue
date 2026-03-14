@@ -37,6 +37,13 @@
       @confirm="onDeleteDraftConfirm"
       @cancel="showDeleteDraftModal = false"
     />
+    <DeleteRowsConfirmModal
+      :visible="showDeleteRowsConfirmModal"
+      :row-count="pendingDeleteIndices.length"
+      :deleting="deletingRows"
+      @confirm="onDeleteRowsConfirm"
+      @cancel="onDeleteRowsCancel"
+    />
     <!-- TransRef QR modal (Approved entry only) -->
     <Teleport to="body">
       <Transition name="transref-qr-modal">
@@ -526,13 +533,43 @@
       </div>
     </div>
 
-    <!-- Rejected reason: show on top when entry is Rejected -->
+    <!-- Load error: show when fetching existing entry failed (takes precedence) -->
     <div
       v-if="
+        payableStore.error &&
+        (route.query.transRef as string)?.trim() &&
+        !payableStore.loading
+      "
+      class="entry-error-banner rounded-2xl border border-red-500/25 bg-red-500/10 px-5 py-4"
+    >
+      <p class="mb-3 text-[var(--label-size)] text-red-300">
+        {{ payableStore.error }}
+      </p>
+      <div class="flex flex-wrap gap-2">
+        <button
+          type="button"
+          class="pill-btn inline-flex items-center gap-2 rounded-xl bg-[var(--color-accent)] px-4 py-2.5 text-[var(--label-size)] font-semibold text-white hover:opacity-90"
+          @click="retryLoadEntry"
+        >
+          Retry
+        </button>
+        <router-link
+          :to="backToListRoute"
+          class="pill-btn glass-input inline-flex items-center gap-2 rounded-xl border border-[var(--color-border)] px-4 py-2.5 text-[var(--label-size)] font-medium text-[var(--color-text)] no-underline hover:bg-white/5"
+        >
+          Back to list
+        </router-link>
+      </div>
+    </div>
+
+    <!-- Rejected reason banner: show above grid when entry is Rejected (not in load error state) -->
+    <div
+      v-if="
+        !payableStore.error &&
         payableStore.mainStatus === 'Rejected' &&
         (payableStore.mainRejectReason || '').trim()
       "
-      class="reject-reason-banner"
+      class="reject-reason-banner mb-4"
       role="alert"
     >
       <span class="reject-reason-banner__icon" aria-hidden="true">
@@ -559,6 +596,7 @@
     </div>
 
     <div
+      v-if="!payableStore.error"
       class="booklet-flip-view"
       :class="{
         'booklet-flip-view--swipeable':
@@ -724,11 +762,7 @@
             <VendorDetails />
           </div>
           <div class="mb-3">
-            <Toolbar
-              :can-delete-row="canDeleteRow"
-              @add-row="spreadsheet.addRow()"
-              @delete-row="handleDeleteRow"
-            />
+            <Toolbar @add-row="spreadsheet.addRow()" />
           </div>
           <p
             class="mb-3 text-[var(--label-size)] text-[var(--color-text-muted)]"
@@ -739,7 +773,7 @@
             least one of: Invoice Number, Amount, or Total.
           </p>
           <div class="flex-1 min-h-[360px] flex flex-col min-w-0">
-            <DataGrid />
+            <DataGrid @delete-row="handleDeleteRowByIndex" />
           </div>
         </div>
       </Transition>
@@ -757,6 +791,7 @@ import UnsavedChangesModal from "../components/UnsavedChangesModal.vue";
 import RejectReasonModal from "../components/RejectReasonModal.vue";
 import EditRequestModal from "../components/EditRequestModal.vue";
 import DeleteDraftConfirmModal from "../components/DeleteDraftConfirmModal.vue";
+import DeleteRowsConfirmModal from "../components/DeleteRowsConfirmModal.vue";
 import Toolbar from "../components/Toolbar.vue";
 import DataGrid from "../components/DataGrid.vue";
 import Skeleton from "../components/Skeleton.vue";
@@ -771,6 +806,7 @@ import {
   type PendingEditRequest,
 } from "../composables/useEditRequest";
 import { useApprovalNotification } from "../composables/useApprovalNotification";
+import { useRejectionNotification } from "../composables/useRejectionNotification";
 import {
   LAYOUTS,
   type PayableInvoiceFieldData,
@@ -851,6 +887,9 @@ const approving = ref(false);
 const downloadingPdf = ref(false);
 const deletingDraft = ref(false);
 const showDeleteDraftModal = ref(false);
+const showDeleteRowsConfirmModal = ref(false);
+const pendingDeleteIndices = ref<number[]>([]);
+const deletingRows = ref(false);
 const showTransRefQrModal = ref(false);
 const grantingEditRequest = ref(false);
 const showEditRequestModal = ref(false);
@@ -883,8 +922,7 @@ watchEffect(async () => {
 const { fetchPendingEditRequest, grantEditRequest, notifyEditRequestGranted } =
   useEditRequest();
 const { notifyApprovalToOfficer } = useApprovalNotification();
-
-const canDeleteRow = computed(() => spreadsheet.rowCount.value > 1);
+const { notifyRejectedEntryToOfficer } = useRejectionNotification();
 
 /** Only Manager and Admin can Approve or Reject a Posted entry. */
 const canApproveOrReject = computed(
@@ -977,6 +1015,14 @@ function formatRejectionDate(raw?: string): string {
     return `${m}/${d}/${y} ${h12}:${min} ${ampm}`;
   }
   return s;
+}
+
+function retryLoadEntry() {
+  const transRef = (route.query.transRef as string)?.trim();
+  if (transRef) {
+    payableStore.clearError();
+    payableStore.fetchDetailsByTransRef(transRef);
+  }
 }
 
 function loadForRoute() {
@@ -1109,7 +1155,7 @@ async function fetchRejectionHistory() {
   rejectionHistoryLoading.value = true;
   const { data, error } = await findRecordsByQueryWithIds<RejectionHistoryItem>(
     LAYOUTS.PAYABLES_REJECTION_HISTORY,
-    { TransRef: transRef },
+    { TransRef: transRef ?? "" },
     50,
   );
   if (error || !data?.length) {
@@ -1170,7 +1216,7 @@ async function onLeaveConfirm() {
     }
   }
   if (leaveConfirmNext) {
-    leaveConfirmNext();
+    (leaveConfirmNext as () => void)();
     leaveConfirmNext = null;
   }
   showLeaveConfirmModal.value = false;
@@ -1225,6 +1271,14 @@ watch(
     showEditRequestModal.value = false;
     pendingEditRequestForModal.value = null;
     editRequestModalTransRef.value = null;
+    spreadsheet.clearRowSelection();
+  },
+);
+
+watch(
+  () => payableStore.currentTransRef,
+  () => {
+    spreadsheet.clearRowSelection();
   },
 );
 
@@ -1318,8 +1372,69 @@ async function onProceedAllowEdit() {
   }
 }
 
-function handleDeleteRow() {
-  spreadsheet.deleteRow(spreadsheet.selectedRow.value);
+function handleDeleteRowByIndex(rowIndex: number) {
+  if (spreadsheet.rowCount.value <= 1) return;
+  pendingDeleteIndices.value = [rowIndex];
+  showDeleteRowsConfirmModal.value = true;
+}
+
+function onDeleteRowsCancel() {
+  pendingDeleteIndices.value = [];
+  showDeleteRowsConfirmModal.value = false;
+}
+
+async function onDeleteRowsConfirm() {
+  const indices = [...pendingDeleteIndices.value].sort((a, b) => b - a);
+  pendingDeleteIndices.value = [];
+  if (indices.length === 0) {
+    showDeleteRowsConfirmModal.value = false;
+    return;
+  }
+  const maxDelete = spreadsheet.rowCount.value - 1;
+  const toDelete = indices.slice(0, maxDelete);
+  if (toDelete.length === 0) {
+    showDeleteRowsConfirmModal.value = false;
+    return;
+  }
+  deletingRows.value = true;
+  try {
+    for (const rowIndex of toDelete) {
+      const row = payableStore.rows[rowIndex];
+      const invNum = row ? String(row.invoice_number ?? "").trim() : "";
+      spreadsheet.deleteRow(rowIndex);
+      if (
+        invNum &&
+        isConnected.value &&
+        sessionPayableInvoice.createdIds.length > 0
+      ) {
+        const { data } =
+          await findRecordsByQueryWithIds<PayableInvoiceFieldData>(
+            LAYOUTS.PAYABLE_INVOICE,
+            { invoiceNumber: invNum },
+            100,
+          );
+        const sessionIds = new Set(sessionPayableInvoice.createdIds);
+        const idsToRemove: string[] = [];
+        for (const r of data) {
+          const rid = r.recordId;
+          if (rid && sessionIds.has(String(rid).trim())) {
+            idsToRemove.push(String(rid).trim());
+          }
+        }
+        for (const recordId of idsToRemove) {
+          await deleteRecord(LAYOUTS.PAYABLE_INVOICE, recordId);
+        }
+        if (idsToRemove.length > 0) {
+          sessionPayableInvoice.removeCreatedIds(idsToRemove);
+        }
+      }
+    }
+    spreadsheet.clearRowSelection();
+  } finally {
+    deletingRows.value = false;
+    pendingDeleteIndices.value = [];
+    showDeleteRowsConfirmModal.value = false;
+  }
 }
 
 async function onDeleteDraftConfirm() {
@@ -1337,15 +1452,22 @@ async function onDeleteDraftConfirm() {
   deletingDraft.value = true;
   try {
     const rows = payableStore.rows;
+    let firstError: string | null = null;
     for (const row of rows) {
       const recordId = (row as { recordId?: string })?.recordId;
       if (recordId && String(recordId).trim()) {
         const { error } = await deleteRecord(LAYOUTS.PAYABLES_DETAILS, recordId);
         if (error) {
-          toast.error("Could not delete entry: " + error);
-          return;
+          firstError = error;
+          break;
         }
       }
+    }
+    if (firstError) {
+      toast.error("Could not delete entry: " + firstError);
+      await payableStore.fetchDetailsByTransRef(transRef);
+      showDeleteDraftModal.value = false;
+      return;
     }
     const actor = (userFullName.value || "").trim() || "—";
     const activityErr = await writeActivityLog(
@@ -1441,6 +1563,20 @@ async function performReject(reason: string) {
     );
     if (activityErr) {
       toast.error("Rejected but failed to record activity: " + activityErr);
+    }
+    const postedName = payableStore.mainPostedName ?? "";
+    const creatorName = payableStore.mainCreatorFullName ?? "";
+    const vendorName = vendorStore.vendor?.vendor_name ?? "";
+    const { error: notifyErr } = await notifyRejectedEntryToOfficer({
+      transRef,
+      postedName,
+      creatorName,
+      rejectedBy,
+      rejectReason: reason.trim(),
+      vendorName,
+    });
+    if (notifyErr) {
+      toast.info("Rejection notification could not be sent: " + notifyErr);
     }
     toast.success("Entry rejected.");
     await payableStore.fetchDetailsByTransRef(transRef);

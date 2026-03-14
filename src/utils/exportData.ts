@@ -90,10 +90,12 @@ function formatForExport(
   fd: Record<string, unknown>,
 ): string {
   if (col.key === 'Amount') {
-    const raw = fd[col.key] ?? fd[col.altKey ?? '']
-    return formatAmountForExport(raw)
+    const altKey = 'altKey' in col ? (col as { altKey?: string }).altKey : undefined;
+    const raw = fd[col.key] ?? fd[altKey ?? ''];
+    return formatAmountForExport(raw as string | number | undefined);
   }
-  const val = getFieldValue(fd, col.key, col.altKey)
+  const altKey = 'altKey' in col ? (col as { altKey?: string }).altKey : undefined;
+  const val = getFieldValue(fd, col.key, altKey);
   if (val && TEXT_PRESERVE_KEYS.has(col.key)) {
     return '\t' + val
   }

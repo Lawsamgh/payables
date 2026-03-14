@@ -533,7 +533,7 @@ export async function findRecordsByQueryWithIds<T = FileMakerFieldData>(
 
 /** Remove undefined so FileMaker receives only defined field values. Allows 0 for numeric fields. */
 function sanitizeFieldData(
-  data: FileMakerFieldData,
+  data: FileMakerFieldData | Record<string, unknown> | object,
   opts?: { allowEmptyStrings?: boolean },
 ): Record<string, string | number> {
   const allowEmpty = opts?.allowEmptyStrings === true;
@@ -555,9 +555,9 @@ export interface CreateRecordScriptOptions {
   scriptParam?: string;
 }
 
-export async function createRecord(
+export async function createRecord<T extends object = FileMakerFieldData>(
   layout: string,
-  fieldData: FileMakerFieldData,
+  fieldData: T,
   scriptOptions?: CreateRecordScriptOptions,
 ): Promise<{ id: string | null; error: string | null }> {
   const token = sessionToken.value;
@@ -608,10 +608,10 @@ export async function getRecord<T = FileMakerFieldData>(
   }
 }
 
-export async function updateRecord(
+export async function updateRecord<T extends object = FileMakerFieldData>(
   layout: string,
   recordId: string,
-  fieldData: FileMakerFieldData,
+  fieldData: T,
   opts?: { allowEmptyStrings?: boolean },
 ): Promise<{ error: string | null }> {
   const token = sessionToken.value;

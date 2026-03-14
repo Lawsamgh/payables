@@ -246,6 +246,18 @@
                   </button>
                   <button
                     type="button"
+                    class="tax-table__edit-btn tax-table__edit-btn--icon"
+                    aria-label="Resend set password email"
+                    title="Resend set password email"
+                    :disabled="regeneratingRecordId === row.recordId"
+                    @click.stop="regenerateResetToken(row)"
+                  >
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
                     class="tax-table__edit-btn tax-table__edit-btn--icon tax-table__edit-btn--danger"
                     aria-label="Delete user"
                     :disabled="deletingRecordId === row.recordId"
@@ -506,6 +518,7 @@ const formError = ref<string | null>(null);
 const saving = ref(false);
 const togglingRecordId = ref<string | null>(null);
 const deletingRecordId = ref<string | null>(null);
+const regeneratingRecordId = ref<string | null>(null);
 const showDeleteUserModal = ref(false);
 const deleteUserRow = ref<FindRecordWithId<PayablesUsersFieldData | Record<string, unknown>> | null>(null);
 const showResetPasswordModal = ref(false);
@@ -850,6 +863,42 @@ function openResetPassword(row: FindRecordWithId<PayablesUsersFieldData | Record
   resetPasswordConfirm.value = DEFAULT_RESET_PASSWORD;
   resetPasswordError.value = null;
   showResetPasswordModal.value = true;
+}
+
+async function regenerateResetToken(row: FindRecordWithId<PayablesUsersFieldData | Record<string, unknown>>) {
+  const emailRaw = getField(row, "Email");
+  const email = emailRaw === "—" || !emailRaw ? "" : emailRaw.trim();
+  const fullname = getField(row, "FullName");
+  const fullnameVal = fullname === "—" || !fullname ? "" : fullname.trim();
+  if (!email) {
+    toast.error("Cannot resend set password email: no email for this user.");
+    return;
+  }
+  if (regeneratingRecordId.value) return;
+  regeneratingRecordId.value = row.recordId;
+  loadingOverlay.show("Sending set password email…", "Please wait.");
+  try {
+    const scriptParam = JSON.stringify({ email, fullname: fullnameVal || "" });
+    const { error, scriptResult } = await runScript(
+      LAYOUTS.PAYABLES_USERS,
+      "RegenerateResetToken",
+      scriptParam,
+    );
+    const result = (scriptResult ?? "").toString().trim().toUpperCase();
+    if (error) {
+      toast.error("Failed to send set password email: " + error);
+      return;
+    }
+    if (result && result !== "OK" && result.startsWith("ERROR")) {
+      toast.error(result);
+      return;
+    }
+    toast.success("Set password email sent to " + email);
+    await loadUsers();
+  } finally {
+    regeneratingRecordId.value = null;
+    loadingOverlay.hide();
+  }
 }
 
 function closeResetPasswordModal() {

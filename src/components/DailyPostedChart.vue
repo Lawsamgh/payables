@@ -201,21 +201,21 @@ const chartTitle = computed(() => {
   return `Chart on Entries ${typeLabel.value} ${label}`;
 });
 
-const showTotalInHeader = computed(
+const _showTotalInHeader = computed(
   () =>
     totalAmount.value > 0 ||
     (props.totalLabel && props.totalLabel.length > 0),
 );
 
 /** Primary total line (first currency) – shown large. */
-const primaryTotalLabel = computed(() => {
+const _primaryTotalLabel = computed(() => {
   const label = props.totalLabel ?? `${props.currency} ${formatNumberDisplay(totalAmount.value)}`;
   const parts = label.split(/\s*·\s*/).map((s) => s.trim()).filter(Boolean);
   return parts[0] ?? label;
 });
 
 /** Secondary total lines (other currencies) – shown below in smaller text. */
-const secondaryTotalLabels = computed(() => {
+const _secondaryTotalLabels = computed(() => {
   const label = props.totalLabel ?? "";
   if (!label) return [];
   const parts = label.split(/\s*·\s*/).map((s) => s.trim()).filter(Boolean);

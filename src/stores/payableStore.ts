@@ -64,6 +64,10 @@ export const usePayableStore = defineStore("payable", () => {
   const mainCreatorFullName = ref<string | null>(null);
   /** FullName of the officer who posted the entry (PostedName field in Payables_Main). */
   const mainPostedName = ref<string | null>(null);
+  /** FullName of the manager who approved the entry (ApprovedBy field in Payables_Main). */
+  const mainApprovedBy = ref<string | null>(null);
+  /** CreatedName from Payables_Main (creator display name). */
+  const mainCreatedName = ref<string | null>(null);
   /** Posted date from Payables_Main (PostedDate field). */
   const mainPostedDate = ref<string | null>(null);
   /** Advance payment from Payables_Main (deducted from Amount to Pay). */
@@ -161,10 +165,25 @@ export const usePayableStore = defineStore("payable", () => {
     }
   }
 
+  /** Set when a row is removed so DataGrid can shift its row-indexed caches. */
+  const lastDeletedRowIndex = ref<number | null>(null);
+
+  function clearLastDeletedRowIndex(): void {
+    lastDeletedRowIndex.value = null;
+  }
+
+  /** Set when undo is performed so DataGrid can restore tax cache for the restored row. */
+  const lastUndoneRowIndex = ref<number | null>(null);
+
+  function clearLastUndoneRowIndex(): void {
+    lastUndoneRowIndex.value = null;
+  }
+
   function removeRow(index: number): void {
     if (index < 0 || index >= rows.value.length) return;
     const row = rows.value[index];
     lastDeleted.value = { row: { ...row } as PayableRow, index };
+    lastDeletedRowIndex.value = index;
     if (row?.recordId) {
       pendingDeletes.value = [...pendingDeletes.value, row.recordId];
     }
@@ -176,6 +195,7 @@ export const usePayableStore = defineStore("payable", () => {
     const d = lastDeleted.value;
     if (!d) return;
     const { row, index } = d;
+    lastUndoneRowIndex.value = index;
     if (row.recordId) {
       pendingDeletes.value = pendingDeletes.value.filter(
         (id) => id !== row.recordId,
@@ -216,6 +236,10 @@ export const usePayableStore = defineStore("payable", () => {
     lastDeleted.value = null;
   }
 
+  function clearError(): void {
+    error.value = null;
+  }
+
   function clearAll(): void {
     rows.value = [emptyRow()];
     error.value = null;
@@ -231,6 +255,8 @@ export const usePayableStore = defineStore("payable", () => {
     mainAdvancePayment.value = null;
     mainCreatorFullName.value = null;
     mainPostedName.value = null;
+    mainApprovedBy.value = null;
+    mainCreatedName.value = null;
     mainPostedDate.value = null;
     mainRejectedBy.value = null;
   }
@@ -315,6 +341,8 @@ export const usePayableStore = defineStore("payable", () => {
       mainWhtExpiryCheck.value = null;
       mainCreatorFullName.value = null;
       mainPostedName.value = null;
+      mainApprovedBy.value = null;
+      mainCreatedName.value = null;
       mainPostedDate.value = null;
       mainRejectedBy.value = null;
       vendorStore.setFromMain(null);
@@ -671,6 +699,20 @@ export const usePayableStore = defineStore("payable", () => {
         "postedName",
       );
       mainPostedName.value = postedName;
+      const approvedBy = getFieldStr(
+        md,
+        "ApprovedBy",
+        "Approved by",
+        "approvedBy",
+      );
+      mainApprovedBy.value = approvedBy;
+      const createdName = getFieldStr(
+        md,
+        "CreatedName",
+        "Created Name",
+        "createdName",
+      );
+      mainCreatedName.value = createdName;
       const code = getFieldStr(md, "Code", "code");
       mainCode.value = code;
       const advPay = md?.AdvancePayment ?? md?.["Advance Payment"];
@@ -722,6 +764,8 @@ export const usePayableStore = defineStore("payable", () => {
       mainWhtExpiryCheck.value = null;
       mainCreatorFullName.value = null;
       mainPostedName.value = null;
+      mainApprovedBy.value = null;
+      mainCreatedName.value = null;
       mainPostedDate.value = null;
       mainRejectedBy.value = null;
       vendorStore.setFromMain(null);
@@ -1404,6 +1448,8 @@ export const usePayableStore = defineStore("payable", () => {
     mainWhtExpiryCheck: computed(() => mainWhtExpiryCheck.value),
     mainCreatorFullName: computed(() => mainCreatorFullName.value),
     mainPostedName: computed(() => mainPostedName.value),
+    mainApprovedBy: computed(() => mainApprovedBy.value),
+    mainCreatedName: computed(() => mainCreatedName.value),
     mainPostedDate: computed(() => mainPostedDate.value),
     mainRejectedBy: computed(() => mainRejectedBy.value),
     mainAdvancePayment: computed(() => mainAdvancePayment.value),
@@ -1420,6 +1466,11 @@ export const usePayableStore = defineStore("payable", () => {
     updateCell,
     setRows,
     clearAll,
+    clearError,
+    lastDeletedRowIndex,
+    clearLastDeletedRowIndex,
+    lastUndoneRowIndex,
+    clearLastUndoneRowIndex,
     recomputeTotal,
     fetchFromFileMaker,
     fetchDetailsByTransRef,

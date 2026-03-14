@@ -14,17 +14,6 @@
       Add row
     </button>
     <button
-      type="button"
-      class="pill-btn flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[var(--input-size)] text-[var(--color-text)] hover:bg-red-500/10 hover:text-red-400"
-      :disabled="!canDeleteRow"
-      @click="$emit('delete-row')"
-    >
-      <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-      </svg>
-      Delete row
-    </button>
-    <button
       v-if="payableStore.hasUndoDelete"
       type="button"
       class="pill-btn flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[var(--input-size)] text-[var(--color-accent)] hover:bg-[var(--color-accent-soft)]"
@@ -44,13 +33,8 @@ import { usePayableStore } from '../stores/payableStore'
 import { useUserRole } from '../composables/useUserRole'
 import { useDocumentSettingsStore } from '../stores/documentSettingsStore'
 
-withDefaults(
-  defineProps<{ canDeleteRow?: boolean }>(),
-  { canDeleteRow: true }
-)
 defineEmits<{
   'add-row': []
-  'delete-row': []
 }>()
 
 const payableStore = usePayableStore()

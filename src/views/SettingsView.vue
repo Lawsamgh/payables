@@ -25,12 +25,19 @@
           >
             <div class="settings-item__icon">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                />
               </svg>
             </div>
             <div class="settings-item__content">
               <span class="settings-item__title">Keyboard shortcuts</span>
-              <span class="settings-item__desc">View all keyboard shortcuts</span>
+              <span class="settings-item__desc"
+                >View all keyboard shortcuts</span
+              >
             </div>
             <svg
               class="settings-item__chevron"
@@ -38,7 +45,12 @@
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 5l7 7-7 7"
+              />
             </svg>
           </router-link>
         </div>
@@ -100,7 +112,9 @@
             </div>
             <div class="settings-item__content">
               <span class="settings-item__title">Reset password</span>
-              <span class="settings-item__desc">Change your sign-in password</span>
+              <span class="settings-item__desc"
+                >Change your sign-in password</span
+              >
             </div>
             <svg
               class="settings-item__chevron"
@@ -120,13 +134,13 @@
       </section>
 
       <!-- Notifications (Admin only) -->
-      <section v-if="userRole?.toLowerCase() === 'admin'" class="settings-section">
+      <section
+        v-if="userRole?.toLowerCase() === 'admin'"
+        class="settings-section"
+      >
         <h2 class="settings-section__title">Notifications</h2>
         <div class="settings-list">
-          <router-link
-            to="/settings/emails"
-            class="settings-item no-underline"
-          >
+          <router-link to="/settings/emails" class="settings-item no-underline">
             <div class="settings-item__icon">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -138,8 +152,12 @@
               </svg>
             </div>
             <div class="settings-item__content">
-              <span class="settings-item__title">Manage notification emails</span>
-              <span class="settings-item__desc">View list and set Active (Yes/No) for each recipient</span>
+              <span class="settings-item__title"
+                >Manage notification emails</span
+              >
+              <span class="settings-item__desc"
+                >View list and set Active (Yes/No) for each recipient</span
+              >
             </div>
             <svg
               class="settings-item__chevron"
@@ -167,54 +185,208 @@
               </svg>
             </div>
             <div class="settings-item__content settings-item__content--full">
-              <span class="settings-item__title">Notification recipient (HOD Email)</span>
               <span class="settings-item__desc"
-                >Choose who receives notification mails, or add a new email to the list</span
+                >Choose who receives notification mails, or add a new email to
+                the list. Copy HOD is CC'd when an officer posts.</span
               >
-              <div class="notification-dropdown mt-3">
-                <div
-                  v-if="!hodInitialLoading"
-                  ref="dropdownTriggerRef"
-                  class="notification-dropdown__trigger"
-                  :class="{
-                    'notification-dropdown__trigger--open': dropdownOpen,
-                    'notification-dropdown__trigger--disabled': savingHodEmail || emailList.loading,
-                    'notification-dropdown__trigger--empty': !hodEmailInput,
-                  }"
-                  role="combobox"
-                  aria-expanded="dropdownOpen"
-                  aria-haspopup="listbox"
-                  aria-controls="notification-recipient-list"
-                  :aria-disabled="savingHodEmail || emailList.loading"
-                  @click="toggleDropdown"
-                >
-                  <span class="notification-dropdown__value">
-                    {{ selectedLabel || 'Select recipient' }}
-                  </span>
-                  <button
-                    type="button"
-                    class="notification-dropdown__add-icon-btn"
-                    :disabled="savingHodEmail || emailList.loading"
-                    title="Add new email to list"
-                    aria-label="Add email"
-                    @click.stop="showAddEmailModal = true"
+              <div class="settings-notification-row mt-3">
+                <div class="settings-notification-col">
+                  <span class="settings-notification-col__label"
+                    >Notification recipient (HOD Email)</span
                   >
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                    </svg>
-                  </button>
-                  <svg
-                    class="notification-dropdown__chevron"
-                    :class="{ 'notification-dropdown__chevron--open': dropdownOpen }"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                  <div class="notification-dropdown">
+                    <div
+                      ref="dropdownTriggerRef"
+                      class="notification-dropdown__trigger"
+                      :class="{
+                        'notification-dropdown__trigger--open': dropdownOpen,
+                        'notification-dropdown__trigger--disabled':
+                          savingHodEmail || emailList.loading,
+                        'notification-dropdown__trigger--empty': !hodEmailInput,
+                      }"
+                      role="combobox"
+                      aria-expanded="dropdownOpen"
+                      aria-haspopup="listbox"
+                      aria-controls="notification-recipient-list"
+                      :aria-disabled="savingHodEmail || emailList.loading"
+                      @click="toggleDropdown"
+                    >
+                      <span class="notification-dropdown__value">
+                        {{ selectedLabel || "Select recipient" }}
+                      </span>
+                      <button
+                        type="button"
+                        class="notification-dropdown__add-icon-btn"
+                        :disabled="savingHodEmail || emailList.loading"
+                        title="Add new email to list"
+                        aria-label="Add email"
+                        @click.stop="showAddEmailModal = true"
+                      >
+                        <svg
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M12 4v16m8-8H4"
+                          />
+                        </svg>
+                      </button>
+                      <svg
+                        class="notification-dropdown__chevron"
+                        :class="{
+                          'notification-dropdown__chevron--open': dropdownOpen,
+                        }"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </div>
+                    <div
+                      v-if="hodInitialLoading"
+                      class="notification-dropdown__skeleton-overlay"
+                      aria-hidden="true"
+                    >
+                      <Skeleton height="2.75rem" class="w-full rounded-2xl" />
+                    </div>
+                  </div>
+                  <p
+                    v-if="hodEmailError"
+                    class="settings-notification__error mt-2"
                   >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                  </svg>
+                    {{ hodEmailError }}
+                  </p>
+                  <p
+                    v-else-if="
+                      !emailList.loading && hodEmailOptions.length === 0
+                    "
+                    class="settings-notification__hint mt-2 text-[var(--color-text-muted)] text-[13px]"
+                  >
+                    No emails yet. Click the + icon to add a notification
+                    recipient.
+                  </p>
                 </div>
-                <div v-else class="notification-dropdown__skeleton">
-                  <Skeleton height="2.75rem" class="w-full rounded-2xl" />
+                <div class="settings-notification-col">
+                  <span class="settings-notification-col__label"
+                    >Copy HOD email</span
+                  >
+                  <div class="notification-dropdown">
+                    <div
+                      ref="copyDropdownTriggerRef"
+                      class="notification-dropdown__trigger"
+                      :class="{
+                        'notification-dropdown__trigger--open':
+                          copyDropdownOpen,
+                        'notification-dropdown__trigger--disabled':
+                          savingCopyHodEmail || emailList.loading,
+                        'notification-dropdown__trigger--empty':
+                          !copyHodEmailInput,
+                      }"
+                      role="combobox"
+                      aria-expanded="copyDropdownOpen"
+                      aria-haspopup="listbox"
+                      aria-controls="copy-notification-recipient-list"
+                      :aria-disabled="savingCopyHodEmail || emailList.loading"
+                      @click="toggleCopyDropdown"
+                    >
+                      <span class="notification-dropdown__value">
+                        {{ copySelectedLabel || "Select recipient" }}
+                      </span>
+                      <svg
+                        class="notification-dropdown__chevron"
+                        :class="{
+                          'notification-dropdown__chevron--open':
+                            copyDropdownOpen,
+                        }"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          stroke-width="2"
+                          d="M19 9l-7 7-7-7"
+                        />
+                      </svg>
+                    </div>
+                    <div
+                      v-if="hodInitialLoading"
+                      class="notification-dropdown__skeleton-overlay"
+                      aria-hidden="true"
+                    >
+                      <Skeleton height="2.75rem" class="w-full rounded-2xl" />
+                    </div>
+                  </div>
+                  <Teleport to="body">
+                    <div
+                      v-if="copyDropdownOpen && copyDropdownPosition"
+                      id="copy-notification-recipient-list"
+                      ref="copyDropdownListRef"
+                      class="notification-dropdown__list"
+                      role="listbox"
+                      :style="{
+                        position: 'fixed',
+                        top: `${copyDropdownPosition.top}px`,
+                        left: `${copyDropdownPosition.left}px`,
+                        width: `${copyDropdownPosition.width}px`,
+                      }"
+                    >
+                      <button
+                        type="button"
+                        class="notification-dropdown__item"
+                        :class="{
+                          'notification-dropdown__item--selected':
+                            !copyHodEmailInput,
+                        }"
+                        role="option"
+                        aria-selected="!copyHodEmailInput"
+                        @click="selectCopyOption('')"
+                      >
+                        <span class="notification-dropdown__item-label"
+                          >— None —</span
+                        >
+                      </button>
+                      <button
+                        v-for="opt in copyHodEmailOptions"
+                        :key="opt.email"
+                        type="button"
+                        class="notification-dropdown__item"
+                        :class="{
+                          'notification-dropdown__item--selected':
+                            copyHodEmailInput === opt.email,
+                        }"
+                        role="option"
+                        :aria-selected="copyHodEmailInput === opt.email"
+                        @click="() => selectCopyOption(opt.email)"
+                      >
+                        <span class="notification-dropdown__item-label">{{
+                          opt.label || opt.email
+                        }}</span>
+                        <span
+                          v-if="opt.label"
+                          class="notification-dropdown__item-email"
+                          >{{ opt.email }}</span
+                        >
+                      </button>
+                    </div>
+                  </Teleport>
+                  <p
+                    v-if="copyHodEmailError"
+                    class="settings-notification__error mt-2"
+                  >
+                    {{ copyHodEmailError }}
+                  </p>
                 </div>
               </div>
               <Teleport to="body">
@@ -234,44 +406,51 @@
                   <button
                     type="button"
                     class="notification-dropdown__item"
-                    :class="{ 'notification-dropdown__item--selected': !hodEmailInput }"
+                    :class="{
+                      'notification-dropdown__item--selected': !hodEmailInput,
+                    }"
                     role="option"
                     aria-selected="!hodEmailInput"
                     @click="selectOption('')"
                   >
-                    <span class="notification-dropdown__item-label">— None —</span>
+                    <span class="notification-dropdown__item-label"
+                      >— None —</span
+                    >
                   </button>
                   <button
                     v-for="opt in hodEmailOptions"
                     :key="opt.email"
                     type="button"
                     class="notification-dropdown__item"
-                    :class="{ 'notification-dropdown__item--selected': hodEmailInput === opt.email }"
+                    :class="{
+                      'notification-dropdown__item--selected':
+                        hodEmailInput === opt.email,
+                    }"
                     role="option"
                     :aria-selected="hodEmailInput === opt.email"
-                    @click="selectOption(opt.email)"
+                    @click="() => selectOption(opt.email)"
                   >
-                    <span class="notification-dropdown__item-label">{{ opt.label || opt.email }}</span>
-                    <span v-if="opt.label" class="notification-dropdown__item-email">{{ opt.email }}</span>
+                    <span class="notification-dropdown__item-label">{{
+                      opt.label || opt.email
+                    }}</span>
+                    <span
+                      v-if="opt.label"
+                      class="notification-dropdown__item-email"
+                      >{{ opt.email }}</span
+                    >
                   </button>
                 </div>
               </Teleport>
-              <p v-if="hodEmailError" class="settings-notification__error mt-2">
-                {{ hodEmailError }}
-              </p>
-              <p
-                v-else-if="!emailList.loading && hodEmailOptions.length === 0"
-                class="settings-notification__hint mt-2 text-[var(--color-text-muted)] text-[13px]"
-              >
-                No emails yet. Click the + icon to add a notification recipient.
-              </p>
             </div>
           </div>
         </div>
       </section>
 
       <!-- Features (Admin only) -->
-      <section v-if="userRole?.toLowerCase() === 'admin'" class="settings-section">
+      <section
+        v-if="userRole?.toLowerCase() === 'admin'"
+        class="settings-section"
+      >
         <h2 class="settings-section__title">General</h2>
         <div class="settings-list">
           <router-link
@@ -280,13 +459,25 @@
           >
             <div class="settings-item__icon">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
               </svg>
             </div>
             <div class="settings-item__content">
               <span class="settings-item__title">Features</span>
-              <span class="settings-item__desc">Enable or disable features for your organisation</span>
+              <span class="settings-item__desc"
+                >Enable or disable features for your organisation</span
+              >
             </div>
             <svg
               class="settings-item__chevron"
@@ -294,7 +485,12 @@
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 5l7 7-7 7"
+              />
             </svg>
           </router-link>
           <router-link
@@ -303,12 +499,19 @@
           >
             <div class="settings-item__icon">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
+                />
               </svg>
             </div>
             <div class="settings-item__content">
-            <span class="settings-item__title">Manage URL</span>
-              <span class="settings-item__desc">Configure URL for vendor cheque collection QR code</span>
+              <span class="settings-item__title">Manage URL</span>
+              <span class="settings-item__desc"
+                >Configure URL for vendor cheque collection QR code</span
+              >
             </div>
             <svg
               class="settings-item__chevron"
@@ -316,7 +519,12 @@
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M9 5l7 7-7 7"
+              />
             </svg>
           </router-link>
         </div>
@@ -326,10 +534,7 @@
       <section v-if="showLogs" class="settings-section">
         <h2 class="settings-section__title">Audit</h2>
         <div class="settings-list">
-          <router-link
-            to="/settings/logs"
-            class="settings-item no-underline"
-          >
+          <router-link to="/settings/logs" class="settings-item no-underline">
             <div class="settings-item__icon">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -367,7 +572,10 @@
       <section v-if="showManageUsersAndDocuments" class="settings-section">
         <h2 class="settings-section__title">Documents</h2>
         <div class="settings-list">
-          <router-link to="/settings/documents" class="settings-item no-underline">
+          <router-link
+            to="/settings/documents"
+            class="settings-item no-underline"
+          >
             <div class="settings-item__icon">
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -380,9 +588,7 @@
             </div>
             <div class="settings-item__content">
               <span class="settings-item__title">Documents</span>
-              <span class="settings-item__desc"
-                >View and manage documents</span
-              >
+              <span class="settings-item__desc">View and manage documents</span>
             </div>
             <svg
               class="settings-item__chevron"
@@ -416,99 +622,193 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { useFileMaker } from '../composables/useFileMaker'
-import { useDocumentSettingsStore } from '../stores/documentSettingsStore'
-import { useEmailListStore } from '../stores/emailListStore'
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
+import { useFileMaker } from "../composables/useFileMaker";
+import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
+import { useEmailListStore } from "../stores/emailListStore";
 import Skeleton from "../components/Skeleton.vue";
-import { useToastStore } from '../stores/toastStore'
-import { LAYOUTS } from '../utils/filemakerApi'
-import type { PayablesUsersFieldData } from '../utils/filemakerApi'
-import ResetPasswordModal from '../components/ResetPasswordModal.vue'
-import AddEmailModal from '../components/AddEmailModal.vue'
+import { useToastStore } from "../stores/toastStore";
+import { LAYOUTS } from "../utils/filemakerApi";
+import type { PayablesUsersFieldData } from "../utils/filemakerApi";
+import ResetPasswordModal from "../components/ResetPasswordModal.vue";
+import AddEmailModal from "../components/AddEmailModal.vue";
 
-const STORAGE_KEY_ROLE = 'fm_user_role'
+const STORAGE_KEY_ROLE = "fm_user_role";
 
-const showResetPasswordModal = ref(false)
-const userRole = ref<string | null>(null)
-const roleLoaded = ref(false)
+const showResetPasswordModal = ref(false);
+const userRole = ref<string | null>(null);
+const roleLoaded = ref(false);
 
-const documentSettings = useDocumentSettingsStore()
-const emailList = useEmailListStore()
-const toast = useToastStore()
-const hodEmailInput = ref('')
-const savingHodEmail = ref(false)
-const hodEmailError = ref<string | null>(null)
-const dropdownOpen = ref(false)
-const dropdownTriggerRef = ref<HTMLElement | null>(null)
-const dropdownListRef = ref<HTMLElement | null>(null)
-const dropdownPosition = ref<{ top: number; left: number; width: number } | null>(null)
-const showAddEmailModal = ref(false)
-const hodInitialLoading = ref(true)
+const documentSettings = useDocumentSettingsStore();
+const emailList = useEmailListStore();
+const toast = useToastStore();
+const hodEmailInput = ref("");
+const savingHodEmail = ref(false);
+const hodEmailError = ref<string | null>(null);
+const copyHodEmailInput = ref("");
+const savingCopyHodEmail = ref(false);
+const copyHodEmailError = ref<string | null>(null);
+const dropdownOpen = ref(false);
+const dropdownTriggerRef = ref<HTMLElement | null>(null);
+const dropdownListRef = ref<HTMLElement | null>(null);
+const dropdownPosition = ref<{
+  top: number;
+  left: number;
+  width: number;
+} | null>(null);
+const copyDropdownOpen = ref(false);
+const copyDropdownTriggerRef = ref<HTMLElement | null>(null);
+const copyDropdownListRef = ref<HTMLElement | null>(null);
+const copyDropdownPosition = ref<{
+  top: number;
+  left: number;
+  width: number;
+} | null>(null);
+const showAddEmailModal = ref(false);
+const hodInitialLoading = ref(true);
 
-const { loggedInEmail, isConnected, findRecordsByQueryWithIds, findRecordsWithIds } = useFileMaker()
+const {
+  loggedInEmail,
+  isConnected,
+  findRecordsByQueryWithIds,
+  findRecordsWithIds,
+} = useFileMaker();
 
 watch(
   () => documentSettings.hodEmail,
   (v) => {
-    hodEmailInput.value = v ?? ''
+    hodEmailInput.value = v ?? "";
   },
   { immediate: true },
-)
+);
+watch(
+  () => documentSettings.copyHodEmail,
+  (v) => {
+    copyHodEmailInput.value = v ?? "";
+  },
+  { immediate: true },
+);
+
+const baseEmailOptions = computed(() => {
+  const list = emailList.options;
+
+  const ensureEmail = (email: string | null | undefined) => {
+    const value = (email ?? "").trim();
+    if (!value) return null;
+    const exists = list.some(
+      (o) => o.email.toLowerCase() === value.toLowerCase(),
+    );
+    if (exists) return null;
+    return { email: value, label: value };
+  };
+
+  const extras = [
+    ensureEmail(documentSettings.hodEmail),
+    ensureEmail(documentSettings.copyHodEmail),
+    ensureEmail(hodEmailInput.value),
+    ensureEmail(copyHodEmailInput.value),
+  ].filter((x): x is { email: string; label: string } => !!x);
+
+  return [...extras, ...list].filter((o): o is NonNullable<typeof o> => o != null);
+});
 
 const hodEmailOptions = computed(() => {
-  const list = emailList.options
-  const current = (documentSettings.hodEmail ?? '').trim()
-  if (!current) return list
-  const hasCurrent = list.some((o) => o.email.toLowerCase() === current.toLowerCase())
-  if (hasCurrent) return list
-  return [{ email: current, label: current }, ...list]
-})
+  return baseEmailOptions.value.filter(
+    (o): o is NonNullable<typeof o> => o != null && !emailsAreSame(o.email, copyHodEmailInput.value),
+  );
+});
+
+const copyHodEmailOptions = computed(() => {
+  return baseEmailOptions.value.filter(
+    (o): o is NonNullable<typeof o> => o != null && !emailsAreSame(o.email, hodEmailInput.value),
+  );
+});
 
 const selectedLabel = computed(() => {
-  if (!hodEmailInput.value) return ''
-  const opt = hodEmailOptions.value.find((o) => o.email === hodEmailInput.value)
-  return opt ? (opt.label || opt.email) : hodEmailInput.value
-})
+  if (!hodEmailInput.value) return "";
+  const opt = hodEmailOptions.value.find(
+    (o) => o != null && o.email === hodEmailInput.value,
+  );
+  return opt ? opt.label || opt.email : hodEmailInput.value;
+});
+
+const copySelectedLabel = computed(() => {
+  if (!copyHodEmailInput.value) return "";
+  const opt = copyHodEmailOptions.value.find(
+    (o) => o != null && o.email === copyHodEmailInput.value,
+  );
+  return opt ? opt.label || opt.email : copyHodEmailInput.value;
+});
 
 function updateDropdownPosition() {
-  const el = dropdownTriggerRef.value
+  const el = dropdownTriggerRef.value;
   if (!el) {
-    dropdownPosition.value = null
-    return
+    dropdownPosition.value = null;
+    return;
   }
-  const rect = el.getBoundingClientRect()
+  const rect = el.getBoundingClientRect();
   dropdownPosition.value = {
     top: rect.bottom + 6,
     left: rect.left,
     width: Math.max(rect.width, 280),
+  };
+}
+
+function updateCopyDropdownPosition() {
+  const el = copyDropdownTriggerRef.value;
+  if (!el) {
+    copyDropdownPosition.value = null;
+    return;
   }
+  const rect = el.getBoundingClientRect();
+  copyDropdownPosition.value = {
+    top: rect.bottom + 6,
+    left: rect.left,
+    width: Math.max(rect.width, 280),
+  };
 }
 
 function toggleDropdown() {
-  if (savingHodEmail.value || emailList.loading) return
-  dropdownOpen.value = !dropdownOpen.value
+  if (savingHodEmail.value || emailList.loading) return;
+  dropdownOpen.value = !dropdownOpen.value;
   if (dropdownOpen.value) {
-    setTimeout(updateDropdownPosition, 0)
+    setTimeout(updateDropdownPosition, 0);
   } else {
-    dropdownPosition.value = null
+    dropdownPosition.value = null;
+  }
+}
+
+function toggleCopyDropdown() {
+  if (savingCopyHodEmail.value || emailList.loading) return;
+  copyDropdownOpen.value = !copyDropdownOpen.value;
+  if (copyDropdownOpen.value) {
+    setTimeout(updateCopyDropdownPosition, 0);
+  } else {
+    copyDropdownPosition.value = null;
   }
 }
 
 function selectOption(email: string) {
-  hodEmailInput.value = email
-  dropdownOpen.value = false
-  dropdownPosition.value = null
-  saveHodEmailField()
+  hodEmailInput.value = email;
+  dropdownOpen.value = false;
+  dropdownPosition.value = null;
+  saveHodEmailField();
+}
+
+function selectCopyOption(email: string) {
+  copyHodEmailInput.value = email;
+  copyDropdownOpen.value = false;
+  copyDropdownPosition.value = null;
+  saveCopyHodEmailField();
 }
 
 function onEmailAdded(email: string) {
-  hodEmailInput.value = email
-  saveHodEmailField()
+  hodEmailInput.value = email;
+  saveHodEmailField();
 }
 
 function handleClickOutside(e: MouseEvent) {
-  const target = e.target as Node
+  const target = e.target as Node;
   if (
     dropdownOpen.value &&
     dropdownTriggerRef.value &&
@@ -516,129 +816,198 @@ function handleClickOutside(e: MouseEvent) {
     dropdownListRef.value &&
     !dropdownListRef.value.contains(target)
   ) {
-    dropdownOpen.value = false
-    dropdownPosition.value = null
+    dropdownOpen.value = false;
+    dropdownPosition.value = null;
+  }
+  if (
+    copyDropdownOpen.value &&
+    copyDropdownTriggerRef.value &&
+    !copyDropdownTriggerRef.value.contains(target) &&
+    copyDropdownListRef.value &&
+    !copyDropdownListRef.value.contains(target)
+  ) {
+    copyDropdownOpen.value = false;
+    copyDropdownPosition.value = null;
   }
 }
 
+function emailsAreSame(
+  a: string | null | undefined,
+  b: string | null | undefined,
+): boolean {
+  const first = (a ?? "").trim().toLowerCase();
+  const second = (b ?? "").trim().toLowerCase();
+  return !!first && !!second && first === second;
+}
+
 async function saveHodEmailField() {
-  hodEmailError.value = null
-  savingHodEmail.value = true
-  const { error } = await documentSettings.saveHodEmail(hodEmailInput.value ?? '')
-  savingHodEmail.value = false
-  if (error) hodEmailError.value = error
+  hodEmailError.value = null;
+  copyHodEmailError.value = null;
+
+  if (emailsAreSame(hodEmailInput.value, copyHodEmailInput.value)) {
+    const msg = "HOD email and Copy HOD email must be different.";
+    hodEmailError.value = msg;
+    toast.error(msg);
+    return;
+  }
+
+  savingHodEmail.value = true;
+  const { error } = await documentSettings.saveHodEmail(
+    hodEmailInput.value ?? "",
+  );
+  savingHodEmail.value = false;
+  if (error) hodEmailError.value = error;
+}
+
+async function saveCopyHodEmailField() {
+  copyHodEmailError.value = null;
+  hodEmailError.value = null;
+
+  if (emailsAreSame(hodEmailInput.value, copyHodEmailInput.value)) {
+    const msg = "HOD email and Copy HOD email must be different.";
+    copyHodEmailError.value = msg;
+    toast.error(msg);
+    return;
+  }
+
+  savingCopyHodEmail.value = true;
+  const { error } = await documentSettings.saveCopyHodEmail(
+    copyHodEmailInput.value ?? "",
+  );
+  savingCopyHodEmail.value = false;
+  if (error) copyHodEmailError.value = error;
 }
 
 function readCachedRole(): string | null {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY_ROLE)
-    if (!raw) return null
-    const { email, role } = JSON.parse(raw) as { email?: string; role?: string }
-    const current = loggedInEmail.value?.trim().toLowerCase()
-    if (!email || !current || email.toLowerCase() !== current) return null
-    return role && String(role).trim() ? String(role).trim() : null
+    const raw = sessionStorage.getItem(STORAGE_KEY_ROLE);
+    if (!raw) return null;
+    const { email, role } = JSON.parse(raw) as {
+      email?: string;
+      role?: string;
+    };
+    const current = loggedInEmail.value?.trim().toLowerCase();
+    if (!email || !current || email.toLowerCase() !== current) return null;
+    return role && String(role).trim() ? String(role).trim() : null;
   } catch {
-    return null
+    return null;
   }
 }
 
 function writeCachedRole(role: string | null) {
   try {
-    const email = loggedInEmail.value?.trim()
-    if (!email) return
-    sessionStorage.setItem(STORAGE_KEY_ROLE, JSON.stringify({ email, role: role ?? '' }))
+    const email = loggedInEmail.value?.trim();
+    if (!email) return;
+    sessionStorage.setItem(
+      STORAGE_KEY_ROLE,
+      JSON.stringify({ email, role: role ?? "" }),
+    );
   } catch {
     /* ignore */
   }
 }
 
 const showManageUsersAndDocuments = computed(() => {
-  if (!roleLoaded.value) return false
-  const r = userRole.value?.trim()
-  if (!r) return false
-  const lower = r.toLowerCase()
-  return lower !== 'officer' && lower !== 'manager'
-})
+  if (!roleLoaded.value) return false;
+  const r = userRole.value?.trim();
+  if (!r) return false;
+  const lower = r.toLowerCase();
+  return lower !== "officer" && lower !== "manager";
+});
 
 const showLogs = computed(() => {
-  if (!roleLoaded.value) return false
-  const r = userRole.value?.trim().toLowerCase()
-  return r === 'admin' || r === 'manager'
-})
+  if (!roleLoaded.value) return false;
+  const r = userRole.value?.trim().toLowerCase();
+  return r === "admin" || r === "manager";
+});
 
-function getFieldValue(fd: Record<string, unknown> | undefined, key: string): string {
-  if (!fd) return ''
-  const v = fd[key] ?? fd[key.replace(/([A-Z])/g, ' $1').trim()] ?? fd[key.charAt(0).toLowerCase() + key.slice(1)]
-  if (v == null || v === '') return ''
-  return String(v).trim()
+function getFieldValue(
+  fd: Record<string, unknown> | undefined,
+  key: string,
+): string {
+  if (!fd) return "";
+  const v =
+    fd[key] ??
+    fd[key.replace(/([A-Z])/g, " $1").trim()] ??
+    fd[key.charAt(0).toLowerCase() + key.slice(1)];
+  if (v == null || v === "") return "";
+  return String(v).trim();
 }
 
 async function loadUserRole() {
-  const email = loggedInEmail.value
+  const email = loggedInEmail.value;
   if (!email || !isConnected.value) {
-    userRole.value = null
-    roleLoaded.value = false
-    return
+    userRole.value = null;
+    roleLoaded.value = false;
+    return;
   }
-  const normalizedEmail = String(email).trim().toLowerCase()
+  const normalizedEmail = String(email).trim().toLowerCase();
   const { data } = await findRecordsByQueryWithIds<PayablesUsersFieldData>(
     LAYOUTS.PAYABLES_USERS,
     { Email: email },
-    1
-  )
-  let fd: Record<string, unknown> | undefined = data?.[0]?.fieldData as Record<string, unknown> | undefined
+    1,
+  );
+  let fd: Record<string, unknown> | undefined = data?.[0]?.fieldData as
+    | Record<string, unknown>
+    | undefined;
   if (!data?.length) {
-    const { data: users } = await findRecordsWithIds<PayablesUsersFieldData | Record<string, unknown>>(
-      LAYOUTS.PAYABLES_USERS,
-      { limit: 500 }
-    )
+    const { data: users } = await findRecordsWithIds<
+      PayablesUsersFieldData | Record<string, unknown>
+    >(LAYOUTS.PAYABLES_USERS, { limit: 500 });
     const match = users.find((r) => {
-      const rowFd = r?.fieldData as Record<string, unknown> | undefined
-      const rowEmail = getFieldValue(rowFd, 'Email')
-      return rowEmail.trim().toLowerCase() === normalizedEmail
-    })
-    fd = match?.fieldData as Record<string, unknown> | undefined
+      const rowFd = r?.fieldData as Record<string, unknown> | undefined;
+      const rowEmail = getFieldValue(rowFd, "Email");
+      return rowEmail.trim().toLowerCase() === normalizedEmail;
+    });
+    fd = match?.fieldData as Record<string, unknown> | undefined;
   }
-  const role = getFieldValue(fd, 'Role')
-  userRole.value = role || null
-  roleLoaded.value = true
-  writeCachedRole(userRole.value)
+  const role = getFieldValue(fd, "Role");
+  userRole.value = role || null;
+  roleLoaded.value = true;
+  writeCachedRole(userRole.value);
 }
 
 watch([isConnected, loggedInEmail], () => {
-  if (isConnected.value && loggedInEmail.value) loadUserRole()
+  if (isConnected.value && loggedInEmail.value) loadUserRole();
   else {
-    userRole.value = null
-    roleLoaded.value = false
+    userRole.value = null;
+    roleLoaded.value = false;
   }
-})
+});
 
 function handleScroll() {
   if (dropdownOpen.value) {
-    updateDropdownPosition()
+    updateDropdownPosition();
   }
 }
 
 onMounted(async () => {
-  document.addEventListener('click', handleClickOutside)
-  window.addEventListener('scroll', handleScroll, true)
-  const email = loggedInEmail.value
+  document.addEventListener("click", handleClickOutside);
+  window.addEventListener("scroll", handleScroll, true);
+  const email = loggedInEmail.value;
   if (email && isConnected.value) {
-    const cached = readCachedRole()
+    const cached = readCachedRole();
     if (cached != null) {
-      userRole.value = cached
-      roleLoaded.value = true
+      userRole.value = cached;
+      roleLoaded.value = true;
     }
-    loadUserRole()
+    loadUserRole();
   }
-  await emailList.loadEmailList()
-  hodInitialLoading.value = false
-})
+  // Show skeleton while both settings and email list are loading
+  try {
+    await Promise.all([
+      documentSettings.loadFromFileMaker(),
+      emailList.loadEmailList(),
+    ]);
+  } finally {
+    hodInitialLoading.value = false;
+  }
+});
 
 onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-  window.removeEventListener('scroll', handleScroll, true)
-})
+  document.removeEventListener("click", handleClickOutside);
+  window.removeEventListener("scroll", handleScroll, true);
+});
 </script>
 
 <style scoped>
@@ -712,6 +1081,45 @@ a.settings-item:hover {
   flex-wrap: wrap;
 }
 
+.settings-notification-row {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.settings-notification-col {
+  flex: 0 0 50%;
+  max-width: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.settings-notification-col:last-child {
+  padding-right: 1.5rem;
+}
+
+.settings-notification-col__label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.settings-notification-col .notification-dropdown {
+  width: 100%;
+  min-width: 0;
+}
+
+.settings-notification-col .notification-dropdown__trigger {
+  min-width: 0;
+  width: 100%;
+}
+
+.settings-copy-hod-inline__controls {
+  width: 100%;
+}
+
 .notification-dropdown {
   position: relative;
   display: flex;
@@ -729,6 +1137,9 @@ a.settings-item:hover {
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.625rem 1rem;
+  min-height: 2.75rem;
+  height: 2.75rem;
+  box-sizing: border-box;
   font-size: 0.9375rem;
   color: var(--color-text);
   /* Default: use card background; dark-mode override below makes it near-black */
@@ -739,7 +1150,9 @@ a.settings-item:hover {
   transition: all 0.2s ease;
 }
 
-.notification-dropdown__trigger:hover:not(.notification-dropdown__trigger--disabled) {
+.notification-dropdown__trigger:hover:not(
+    .notification-dropdown__trigger--disabled
+  ) {
   background-color: var(--color-bg-card);
   border-color: rgba(148, 163, 184, 0.25);
 }
@@ -760,12 +1173,19 @@ a.settings-item:hover {
   text-align: left;
 }
 
-.notification-dropdown__trigger:not(.notification-dropdown__trigger--disabled) .notification-dropdown__value {
+.notification-dropdown__trigger:not(.notification-dropdown__trigger--disabled)
+  .notification-dropdown__value {
   color: var(--color-text);
 }
 
 .notification-dropdown__trigger--empty .notification-dropdown__value {
   color: var(--color-text-muted);
+}
+
+.notification-dropdown__skeleton-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
 
 .notification-dropdown__chevron {
@@ -796,7 +1216,6 @@ a.settings-item:hover {
   gap: 1px;
   padding: 0.5rem;
 }
-
 
 .notification-dropdown__item {
   display: flex;
@@ -830,7 +1249,10 @@ html:not(.theme-light) .notification-dropdown__trigger {
   background-color: #020617;
 }
 
-html:not(.theme-light) .notification-dropdown__trigger:hover:not(.notification-dropdown__trigger--disabled) {
+html:not(.theme-light)
+  .notification-dropdown__trigger:hover:not(
+    .notification-dropdown__trigger--disabled
+  ) {
   background-color: #020617;
 }
 
@@ -856,7 +1278,10 @@ html.theme-light .notification-dropdown__trigger {
   border-color: rgba(148, 163, 184, 0.5);
 }
 
-html.theme-light .notification-dropdown__trigger:hover:not(.notification-dropdown__trigger--disabled) {
+html.theme-light
+  .notification-dropdown__trigger:hover:not(
+    .notification-dropdown__trigger--disabled
+  ) {
   background-color: #ffffff;
   border-color: rgba(148, 163, 184, 0.7);
 }
@@ -1028,16 +1453,20 @@ html.theme-light .notification-dropdown__item--selected {
   border-radius: 9999px;
   background: rgba(148, 163, 184, 0.25);
   border: 1px solid var(--color-border);
-  transition: background-color 0.2s, border-color 0.2s;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
 }
 .settings-toggle__track::after {
-  content: '';
+  content: "";
   width: 1rem;
   height: 1rem;
   border-radius: 50%;
   background: var(--color-text-muted);
   margin-left: 0.125rem;
-  transition: transform 0.2s, background-color 0.2s;
+  transition:
+    transform 0.2s,
+    background-color 0.2s;
 }
 .settings-toggle__input:checked + .settings-toggle__track {
   background: rgba(251, 146, 60, 0.25);

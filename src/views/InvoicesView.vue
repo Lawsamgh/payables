@@ -54,8 +54,8 @@
               'invoice-select-mailable--disabled': mailableInListCount === 0,
             }"
             :disabled="mailableInListCount === 0"
-            :title="mailableInListCount === 0 ? 'Filter to Approved + Not issued to see mailable invoices' : (invoiceMailSelection.allSelected ? 'Deselect all' : `Select all ${mailableInListCount} approved (with email, not issued)`)"
-            :aria-label="mailableInListCount === 0 ? 'No mailable invoices' : (invoiceMailSelection.allSelected ? 'Deselect all' : `Select all ${mailableInListCount} mailable`)"
+            :title="selectAllMailableTitle"
+            :aria-label="selectAllMailableAria"
             @click="mailableInListCount > 0 && onHeaderSelectAllMail()"
           >
             <svg class="invoice-select-mailable__icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -423,7 +423,7 @@
               :class="{ 'invoice-list-row__mail-select--selected': invoiceMailSelection.isSelected((item.fieldData as PayablesMainFieldData).TransRef ?? '') }"
               :title="invoiceMailSelection.isSelected((item.fieldData as PayablesMainFieldData).TransRef ?? '') ? 'Remove from send mail' : 'Select for send mail'"
               :aria-label="invoiceMailSelection.isSelected((item.fieldData as PayablesMainFieldData).TransRef ?? '') ? 'Remove from send mail' : 'Select for send mail'"
-              @click.stop="invoiceMailSelection.toggle((item.fieldData as PayablesMainFieldData).TransRef ?? '')"
+              @click.stop="onToggleMailSelection((item.fieldData as PayablesMainFieldData).TransRef ?? '')"
             >
               <span v-if="invoiceMailSelection.isSelected((item.fieldData as PayablesMainFieldData).TransRef ?? '')" class="invoice-list-row__mail-check">
                 <svg class="h-3 w-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
@@ -627,7 +627,7 @@
                     :class="{ 'pdf-thumb__mail-select--selected': invoiceMailSelection.isSelected((item.fieldData as PayablesMainFieldData).TransRef ?? '') }"
                     :title="invoiceMailSelection.isSelected((item.fieldData as PayablesMainFieldData).TransRef ?? '') ? 'Remove from send mail' : 'Select for send mail'"
                     :aria-label="invoiceMailSelection.isSelected((item.fieldData as PayablesMainFieldData).TransRef ?? '') ? 'Remove from send mail' : 'Select for send mail'"
-                    @click.stop="invoiceMailSelection.toggle((item.fieldData as PayablesMainFieldData).TransRef ?? '')"
+                    @click.stop="onToggleMailSelection((item.fieldData as PayablesMainFieldData).TransRef ?? '')"
                   >
                     <span v-if="invoiceMailSelection.isSelected((item.fieldData as PayablesMainFieldData).TransRef ?? '')" class="pdf-thumb__mail-select-check">
                       <svg class="pdf-thumb__mail-select-icon" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
@@ -803,6 +803,44 @@ const mailableInListCount = computed(
   () => invoiceMailSelection.mailableItems.size,
 );
 
+const maxMailSelection = computed(() => {
+  const n = documentSettings.emailMaxLimit;
+  if (!Number.isFinite(n as number)) return 5;
+  const val = Number(n);
+  if (!Number.isFinite(val) || val <= 0) return 5;
+  return Math.max(1, Math.min(50, Math.round(val)));
+});
+
+const selectAllMailableTitle = computed(() => {
+  if (mailableInListCount.value === 0) {
+    return "Filter to Approved + Not issued to see mailable invoices";
+  }
+  if (invoiceMailSelection.allSelected) {
+    return "Deselect all selected invoices for Send mail";
+  }
+  const total = mailableInListCount.value;
+  const max = maxMailSelection.value;
+  if (total <= max) {
+    return `Select all ${total} approved (with email, not issued) for Send mail`;
+  }
+  return `Select up to ${max} of ${total} approved (with email, not issued) for Send mail`;
+});
+
+const selectAllMailableAria = computed(() => {
+  if (mailableInListCount.value === 0) {
+    return "No mailable invoices";
+  }
+  if (invoiceMailSelection.allSelected) {
+    return "Deselect all selected mailable invoices";
+  }
+  const total = mailableInListCount.value;
+  const max = maxMailSelection.value;
+  if (total <= max) {
+    return `Select all ${total} mailable invoices`;
+  }
+  return `Select up to ${max} of ${total} mailable invoices`;
+});
+
 const mailableTransRefs = computed(() =>
   filteredList.value
     .filter(canSelectForMail)
@@ -870,6 +908,18 @@ function formatAmount(fd: PayablesMainFieldData): string {
   const formatted = formatNumberDisplay(total);
   if (!formatted) return "—";
   return curr ? `${curr} ${formatted}` : formatted;
+}
+
+function onToggleMailSelection(transRef: string): void {
+  const { ok, reason } = invoiceMailSelection.toggle(
+    transRef,
+    maxMailSelection.value,
+  );
+  if (!ok && reason === "limit") {
+    toast.error(
+      `You can select at most ${maxMailSelection.value} invoices to send mail at once.`,
+    );
+  }
 }
 
 function statusBadgeClass(status: string | undefined): string {
@@ -1060,8 +1110,16 @@ function canSelectForMail(item: FindRecordWithId<PayablesMainFieldData>): boolea
 function onHeaderSelectAllMail() {
   if (invoiceMailSelection.allSelected) {
     invoiceMailSelection.clear();
-  } else {
-    invoiceMailSelection.selectRefs(mailableTransRefs.value);
+    return;
+  }
+  const { limited } = invoiceMailSelection.selectRefs(
+    mailableTransRefs.value,
+    maxMailSelection.value,
+  );
+  if (limited) {
+    toast.error(
+      `You can select at most ${maxMailSelection.value} invoices to send mail at once.`,
+    );
   }
 }
 
