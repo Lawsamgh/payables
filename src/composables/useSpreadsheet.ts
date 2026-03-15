@@ -34,7 +34,12 @@ const selectedRowIndices = ref<Set<number>>(new Set())
 const clipboard = ref<string | number | null>(null)
 const clipboardIsCut = ref(false)
 
-export function useSpreadsheet() {
+export interface UseSpreadsheetOptions {
+  /** Called after any cell value is set. Use to e.g. recalc dependent cells when amount changes. */
+  afterSetCell?: (row: number, col: number, value: string | number) => void
+}
+
+export function useSpreadsheet(options?: UseSpreadsheetOptions) {
   const payableStore = usePayableStore()
 
   const rows = computed<PayableRow[]>(() => payableStore.rows)
@@ -67,6 +72,7 @@ export function useSpreadsheet() {
   function setCellValue(row: number, col: number, value: string | number): void {
     const key = COLUMN_KEYS[col]
     payableStore.updateCell(row, key, String(value))
+    options?.afterSetCell?.(row, col, value)
   }
 
   function evaluateCellFormula(formula: string): number | string {

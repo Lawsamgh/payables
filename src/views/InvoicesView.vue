@@ -48,6 +48,28 @@
           </div>
           <button
             type="button"
+            class="pill-btn glass-input inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-4 py-2.5 text-[var(--label-size)] font-medium text-[var(--color-text-muted)] transition-colors hover:bg-white/5 hover:text-[var(--color-text)]"
+            :disabled="filteredList.length === 0 || exportingPdf"
+            aria-label="Export invoices table to PDF"
+            @click="onExportPdf"
+          >
+            <svg
+              class="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+              />
+            </svg>
+            PDF
+          </button>
+          <button
+            type="button"
             class="invoice-select-mailable pill-btn"
             :class="{
               'invoice-select-mailable--active': invoiceMailSelection.allSelected,
@@ -713,6 +735,8 @@ const invoiceViewMode = ref<"grid" | "list">(
 const downloadingTransRef = ref<string | null>(null);
 /** Whether combined PDF download is in progress. */
 const downloadingCombined = ref(false);
+/** Whether table PDF export is in progress. */
+const exportingPdf = ref(false);
 
 const filteredList = computed(() => {
   let result = list.value;
@@ -957,6 +981,104 @@ function canShowDownload(status: string | undefined): boolean {
   if (when === "approved_only") return s === "Approved";
   if (when === "once_posted") return s === "Posted" || s === "Approved";
   return false;
+}
+
+function getPdfExportRows(): string[][] {
+  const headers = ["Ref", "Date", "PO", "Vendor", "Status", "Total", "Cheque"];
+  const rows = filteredList.value.map((item) => {
+    const fd = item.fieldData as PayablesMainFieldData;
+    const chequeStr =
+      getChequeIssued(fd) === "Yes"
+        ? `${getChequeDisplay(fd)}${getChequeIssuedDateFormatted(fd) ? " · " + getChequeIssuedDateFormatted(fd) : ""}`
+        : "—";
+    return [
+      fd.TransRef ?? "—",
+      formatDate(fd.Date),
+      fd.PurchaseOrder ?? (fd as Record<string, unknown>)?.["Purchase Order"] ?? "—",
+      fd.VendorName ?? "—",
+      fd.Status ?? "—",
+      formatAmount(fd),
+      chequeStr,
+    ];
+  });
+  return [headers, ...rows];
+}
+
+async function onExportPdf() {
+  if (filteredList.value.length === 0) return;
+  exportingPdf.value = true;
+  try {
+    const [pdfMakeModule, vfsModule] = await Promise.all([
+      import("pdfmake/build/pdfmake"),
+      import("pdfmake/build/vfs_fonts"),
+    ]);
+    const pdfMake = (pdfMakeModule as { default: unknown }).default as {
+      createPdf: (def: unknown) => { download: (name: string) => void };
+      addVirtualFileSystem?: (vfs: Record<string, string>) => void;
+    };
+    const vfs = (vfsModule as { default: Record<string, string> }).default;
+    if (pdfMake.addVirtualFileSystem && vfs) {
+      pdfMake.addVirtualFileSystem(vfs);
+    }
+    const rows = getPdfExportRows();
+    const [headerRow, ...dataRows] = rows;
+    const body = [
+      headerRow.map((cell) => ({
+        text: cell,
+        style: "tableHeader",
+        fillColor: "#1e293b",
+      })),
+      ...dataRows.map((row) =>
+        row.map((cell) => ({ text: cell, style: "tableCell" })),
+      ),
+    ];
+    const docDefinition = {
+      pageSize: "A4" as const,
+      pageOrientation: "landscape" as const,
+      pageMargins: [40, 40, 40, 60],
+      defaultStyle: { fontSize: 8 },
+      styles: {
+        tableHeader: { bold: true, color: "#f1f5f9", fontSize: 7 },
+        tableCell: { fontSize: 8 },
+      },
+      content: [
+        {
+          text: "Invoices",
+          fontSize: 16,
+          bold: true,
+          margin: [0, 0, 0, 8],
+        },
+        {
+          text: "Cheque: Shows whether a cheque has been issued. If yes, displays bank name, cheque number (e.g. #12345), and collection date if available.",
+          fontSize: 8,
+          color: "#64748b",
+          margin: [0, 0, 0, 12],
+        },
+        {
+          table: {
+            headerRows: 1,
+            widths: ["auto", "auto", "auto", "*", "auto", "auto", "auto"],
+            body,
+          },
+          layout: "lightHorizontalLines",
+        },
+      ],
+      footer: (currentPage: number, pageCount: number) => ({
+        margin: [40, 8, 40, 0],
+        text: `Page ${currentPage} of ${pageCount}`,
+        fontSize: 8,
+        alignment: "center" as const,
+      }),
+    };
+    const filename = `invoices-${new Date().toISOString().slice(0, 10)}.pdf`;
+    pdfMake.createPdf(docDefinition).download(filename);
+    toast.success("PDF downloaded.");
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "PDF export failed.";
+    toast.error(msg);
+  } finally {
+    exportingPdf.value = false;
+  }
 }
 
 /** Download all filtered invoices as a combined PDF. */

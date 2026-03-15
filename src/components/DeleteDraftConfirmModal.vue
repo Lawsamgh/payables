@@ -8,9 +8,8 @@
         aria-modal="true"
         aria-labelledby="delete-draft-modal-title"
         aria-describedby="delete-draft-modal-desc"
-        @click.self="cancel"
       >
-        <div class="delete-draft-modal">
+        <div class="delete-draft-modal" role="document" @click.stop>
           <div class="delete-draft-modal__icon-wrap">
             <svg
               class="delete-draft-modal__icon"
@@ -32,24 +31,42 @@
           </h2>
           <p id="delete-draft-modal-desc" class="delete-draft-modal__message">
             This draft entry will be permanently deleted. This cannot be undone.
+            Please provide a reason for the activity log.
           </p>
-          <div class="delete-draft-modal__actions">
-            <button
-              type="button"
-              class="delete-draft-modal__btn delete-draft-modal__btn--cancel"
-              @click="cancel"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              class="delete-draft-modal__btn delete-draft-modal__btn--danger"
-              :disabled="deleting"
-              @click="confirm"
-            >
-              {{ deleting ? "Deleting…" : "Delete draft" }}
-            </button>
-          </div>
+          <form class="delete-draft-modal__form" @submit.prevent="submit">
+            <label class="delete-draft-modal__label" for="delete-reason-input">
+              Reason (required)
+            </label>
+            <textarea
+              id="delete-reason-input"
+              ref="textareaRef"
+              v-model="localReason"
+              class="delete-draft-modal__textarea"
+              placeholder="e.g. Duplicate entry, wrong vendor, created by mistake..."
+              rows="3"
+              required
+            />
+            <p v-if="validationError" class="delete-draft-modal__error" role="alert">
+              {{ validationError }}
+            </p>
+            <div class="delete-draft-modal__actions">
+              <button
+                type="button"
+                class="delete-draft-modal__btn delete-draft-modal__btn--cancel"
+                :disabled="deleting"
+                @click="cancel"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                class="delete-draft-modal__btn delete-draft-modal__btn--danger"
+                :disabled="deleting"
+              >
+                {{ deleting ? "Deleting…" : "Delete draft" }}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </Transition>
@@ -57,15 +74,38 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{ visible: boolean; deleting?: boolean }>();
-const emit = defineEmits<{ confirm: []; cancel: [] }>();
+import { ref, watch } from "vue";
 
-function confirm() {
-  emit("confirm");
-}
+const props = defineProps<{ visible: boolean; deleting?: boolean }>();
+const emit = defineEmits<{ submit: [reason: string]; cancel: [] }>();
+
+const localReason = ref("");
+const validationError = ref("");
+const textareaRef = ref<HTMLTextAreaElement | null>(null);
+
+watch(
+  () => props.visible,
+  (v) => {
+    if (v) {
+      localReason.value = "";
+      validationError.value = "";
+      requestAnimationFrame(() => textareaRef.value?.focus());
+    }
+  },
+);
 
 function cancel() {
   emit("cancel");
+}
+
+function submit() {
+  const trimmed = localReason.value.trim();
+  if (!trimmed) {
+    validationError.value = "Please enter a reason for deletion.";
+    return;
+  }
+  validationError.value = "";
+  emit("submit", trimmed);
 }
 </script>
 
@@ -84,7 +124,7 @@ function cancel() {
 
 .delete-draft-modal {
   width: 100%;
-  max-width: 22rem;
+  max-width: 26rem;
   padding: 1.75rem 1.5rem;
   background: linear-gradient(
     180deg,
@@ -125,17 +165,68 @@ function cancel() {
 }
 
 .delete-draft-modal__message {
-  margin: 0 0 1.5rem;
+  margin: 0 0 1rem;
   font-size: 0.9375rem;
   line-height: 1.55;
   color: var(--color-text-muted);
 }
 
+.delete-draft-modal__form {
+  margin-top: 0.5rem;
+  text-align: left;
+}
+
+.delete-draft-modal__label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.delete-draft-modal__textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: var(--label-size);
+  font-family: inherit;
+  line-height: 1.5;
+  color: var(--color-text);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  resize: vertical;
+  min-height: 4.5rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.delete-draft-modal__textarea::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.7;
+}
+
+.delete-draft-modal__textarea:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.delete-draft-modal__textarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.delete-draft-modal__error {
+  margin: 0.5rem 0 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #f87171;
+}
+
 .delete-draft-modal__actions {
   display: flex;
   gap: 0.75rem;
-  justify-content: center;
+  justify-content: flex-end;
   flex-wrap: wrap;
+  margin-top: 1.25rem;
 }
 
 .delete-draft-modal__btn {

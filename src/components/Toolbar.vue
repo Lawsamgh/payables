@@ -1,11 +1,8 @@
 <template>
-  <div
-    v-if="!readOnly"
-    class="flex flex-wrap items-center gap-2 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-bg-card)] px-3 py-2 backdrop-blur-[var(--blur-glass)]"
-  >
+  <div v-if="!readOnly" class="flex flex-wrap items-center gap-2">
     <button
       type="button"
-      class="pill-btn flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[var(--input-size)] text-[var(--color-text)] hover:bg-[var(--color-accent-soft)]"
+      class="pill-btn glass-input inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[var(--input-size)] text-[var(--color-text-muted)] hover:bg-white/5 hover:text-[var(--color-text)] transition-colors"
       @click="$emit('add-row')"
     >
       <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

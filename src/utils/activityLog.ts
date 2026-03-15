@@ -14,6 +14,7 @@ export type ActivityAction =
   | 'Approved'
   | 'Reposted'
   | 'Deleted'
+  | 'Collected'
   | 'EditRequested'
   | 'EditAllowed'
 
@@ -29,6 +30,8 @@ export async function writeActivityLog(
   action: ActivityAction,
   actor: string,
   reason?: string,
+  amountAtAction?: number | string | null,
+  vendorNameAtAction?: string | null,
 ): Promise<string | null> {
   const payload: Record<string, string | number | null | undefined> = {
     TransRef: transRef,
@@ -38,6 +41,15 @@ export async function writeActivityLog(
   }
   if (reason != null && reason.trim() !== '') {
     payload.Reason = reason.trim()
+  }
+  if (amountAtAction != null && amountAtAction !== '') {
+    const num = typeof amountAtAction === 'number' ? amountAtAction : parseFloat(String(amountAtAction))
+    if (!Number.isNaN(num)) {
+      payload.AmountAtAction = num
+    }
+  }
+  if (vendorNameAtAction != null && String(vendorNameAtAction).trim() !== '') {
+    payload.VendorNameAtAction = String(vendorNameAtAction).trim()
   }
   const { error } = await createRecord(LAYOUTS.PAYABLES_ACTIVITY_LOG, payload)
   return error ?? null

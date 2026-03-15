@@ -139,6 +139,121 @@ html.theme-light .tax-modal-backdrop {
   background: rgba(15, 23, 42, 0.25);
 }
 
+html.theme-light .right-sidebar-modal-backdrop {
+  background: rgba(15, 23, 42, 0.35);
+}
+
+html.theme-light .right-sidebar-modal-panel {
+  background: #ffffff;
+  border-left: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.08), -4px 0 12px rgba(0, 0, 0, 0.04);
+}
+
+html.theme-light .right-sidebar-modal__header {
+  background: #ffffff;
+  border-bottom-color: rgba(148, 163, 184, 0.25);
+}
+
+html.theme-light .right-sidebar-modal__title {
+  color: #0f172a;
+}
+
+html.theme-light .right-sidebar-modal__close {
+  color: #64748b;
+}
+
+html.theme-light .right-sidebar-modal__close:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #0f172a;
+}
+
+html.theme-light .right-sidebar-modal__body {
+  background: #f8fafc;
+}
+
+html.theme-light .right-sidebar-modal__body .peek-sidebar-sticky {
+  background: #f8fafc;
+  border-bottom-color: rgba(148, 163, 184, 0.3);
+}
+
+html.theme-light .right-sidebar-modal__body .tax-search-bar {
+  background: transparent;
+  border-bottom: none;
+}
+
+html.theme-light .right-sidebar-modal__body .logs-table thead th {
+  background: #ffffff;
+}
+
+/* Sidebar hint text in light mode */
+html.theme-light .right-sidebar-modal__body .tax-peek-hint {
+  color: #64748b;
+}
+
+/* Sidebar search bar in light mode (teleported content) */
+html.theme-light .right-sidebar-modal__body .search-bar__wrap {
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  color: #0f172a;
+}
+
+html.theme-light .right-sidebar-modal__body .search-bar__wrap:hover {
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+html.theme-light .right-sidebar-modal__body .search-bar__wrap:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+html.theme-light .right-sidebar-modal__body .search-bar__input {
+  color: #0f172a;
+}
+
+html.theme-light .right-sidebar-modal__body .search-bar__input::placeholder {
+  color: #94a3b8;
+}
+
+html.theme-light .right-sidebar-modal__body .tax-search-bar__filter-wrap {
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+}
+
+html.theme-light .right-sidebar-modal__body .tax-search-bar__filter-wrap:hover {
+  border-color: rgba(148, 163, 184, 0.5);
+}
+
+html.theme-light .right-sidebar-modal__body .tax-search-bar__filter {
+  color: #0f172a;
+}
+
+html.theme-light .right-sidebar-modal__body .tax-search-bar__hint {
+  color: #64748b;
+}
+
+/* Sidebar peek cards container in light mode */
+html.theme-light .right-sidebar-modal__body .logs-table-wrap {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+/* Entry view floating action buttons – light mode */
+html.theme-light .entry-fab,
+.app-layout.theme-light .entry-fab {
+  background: #ffffff !important;
+  border: 1px solid rgba(148, 163, 184, 0.45) !important;
+  color: #0f172a !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+}
+html.theme-light .entry-fab:hover,
+.app-layout.theme-light .entry-fab:hover {
+  background: #f1f5f9 !important;
+  border-color: rgba(100, 116, 139, 0.5) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1), 0 3px 8px rgba(0, 0, 0, 0.06) !important;
+  color: #0f172a !important;
+}
+
 html.theme-light .tax-modal {
   background: #ffffff;
   border-color: var(--color-border);
@@ -1530,6 +1645,26 @@ html.theme-light .payable-select-dropdown .payable-select-item__vendor {
   background: rgba(0, 0, 0, 0.06);
 }
 
+/* Data grid row actions dropdown – light (teleported to body, use html) */
+html.theme-light .data-grid-row-actions__dropdown {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: var(--color-border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+html.theme-light .data-grid-row-actions__list {
+  background: rgba(248, 250, 252, 0.95);
+  border-color: var(--color-border);
+}
+html.theme-light .data-grid-row-actions__option:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+html.theme-light .data-grid-row-actions__option + .data-grid-row-actions__option {
+  border-top-color: var(--color-border);
+}
+html.theme-light .data-grid-row-actions__header-badge {
+  background: rgba(0, 0, 0, 0.06);
+}
+
 /* Entry total row (Amount to Pay) – light */
 .app-layout.theme-light .entry-total-row {
   background: var(--color-bg-dark);
@@ -1663,8 +1798,9 @@ html.theme-light .payable-select-dropdown .payable-select-item__vendor {
 }
 
 .app-layout.theme-light .tax-search-bar__filter-wrap:focus-within {
-  border-color: var(--color-accent);
-  box-shadow: var(--focus-ring);
+  box-shadow:
+    var(--shadow-btn),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .app-layout.theme-light .tax-search-bar__filter {
@@ -1735,7 +1871,7 @@ html.theme-light .payable-select-dropdown .payable-select-item__vendor {
   border-color: rgba(59, 130, 246, 0.3);
 }
 
-.app-layout.theme-light .tax-table__edit-btn:hover {
+.app-layout.theme-light .tax-table__edit-btn:hover:not(:disabled) {
   background: rgba(59, 130, 246, 0.18);
   border-color: rgba(59, 130, 246, 0.45);
   color: var(--color-accent);
@@ -2902,7 +3038,7 @@ button:focus-visible {
   display: flex;
   align-items: center;
   height: 48px;
-  min-width: 11rem;
+  min-width: 12.5rem;
   padding: 0 2.5rem 0 2.75rem;
   background: rgba(30, 41, 59, 0.6);
   border: 1px solid rgba(148, 163, 184, 0.15);
@@ -2922,10 +3058,7 @@ button:focus-visible {
 }
 
 .tax-search-bar__filter-wrap:focus-within {
-  border-color: var(--color-accent);
-  box-shadow:
-    inset 0 1px 2px rgba(0, 0, 0, 0.15),
-    0 0 0 3px var(--color-accent-soft);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 .tax-search-bar__filter-wrap:focus-within .tax-search-bar__filter-icon {
@@ -2958,6 +3091,13 @@ button:focus-visible {
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
+  outline: none;
+  box-shadow: none;
+}
+
+.tax-search-bar__filter:focus {
+  outline: none;
+  box-shadow: none;
 }
 
 .tax-search-bar__filter option {
@@ -3341,10 +3481,271 @@ html.theme-light .cheque-modal__step--done .cheque-modal__step-connector {
     border-color 0.2s var(--ease);
 }
 
-.tax-table__edit-btn:hover {
+.tax-table__edit-btn:hover:not(:disabled) {
   background: rgba(59, 130, 246, 0.2);
   border-color: rgba(59, 130, 246, 0.4);
   color: rgb(147, 197, 253);
+}
+
+.tax-table__edit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Peek sidebar: modern card list (Tax & Vendors) */
+.peek-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 0.25rem 0;
+}
+
+.peek-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  background: rgb(39, 51, 71);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+
+.peek-card:hover {
+  background: rgb(51, 65, 85);
+  border-color: rgba(148, 163, 184, 0.25);
+}
+
+.peek-card__main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.peek-card__type-badge {
+  display: inline-flex;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  background: rgb(51, 65, 85);
+  border-radius: 6px;
+}
+
+.peek-card__title {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--color-text);
+}
+
+.peek-card__rate {
+  margin-left: auto;
+  min-width: 3rem;
+  text-align: right;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--color-accent);
+}
+
+.peek-card__status--right {
+  flex-shrink: 0;
+  margin-left: 0.5rem;
+}
+
+.peek-card__status--empty {
+  background: rgb(51, 65, 85);
+  color: var(--color-text-muted);
+}
+
+.peek-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.peek-card__action {
+  font-weight: 500;
+}
+
+.peek-card__dates {
+  opacity: 0.85;
+}
+
+.peek-card__status {
+  padding: 0.15rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  border-radius: 6px;
+}
+
+.peek-card__status.tax-table__status--valid {
+  background: rgba(34, 197, 94, 0.2);
+  color: rgb(134, 239, 172);
+}
+
+.peek-card__status.tax-table__status--expired {
+  background: rgba(239, 68, 68, 0.2);
+  color: rgb(252, 165, 165);
+}
+
+.peek-card__status.tax-table__status--other {
+  background: rgba(234, 179, 8, 0.2);
+  color: rgb(253, 224, 71);
+}
+
+/* Vendor peek cards */
+.peek-card__main--vendor {
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.peek-card__vendor-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.peek-card__meta--right {
+  flex-shrink: 0;
+  margin-left: auto;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.peek-card--vendor .peek-card__main {
+  flex-direction: row;
+}
+
+.peek-card__vendor-name {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: var(--color-text);
+}
+
+.peek-card__vendor-id {
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.peek-card__vendor-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.peek-card__vendor-details span {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.peek-card__detail-icon {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.peek-card__meta--vendor {
+  gap: 0.375rem;
+}
+
+.peek-card__status--inline {
+  padding: 0.2rem 0.5rem;
+}
+
+/* tax-peek-hint: hint text in sidebar peek mode */
+.tax-peek-hint {
+  color: var(--color-text-muted);
+}
+
+/* Light mode peek cards */
+html.theme-light .peek-card,
+.app-layout.theme-light .peek-card {
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+html.theme-light .peek-card:hover,
+.app-layout.theme-light .peek-card:hover {
+  background: #ffffff;
+  border-color: rgba(100, 116, 139, 0.4);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+html.theme-light .peek-card__type-badge,
+.app-layout.theme-light .peek-card__type-badge {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+html.theme-light .peek-card__title,
+.app-layout.theme-light .peek-card__title {
+  color: #0f172a;
+}
+
+html.theme-light .peek-card__rate,
+.app-layout.theme-light .peek-card__rate {
+  color: #2563eb;
+}
+
+html.theme-light .peek-card__meta,
+.app-layout.theme-light .peek-card__meta {
+  color: #64748b;
+}
+
+html.theme-light .peek-card__status--empty,
+.app-layout.theme-light .peek-card__status--empty {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+/* Peek card status badges – light mode (better contrast) */
+html.theme-light .peek-card__status.tax-table__status--valid,
+.app-layout.theme-light .peek-card__status.tax-table__status--valid {
+  background: rgba(34, 197, 94, 0.15);
+  color: #15803d;
+}
+
+html.theme-light .peek-card__status.tax-table__status--expired,
+.app-layout.theme-light .peek-card__status.tax-table__status--expired {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+}
+
+html.theme-light .peek-card__status.tax-table__status--other,
+.app-layout.theme-light .peek-card__status.tax-table__status--other {
+  background: rgba(234, 179, 8, 0.15);
+  color: #a16207;
+}
+
+html.theme-light .peek-card__vendor-name,
+.app-layout.theme-light .peek-card__vendor-name {
+  color: #0f172a;
+}
+
+html.theme-light .peek-card__vendor-id,
+.app-layout.theme-light .peek-card__vendor-id {
+  color: #64748b;
+}
+
+html.theme-light .peek-card__vendor-details,
+.app-layout.theme-light .peek-card__vendor-details {
+  color: #64748b;
+}
+
+html.theme-light .peek-card__detail-icon,
+.app-layout.theme-light .peek-card__detail-icon {
+  color: #94a3b8;
 }
 
 .tax-modal-backdrop {
@@ -3481,6 +3882,163 @@ html.theme-light .cheque-modal__step--done .cheque-modal__step-connector {
   letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--color-text-muted);
+}
+
+/* Vendor field history modal – modern UI, no outside-click close */
+.vendor-history-backdrop {
+  cursor: default;
+}
+
+.vendor-history-modal {
+  max-width: 56rem;
+  width: 100%;
+  border-radius: 16px;
+  box-shadow:
+    0 32px 64px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+
+.vendor-history-modal__header {
+  padding: 1.5rem 1.5rem;
+  gap: 1rem;
+}
+
+.vendor-history-modal__title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.vendor-history-modal__subtitle {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.vendor-history-modal__body {
+  padding: 0 1.5rem 1.5rem;
+}
+
+.vendor-history-modal__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 3.5rem 1.5rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.vendor-history-modal__empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 14px;
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--color-text-muted);
+}
+
+.vendor-history-modal__empty--error {
+  color: rgb(248, 113, 113);
+}
+
+.vendor-history-modal__table-wrap {
+  max-height: 70vh;
+  overflow-y: auto;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  background: rgba(15, 23, 42, 0.35);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.vendor-history-modal__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.vendor-history-modal__table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(30, 41, 59, 0.95);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.vendor-history-modal__table th {
+  padding: 0.875rem 1.25rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.vendor-history-modal__table tbody tr {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+  transition: background 0.12s var(--ease);
+}
+
+.vendor-history-modal__table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.vendor-history-modal__table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.vendor-history-modal__table td {
+  padding: 0.875rem 1.25rem;
+  vertical-align: middle;
+  color: var(--color-text);
+}
+
+.vendor-history-modal__cell--date {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.vendor-history-modal__cell--value {
+  max-width: 11rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.875rem;
+  color: var(--color-text-muted);
+}
+
+.vendor-history-modal__cell--new {
+  color: rgb(134, 239, 172);
+  font-weight: 500;
+}
+
+.app-layout.theme-light .vendor-history-modal__cell--new {
+  color: rgb(22, 163, 74);
+}
+
+.vendor-history-modal__cell--actor {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.vendor-history-modal__badge {
+  display: inline-block;
+  padding: 0.31rem 0.62rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--color-text);
 }
 
 .tax-modal__form {

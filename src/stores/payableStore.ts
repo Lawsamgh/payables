@@ -960,6 +960,8 @@ export const usePayableStore = defineStore("payable", () => {
               transRefForLog,
               clearRejected ? "Reposted" : "Posted",
               actor,
+              undefined,
+              entryTotal.value,
             );
           }
           mainPosted.value = true;
@@ -1164,6 +1166,8 @@ export const usePayableStore = defineStore("payable", () => {
             transRef,
             "Created",
             createdBy || "—",
+            undefined,
+            entryTotal.value,
           );
         }
         for (const { row, index } of toPost) {
@@ -1246,6 +1250,8 @@ export const usePayableStore = defineStore("payable", () => {
             currentTransRef.value,
             "Edited",
             editedActor,
+            undefined,
+            entryTotal.value,
           );
         }
 
@@ -1337,6 +1343,8 @@ export const usePayableStore = defineStore("payable", () => {
               currentTransRef.value,
               clearRejected ? "Reposted" : "Posted",
               actor,
+              undefined,
+              entryTotal.value,
             );
             didMarkPosted = true;
             mainPosted.value = true;
@@ -1383,6 +1391,8 @@ export const usePayableStore = defineStore("payable", () => {
               currentTransRef.value,
               clearRejected ? "Reposted" : "Posted",
               actor,
+              undefined,
+              entryTotal.value,
             );
             didMarkPosted = true;
             mainPosted.value = true;

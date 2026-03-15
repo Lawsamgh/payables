@@ -292,6 +292,9 @@
                   type="text"
                   :class="[
                     'cell-input w-full min-w-0 px-1.5 py-0.5 border-0 rounded bg-transparent text-[var(--color-text)] focus:ring-2 focus:ring-inset focus:outline-none',
+                    NUMERIC_COL_KEYS.includes(key)
+                      ? 'text-right tabular-nums'
+                      : 'text-left',
                     key === 'invoice_number' &&
                     duplicateInvoiceNumbers.has(realIndex)
                       ? 'focus:ring-red-500 border-red-500/50'
@@ -645,7 +648,48 @@ import { useSessionPayableInvoiceStore } from "../stores/sessionPayableInvoiceSt
 import ContextMenu from "./ContextMenu.vue";
 
 const emit = defineEmits<{ "delete-row": [rowIndex: number] }>();
-const spreadsheet = useSpreadsheet();
+function recalculateTaxAmountsForRow(rowIndex: number): void {
+  const amountRaw = getCellValue(rowIndex, AMOUNT_COL_INDEX);
+  const amountNum =
+    typeof amountRaw === "number"
+      ? amountRaw
+      : parseFloat(String(amountRaw ?? "").replace(/,/g, ""));
+  const amount = !Number.isNaN(amountNum) ? amountNum : 0;
+
+  const cached = getEffectiveTaxCacheForRow(rowIndex);
+  let addAmount = 0;
+  let subAmount = 0;
+  let subRate = 0;
+  for (const r of cached) {
+    const rRate = r.Rate != null ? Number(r.Rate) : 0;
+    const amt = (amount * (Number.isNaN(rRate) ? 0 : rRate)) / 100;
+    if ((r.Action ?? "Add") === "Sub") {
+      subAmount += amt;
+      subRate += rRate;
+    } else {
+      addAmount += amt;
+    }
+  }
+  const hasTax = cached.length > 0;
+  setCellValue(rowIndex, TAX_COL_INDEX, hasTax ? String(addAmount) : "");
+  setCellValue(rowIndex, REF_COL_INDEX, hasTax ? String(addAmount) : "");
+  setCellValue(
+    rowIndex,
+    WHT_TAX_COL_INDEX,
+    subRate > 0 ? String(subRate) : "",
+  );
+  setCellValue(
+    rowIndex,
+    WHT_TAX_AMOUNT_COL_INDEX,
+    subAmount > 0 ? String(subAmount) : "",
+  );
+}
+
+const spreadsheet = useSpreadsheet({
+  afterSetCell: (row, col, _value) => {
+    if (COLUMN_KEYS[col] === "amount") recalculateTaxAmountsForRow(row);
+  },
+});
 const { isManager } = useUserRole();
 const documentSettings = useDocumentSettingsStore();
 const payableStore = usePayableStore();

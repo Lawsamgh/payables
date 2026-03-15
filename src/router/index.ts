@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { isAuthenticated } from '../composables/useFileMaker'
 import { getHomeRoute } from '../utils/homeTab'
 import { getCachedRole } from '../utils/roleGuard'
+import { isMobileDevice } from '../utils/device'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -112,6 +113,12 @@ const router = createRouter({
       component: () => import('../views/SettingsShortcutsView.vue'),
       meta: { title: 'Keyboard shortcuts', requiresAuth: true },
     },
+    {
+      path: '/settings/user-guide',
+      name: 'settings-user-guide',
+      component: () => import('../views/SettingsUserGuideView.vue'),
+      meta: { title: 'User Guide', requiresAuth: true },
+    },
   ],
 })
 
@@ -124,6 +131,11 @@ function isSafeRedirect(path: unknown): path is string {
 }
 
 router.beforeEach((to) => {
+  // Mobile: allow only VendorCollectView
+  if (isMobileDevice() && to.name !== 'vendor-collect') {
+    return { path: '/vendor-collect', replace: true }
+  }
+
   if (to.meta?.requiresAuth && !isAuthenticated()) {
     return { path: '/', query: { redirect: to.fullPath }, replace: true }
   }

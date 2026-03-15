@@ -31,7 +31,7 @@
         <button
           type="button"
           class="pill-btn glass-input inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-4 py-2.5 text-[var(--label-size)] font-medium text-[var(--color-text-muted)] transition-colors hover:bg-white/5 hover:text-[var(--color-text)]"
-          :disabled="filteredCollectionList.length === 0"
+          :disabled="filteredCollectionList.length === 0 || exporting"
           aria-label="Export cheque collections to CSV"
           @click="onExport"
         >
@@ -49,6 +49,28 @@
             />
           </svg>
           Export
+        </button>
+        <button
+          type="button"
+          class="pill-btn glass-input inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-4 py-2.5 text-[var(--label-size)] font-medium text-[var(--color-text-muted)] transition-colors hover:bg-white/5 hover:text-[var(--color-text)]"
+          :disabled="filteredCollectionList.length === 0 || exporting"
+          aria-label="Export cheque collections to PDF"
+          @click="onExportPdf"
+        >
+          <svg
+            class="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+            />
+          </svg>
+          PDF
         </button>
         <button
           type="button"
@@ -730,6 +752,7 @@ import { useChequeOverviewStore } from "../stores/chequeOverviewStore";
 import { formatDateForFileMaker } from "../utils/filemakerMappers";
 import { formatNumberDisplay } from "../utils/formatNumber";
 import { exportChequeCollections } from "../utils/exportData";
+import { writeActivityLog } from "../utils/activityLog";
 
 const {
     createRecord,
@@ -759,6 +782,7 @@ const COLLECTION_MODAL_SLIDES = [
 const searchQuery = ref("");
 const formError = ref<string | null>(null);
 const saving = ref(false);
+const exporting = ref(false);
 
 // Payable search/select (for TransRef)
 const approvedPayablesList = ref<
@@ -865,10 +889,23 @@ function formatAmount(value: string | number | undefined): string {
   return formatNumberDisplay(n);
 }
 
+function parseCollectionDate(
+  row: FindRecordWithId<ChequeCollectionFieldData | Record<string, unknown>>,
+): number {
+  const s = getFieldValue(row, "CollectionDate");
+  if (!s) return 0;
+  const d = new Date(s.replace(/\//g, "-"));
+  return Number.isNaN(d.getTime()) ? 0 : d.getTime();
+}
+
 const filteredCollectionList = computed(() => {
+  const list = collectionList.value;
+  const sorted = [...list].sort(
+    (a, b) => parseCollectionDate(b) - parseCollectionDate(a),
+  );
   const q = searchQuery.value.toLowerCase();
-  if (!q) return collectionList.value;
-  return collectionList.value.filter((r) => {
+  if (!q) return sorted;
+  return sorted.filter((r) => {
     const fd = r.fieldData as Record<string, unknown>;
     const transRef = String(fd.TransRef ?? fd["TransRef"] ?? "").toLowerCase();
     const chequeNo = String(fd.ChequeNo ?? fd["Cheque No"] ?? "").toLowerCase();
@@ -904,6 +941,107 @@ watch(totalPages, (total) => {
 
 function onExport() {
   exportChequeCollections(filteredCollectionList.value, "csv");
+}
+
+function getPdfExportRows(): string[][] {
+  const headers = [
+    "TransRef",
+    "Bank",
+    "Cheque No",
+    "Amount",
+    "Cheque Payee",
+    "Received By",
+    "Collection Date",
+    "Issued By",
+  ];
+  const rows = filteredCollectionList.value.map((r) => [
+    getField(r, "TransRef"),
+    getField(r, "BankName"),
+    getField(r, "ChequeNo"),
+    formatAmount(getField(r, "Amount")),
+    getField(r, "ChequePayee"),
+    getField(r, "ReceivedBy"),
+    getField(r, "CollectionDate") || "—",
+    getField(r, "IssuedBy"),
+  ]);
+  return [headers, ...rows];
+}
+
+async function onExportPdf() {
+  if (filteredCollectionList.value.length === 0) return;
+  exporting.value = true;
+  try {
+    const [pdfMakeModule, vfsModule] = await Promise.all([
+      import("pdfmake/build/pdfmake"),
+      import("pdfmake/build/vfs_fonts"),
+    ]);
+    const pdfMake = (pdfMakeModule as { default: unknown }).default as {
+      createPdf: (def: unknown) => { download: (name: string) => void };
+      addVirtualFileSystem?: (vfs: Record<string, string>) => void;
+    };
+    const vfs = (vfsModule as { default: Record<string, string> }).default;
+    if (pdfMake.addVirtualFileSystem && vfs) {
+      pdfMake.addVirtualFileSystem(vfs);
+    }
+    const rows = getPdfExportRows();
+    const [headerRow, ...dataRows] = rows;
+    const body = [
+      headerRow.map((cell) => ({
+        text: cell,
+        style: "tableHeader",
+        fillColor: "#1e293b",
+      })),
+      ...dataRows.map((row) =>
+        row.map((cell) => ({ text: cell, style: "tableCell" })),
+      ),
+    ];
+    const docDefinition = {
+      pageSize: "A4" as const,
+      pageOrientation: "landscape" as const,
+      pageMargins: [40, 40, 40, 60],
+      defaultStyle: { fontSize: 8 },
+      styles: {
+        tableHeader: { bold: true, color: "#f1f5f9", fontSize: 7 },
+        tableCell: { fontSize: 8 },
+      },
+      content: [
+        {
+          text: "Cheque Collection",
+          fontSize: 16,
+          bold: true,
+          margin: [0, 0, 0, 8],
+        },
+        {
+          text: "Note: \"Vendor (self-service)\" in the Issued By column indicates the vendor entered the collection details.",
+          fontSize: 8,
+          color: "#64748b",
+          margin: [0, 0, 0, 12],
+        },
+        {
+          table: {
+            headerRows: 1,
+            widths: ["auto", "auto", "auto", "auto", "*", "auto", "auto", "auto"],
+            body,
+          },
+          layout: "lightHorizontalLines",
+        },
+      ],
+      footer: (currentPage: number, pageCount: number) => ({
+        margin: [40, 8, 40, 0],
+        text: `Page ${currentPage} of ${pageCount}`,
+        fontSize: 8,
+        alignment: "center" as const,
+      }),
+    };
+    const filename = `cheque-collections-${new Date().toISOString().slice(0, 10)}.pdf`;
+    pdfMake.createPdf(docDefinition).download(filename);
+    toast.success("PDF downloaded.");
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "PDF export failed.";
+    toast.error(msg);
+  } finally {
+    exporting.value = false;
+  }
 }
 
 function getPayableStatus(
@@ -1307,13 +1445,38 @@ async function submit() {
         formError.value = null;
         return;
       }
-      // Update Payables_Main with cheque issued details (only on create)
-      const transRef = form.value.TransRef?.trim();
+      const transRef = form.value.TransRef?.trim() || undefined;
       if (transRef) {
         const { data: mainRecords } = await findRecordsByQueryWithIds<
           PayablesMainFieldData | Record<string, unknown>
         >(LAYOUTS.PAYABLES_MAIN, { TransRef: transRef }, 1);
         const mainRecord = mainRecords[0];
+        const mainFd = mainRecord?.fieldData as Record<string, unknown> | undefined;
+        const amount =
+          amountNum ??
+          (typeof mainFd?.Total === "number"
+            ? mainFd.Total
+            : typeof mainFd?.Total === "string"
+              ? parseFloat(String(mainFd.Total))
+              : undefined);
+        const vendorName = mainFd
+          ? String(
+              mainFd.VendorName ?? mainFd["Vendor Name"] ?? mainFd.Vendor_Name ?? "",
+            ).trim() || undefined
+          : undefined;
+        const actor = fieldData.IssuedBy || "—";
+        const activityErr = await writeActivityLog(
+          createRecord,
+          transRef,
+          "Collected",
+          actor,
+          undefined,
+          amount,
+          vendorName,
+        );
+        if (activityErr) {
+          toast.error("Collection saved but activity log failed: " + activityErr);
+        }
         if (mainRecord?.recordId) {
           const { error: updateErr } = await updateRecord(
             LAYOUTS.PAYABLES_MAIN,
@@ -1351,7 +1514,12 @@ async function loadCollections() {
   loadError.value = null;
   const { data, error } = await findRecordsWithIds<
     ChequeCollectionFieldData | Record<string, unknown>
-  >(LAYOUTS.CHEQUE_COLLECTION, { limit: 500 });
+  >(LAYOUTS.CHEQUE_COLLECTION, {
+    limit: 500,
+    sort: JSON.stringify([
+      { fieldName: "CollectionDate", sortOrder: "descend" },
+    ]),
+  });
   loading.value = false;
   if (error) {
     toast.error(error);

@@ -90,6 +90,7 @@ export const LAYOUTS = {
   CHEQUE_COLLECTION: "Cheque_Collection",
   PAYABLES_EDIT_REQUEST: "Payables_Edit_Request",
   EMAIL_LIST: "EmailList",
+  VENDOR_FIELD_HISTORY: "Vendor_Field_History",
 } as const;
 
 /**
@@ -173,10 +174,20 @@ export interface PayableInvoiceFieldData {
 
 /**
  * Payables_Activity_Log fields: audit trail for payable lifecycle events.
+ * VendorName and Total are related fields from Payables_Main (via TransRef).
+ * AmountAtAction and VendorNameAtAction are stored at write time (when the action occurred).
  */
 export interface PayablesActivityLogFieldData {
   TransRef?: string;
-  Action?: string; // Created | Edited | Posted | Rejected | Approved | Reposted | EditRequested | EditAllowed
+  /** Related from Payables_Main */
+  VendorName?: string;
+  /** Stored at write time (e.g. for Deleted when main record is removed) */
+  VendorNameAtAction?: string;
+  /** Related from Payables_Main */
+  Total?: number;
+  /** Amount at time of action (stored when log entry is written) */
+  AmountAtAction?: number;
+  Action?: string; // Created | Edited | Posted | Rejected | Approved | Reposted | Deleted | Collected | EditRequested | EditAllowed
   Actor?: string;
   Timestamp?: string;
   Reason?: string;
@@ -213,6 +224,18 @@ export interface VendorTblFieldData {
   Expiry_Check?: string;
   WHT_Expiry_Check?: string;
   VendorBalance?: string | number;
+}
+
+/**
+ * Vendor_Field_History fields (audit log for vendor field changes).
+ */
+export interface VendorFieldHistoryFieldData {
+  Vendor_ID?: string;
+  FieldName?: string;
+  OldValue?: string;
+  NewValue?: string;
+  ChangedBy?: string;
+  Timestamp?: string;
 }
 
 /**

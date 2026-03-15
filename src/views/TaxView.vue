@@ -1,8 +1,9 @@
 <template>
   <div
-    class="content-area flex flex-col flex-1 min-h-0 w-full max-w-[1600px] mx-auto px-4 py-5 md:px-6 md:py-6 min-h-[400px]"
+    class="content-area flex flex-col flex-1 min-h-0 w-full max-w-[1600px] mx-auto min-h-[400px]"
+    :class="peekMode ? 'px-0 py-0' : 'px-4 py-5 md:px-6 md:py-6'"
   >
-    <header class="flex flex-wrap items-center justify-between gap-4 mb-6">
+    <header v-if="!peekMode" class="flex flex-wrap items-center justify-between gap-4 mb-6">
       <div class="flex flex-wrap items-center gap-3">
         <router-link
           to="/"
@@ -27,37 +28,72 @@
           Tax
         </h1>
       </div>
-      <button
-        type="button"
-        class="pill-btn add-tax-btn inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-[var(--label-size)] font-semibold text-white shadow-md hover:bg-orange-600 transition-colors"
-        @click="showAddModal = true"
-      >
-        <svg
-          class="h-4 w-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          class="pill-btn glass-input inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-4 py-2.5 text-[var(--label-size)] font-medium text-[var(--color-text-muted)] transition-colors hover:bg-white/5 hover:text-[var(--color-text)] disabled:opacity-50 disabled:pointer-events-none"
+          :disabled="filteredTaxList.length === 0 || exporting"
+          aria-label="Export tax codes to CSV"
+          @click="onExport"
         >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M12 4v16m8-8H4"
-          />
-        </svg>
-        Add Tax
-      </button>
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          Export
+        </button>
+        <button
+          type="button"
+          class="pill-btn glass-input inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] px-4 py-2.5 text-[var(--label-size)] font-medium text-[var(--color-text-muted)] transition-colors hover:bg-white/5 hover:text-[var(--color-text)] disabled:opacity-50 disabled:pointer-events-none"
+          :disabled="filteredTaxList.length === 0 || exporting"
+          aria-label="Export tax codes to PDF"
+          @click="onExportPdf"
+        >
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+          </svg>
+          PDF
+        </button>
+        <button
+          type="button"
+          class="pill-btn add-tax-btn inline-flex items-center gap-2 rounded-xl bg-orange-500 px-4 py-2.5 text-[var(--label-size)] font-semibold text-white shadow-md hover:bg-orange-600 transition-colors"
+          @click="showAddModal = true"
+        >
+          <svg
+            class="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 4v16m8-8H4"
+            />
+          </svg>
+          Add Tax
+        </button>
+      </div>
     </header>
 
-    <p class="text-[var(--label-size)] text-[var(--color-text-muted)] mb-4">
+    <p v-if="!peekMode" class="text-[var(--label-size)] text-[var(--color-text-muted)] mb-4">
       Manage tax codes here. Add new rates and view existing ones.
     </p>
-
-    <!-- Search and filter -->
     <div
-      v-if="!loading && !loadError && taxList.length > 0"
-      class="tax-search-bar"
+      :class="{ 'peek-sidebar-sticky': peekMode }"
+      class="peek-sidebar-header"
     >
+      <p
+        v-if="peekMode"
+        class="tax-peek-hint text-[13px] text-[var(--color-text-muted)] mb-4"
+      >
+        Tax codes for reference. Search or filter by status.
+      </p>
+      <!-- Search and filter -->
+      <div
+        v-if="!loading && !loadError && taxList.length > 0"
+        class="tax-search-bar"
+      >
       <div class="tax-search-bar__row">
         <div
           class="search-bar__wrap tax-search-bar__search"
@@ -156,6 +192,7 @@
           filteredTaxList.length === 1 ? "" : "s"
         }}
       </p>
+      </div>
     </div>
 
     <!-- Table -->
@@ -265,6 +302,32 @@
           Clear filters
         </button>
       </div>
+      <!-- Peek mode: modern card list -->
+      <div v-else-if="peekMode" class="peek-cards">
+        <div
+          v-for="(row, index) in sortedTaxList"
+          :key="row.recordId || index"
+          class="peek-card"
+        >
+          <div class="peek-card__main">
+            <span class="peek-card__type-badge">{{ row.fieldData.Tax_Type ?? "—" }}</span>
+            <span class="peek-card__title">{{ row.fieldData.Tax_Name ?? "—" }}</span>
+            <span class="peek-card__rate tabular-nums">{{ formatRate(row.fieldData.Tax_Rate) }}</span>
+            <span
+              class="peek-card__status peek-card__status--right"
+              :class="row.fieldData.Status?.trim() ? statusCellClass(row.fieldData.Status) : 'peek-card__status--empty'"
+            >
+              {{ row.fieldData.Status?.trim() || "—" }}
+            </span>
+          </div>
+          <div class="peek-card__meta">
+            <span class="peek-card__action">{{ row.fieldData.Action?.trim() === "Sub" ? "Sub" : row.fieldData.Action?.trim() === "Add" ? "Add" : "—" }}</span>
+            <span class="peek-card__dates">
+              {{ formatDate(row.fieldData.Start_Date) }} – {{ formatDate(row.fieldData.End_Date) }}
+            </span>
+          </div>
+        </div>
+      </div>
       <div v-else class="logs-table-body">
         <div class="tax-table-scroll logs-table-scroll">
           <table class="tax-table logs-table tax-table--sortable">
@@ -280,110 +343,121 @@
             </colgroup>
             <thead>
               <tr>
-                <th class="tax-table__sortable-th">
-                  <button
-                    type="button"
-                    class="tax-table__sort-btn"
-                    :class="{ 'tax-table__sort-btn--active': sortField === 'Tax_Type' }"
-                    :aria-label="sortField === 'Tax_Type' ? `Sort Tax Type ${sortDir === 'asc' ? 'descending' : 'ascending'}` : 'Sort by Tax Type'"
-                    @click="setSort('Tax_Type')"
-                  >
-                    Tax Type
-                    <span class="tax-table__sort-icon" :class="{ 'tax-table__sort-icon--active': sortField === 'Tax_Type' }" aria-hidden="true">
-                      <svg v-if="sortField !== 'Tax_Type'" class="tax-table__sort-unsorted" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 8l4-4 4 4h-3v4h-2V8H8zm8 8l-4 4-4-4h3v-4h2v4h3z"/>
-                      </svg>
-                      <svg v-else-if="sortDir === 'asc'" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 4l-5 6h3v6h4v-6h3L12 4z"/>
-                      </svg>
-                      <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 20l5-6h-3V8h-4v6H7l5 6z"/>
-                      </svg>
-                    </span>
-                  </button>
-                </th>
-                <th class="tax-table__sortable-th">
-                  <button
-                    type="button"
-                    class="tax-table__sort-btn"
-                    :class="{ 'tax-table__sort-btn--active': sortField === 'Tax_Name' }"
-                    :aria-label="sortField === 'Tax_Name' ? `Sort Tax Name ${sortDir === 'asc' ? 'descending' : 'ascending'}` : 'Sort by Tax Name'"
-                    @click="setSort('Tax_Name')"
-                  >
-                    Tax Name
-                    <span class="tax-table__sort-icon" :class="{ 'tax-table__sort-icon--active': sortField === 'Tax_Name' }" aria-hidden="true">
-                      <svg v-if="sortField !== 'Tax_Name'" class="tax-table__sort-unsorted" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 8l4-4 4 4h-3v4h-2V8H8zm8 8l-4 4-4-4h3v-4h2v4h3z"/></svg>
-                      <svg v-else-if="sortDir === 'asc'" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-5 6h3v6h4v-6h3L12 4z"/></svg>
-                      <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20l5-6h-3V8h-4v6H7l5 6z"/></svg>
-                    </span>
-                  </button>
-                </th>
-                <th class="tax-table__sortable-th tax-table__th-rate">
-                  <button
-                    type="button"
-                    class="tax-table__sort-btn"
-                    :class="{ 'tax-table__sort-btn--active': sortField === 'Tax_Rate' }"
-                    :aria-label="sortField === 'Tax_Rate' ? `Sort Rate ${sortDir === 'asc' ? 'descending' : 'ascending'}` : 'Sort by Rate'"
-                    @click="setSort('Tax_Rate')"
-                  >
-                    Rate
-                    <span class="tax-table__sort-icon" :class="{ 'tax-table__sort-icon--active': sortField === 'Tax_Rate' }" aria-hidden="true">
-                      <svg v-if="sortField !== 'Tax_Rate'" class="tax-table__sort-unsorted" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 8l4-4 4 4h-3v4h-2V8H8zm8 8l-4 4-4-4h3v-4h2v4h3z"/></svg>
-                      <svg v-else-if="sortDir === 'asc'" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-5 6h3v6h4v-6h3L12 4z"/></svg>
-                      <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20l5-6h-3V8h-4v6H7l5 6z"/></svg>
-                    </span>
-                  </button>
-                </th>
-                <th class="tax-table__th-action">Action</th>
-                <th class="tax-table__sortable-th tax-table__th-start">
-                  <button
-                    type="button"
-                    class="tax-table__sort-btn"
-                    :class="{ 'tax-table__sort-btn--active': sortField === 'Start_Date' }"
-                    :aria-label="sortField === 'Start_Date' ? `Sort Start Date ${sortDir === 'asc' ? 'descending' : 'ascending'}` : 'Sort by Start Date'"
-                    @click="setSort('Start_Date')"
-                  >
-                    Start Date
-                    <span class="tax-table__sort-icon" :class="{ 'tax-table__sort-icon--active': sortField === 'Start_Date' }" aria-hidden="true">
-                      <svg v-if="sortField !== 'Start_Date'" class="tax-table__sort-unsorted" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 8l4-4 4 4h-3v4h-2V8H8zm8 8l-4 4-4-4h3v-4h2v4h3z"/></svg>
-                      <svg v-else-if="sortDir === 'asc'" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-5 6h3v6h4v-6h3L12 4z"/></svg>
-                      <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20l5-6h-3V8h-4v6H7l5 6z"/></svg>
-                    </span>
-                  </button>
-                </th>
-                <th class="tax-table__sortable-th tax-table__th-end">
-                  <button
-                    type="button"
-                    class="tax-table__sort-btn"
-                    :class="{ 'tax-table__sort-btn--active': sortField === 'End_Date' }"
-                    :aria-label="sortField === 'End_Date' ? `Sort End Date ${sortDir === 'asc' ? 'descending' : 'ascending'}` : 'Sort by End Date'"
-                    @click="setSort('End_Date')"
-                  >
-                    End Date
-                    <span class="tax-table__sort-icon" :class="{ 'tax-table__sort-icon--active': sortField === 'End_Date' }" aria-hidden="true">
-                      <svg v-if="sortField !== 'End_Date'" class="tax-table__sort-unsorted" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 8l4-4 4 4h-3v4h-2V8H8zm8 8l-4 4-4-4h3v-4h2v4h3z"/></svg>
-                      <svg v-else-if="sortDir === 'asc'" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-5 6h3v6h4v-6h3L12 4z"/></svg>
-                      <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20l5-6h-3V8h-4v6H7l5 6z"/></svg>
-                    </span>
-                  </button>
-                </th>
-                <th class="tax-table__sortable-th">
-                  <button
-                    type="button"
-                    class="tax-table__sort-btn"
-                    :class="{ 'tax-table__sort-btn--active': sortField === 'Status' }"
-                    :aria-label="sortField === 'Status' ? `Sort Status ${sortDir === 'asc' ? 'descending' : 'ascending'}` : 'Sort by Status'"
-                    @click="setSort('Status')"
-                  >
-                    Status
-                    <span class="tax-table__sort-icon" :class="{ 'tax-table__sort-icon--active': sortField === 'Status' }" aria-hidden="true">
-                      <svg v-if="sortField !== 'Status'" class="tax-table__sort-unsorted" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 8l4-4 4 4h-3v4h-2V8H8zm8 8l-4 4-4-4h3v-4h2v4h3z"/></svg>
-                      <svg v-else-if="sortDir === 'asc'" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-5 6h3v6h4v-6h3L12 4z"/></svg>
-                      <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20l5-6h-3V8h-4v6H7l5 6z"/></svg>
-                    </span>
-                  </button>
-                </th>
-                <th class="tax-table__actions-th"></th>
+                <template v-if="peekMode">
+                  <th class="tax-table__th-peek">Tax Type</th>
+                  <th class="tax-table__th-peek">Tax Name</th>
+                  <th class="tax-table__th-peek tax-table__th-rate">Rate</th>
+                  <th class="tax-table__th-peek tax-table__th-action">Action</th>
+                  <th class="tax-table__th-peek">Start Date</th>
+                  <th class="tax-table__th-peek">End Date</th>
+                  <th class="tax-table__th-peek">Status</th>
+                </template>
+                <template v-else>
+                  <th class="tax-table__sortable-th">
+                    <button
+                      type="button"
+                      class="tax-table__sort-btn"
+                      :class="{ 'tax-table__sort-btn--active': sortField === 'Tax_Type' }"
+                      :aria-label="sortField === 'Tax_Type' ? `Sort Tax Type ${sortDir === 'asc' ? 'descending' : 'ascending'}` : 'Sort by Tax Type'"
+                      @click="setSort('Tax_Type')"
+                    >
+                      Tax Type
+                      <span class="tax-table__sort-icon" :class="{ 'tax-table__sort-icon--active': sortField === 'Tax_Type' }" aria-hidden="true">
+                        <svg v-if="sortField !== 'Tax_Type'" class="tax-table__sort-unsorted" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M8 8l4-4 4 4h-3v4h-2V8H8zm8 8l-4 4-4-4h3v-4h2v4h3z"/>
+                        </svg>
+                        <svg v-else-if="sortDir === 'asc'" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 4l-5 6h3v6h4v-6h3L12 4z"/>
+                        </svg>
+                        <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 20l5-6h-3V8h-4v6H7l5 6z"/>
+                        </svg>
+                      </span>
+                    </button>
+                  </th>
+                  <th class="tax-table__sortable-th">
+                    <button
+                      type="button"
+                      class="tax-table__sort-btn"
+                      :class="{ 'tax-table__sort-btn--active': sortField === 'Tax_Name' }"
+                      :aria-label="sortField === 'Tax_Name' ? `Sort Tax Name ${sortDir === 'asc' ? 'descending' : 'ascending'}` : 'Sort by Tax Name'"
+                      @click="setSort('Tax_Name')"
+                    >
+                      Tax Name
+                      <span class="tax-table__sort-icon" :class="{ 'tax-table__sort-icon--active': sortField === 'Tax_Name' }" aria-hidden="true">
+                        <svg v-if="sortField !== 'Tax_Name'" class="tax-table__sort-unsorted" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 8l4-4 4 4h-3v4h-2V8H8zm8 8l-4 4-4-4h3v-4h2v4h3z"/></svg>
+                        <svg v-else-if="sortDir === 'asc'" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-5 6h3v6h4v-6h3L12 4z"/></svg>
+                        <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20l5-6h-3V8h-4v6H7l5 6z"/></svg>
+                      </span>
+                    </button>
+                  </th>
+                  <th class="tax-table__sortable-th tax-table__th-rate">
+                    <button
+                      type="button"
+                      class="tax-table__sort-btn"
+                      :class="{ 'tax-table__sort-btn--active': sortField === 'Tax_Rate' }"
+                      :aria-label="sortField === 'Tax_Rate' ? `Sort Rate ${sortDir === 'asc' ? 'descending' : 'ascending'}` : 'Sort by Rate'"
+                      @click="setSort('Tax_Rate')"
+                    >
+                      Rate
+                      <span class="tax-table__sort-icon" :class="{ 'tax-table__sort-icon--active': sortField === 'Tax_Rate' }" aria-hidden="true">
+                        <svg v-if="sortField !== 'Tax_Rate'" class="tax-table__sort-unsorted" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 8l4-4 4 4h-3v4h-2V8H8zm8 8l-4 4-4-4h3v-4h2v4h3z"/></svg>
+                        <svg v-else-if="sortDir === 'asc'" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-5 6h3v6h4v-6h3L12 4z"/></svg>
+                        <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20l5-6h-3V8h-4v6H7l5 6z"/></svg>
+                      </span>
+                    </button>
+                  </th>
+                  <th class="tax-table__th-action">Action</th>
+                  <th class="tax-table__sortable-th tax-table__th-start">
+                    <button
+                      type="button"
+                      class="tax-table__sort-btn"
+                      :class="{ 'tax-table__sort-btn--active': sortField === 'Start_Date' }"
+                      :aria-label="sortField === 'Start_Date' ? `Sort Start Date ${sortDir === 'asc' ? 'descending' : 'ascending'}` : 'Sort by Start Date'"
+                      @click="setSort('Start_Date')"
+                    >
+                      Start Date
+                      <span class="tax-table__sort-icon" :class="{ 'tax-table__sort-icon--active': sortField === 'Start_Date' }" aria-hidden="true">
+                        <svg v-if="sortField !== 'Start_Date'" class="tax-table__sort-unsorted" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 8l4-4 4 4h-3v4h-2V8H8zm8 8l-4 4-4-4h3v-4h2v4h3z"/></svg>
+                        <svg v-else-if="sortDir === 'asc'" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-5 6h3v6h4v-6h3L12 4z"/></svg>
+                        <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20l5-6h-3V8h-4v6H7l5 6z"/></svg>
+                      </span>
+                    </button>
+                  </th>
+                  <th class="tax-table__sortable-th tax-table__th-end">
+                    <button
+                      type="button"
+                      class="tax-table__sort-btn"
+                      :class="{ 'tax-table__sort-btn--active': sortField === 'End_Date' }"
+                      :aria-label="sortField === 'End_Date' ? `Sort End Date ${sortDir === 'asc' ? 'descending' : 'ascending'}` : 'Sort by End Date'"
+                      @click="setSort('End_Date')"
+                    >
+                      End Date
+                      <span class="tax-table__sort-icon" :class="{ 'tax-table__sort-icon--active': sortField === 'End_Date' }" aria-hidden="true">
+                        <svg v-if="sortField !== 'End_Date'" class="tax-table__sort-unsorted" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 8l4-4 4 4h-3v4h-2V8H8zm8 8l-4 4-4-4h3v-4h2v4h3z"/></svg>
+                        <svg v-else-if="sortDir === 'asc'" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-5 6h3v6h4v-6h3L12 4z"/></svg>
+                        <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20l5-6h-3V8h-4v6H7l5 6z"/></svg>
+                      </span>
+                    </button>
+                  </th>
+                  <th class="tax-table__sortable-th">
+                    <button
+                      type="button"
+                      class="tax-table__sort-btn"
+                      :class="{ 'tax-table__sort-btn--active': sortField === 'Status' }"
+                      :aria-label="sortField === 'Status' ? `Sort Status ${sortDir === 'asc' ? 'descending' : 'ascending'}` : 'Sort by Status'"
+                      @click="setSort('Status')"
+                    >
+                      Status
+                      <span class="tax-table__sort-icon" :class="{ 'tax-table__sort-icon--active': sortField === 'Status' }" aria-hidden="true">
+                        <svg v-if="sortField !== 'Status'" class="tax-table__sort-unsorted" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 8l4-4 4 4h-3v4h-2V8H8zm8 8l-4 4-4-4h3v-4h2v4h3z"/></svg>
+                        <svg v-else-if="sortDir === 'asc'" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-5 6h3v6h4v-6h3L12 4z"/></svg>
+                        <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 20l5-6h-3V8h-4v6H7l5 6z"/></svg>
+                      </span>
+                    </button>
+                  </th>
+                  <th class="tax-table__actions-th"></th>
+                </template>
               </tr>
             </thead>
             <tbody>
@@ -405,7 +479,7 @@
                 >
                 <span v-else>—</span>
               </td>
-              <td class="tax-table__actions-td">
+              <td v-if="!peekMode" class="tax-table__actions-td">
                 <button
                   type="button"
                   class="tax-table__edit-btn"
@@ -674,6 +748,9 @@ import type { TaxValueFieldData } from "../utils/filemakerApi";
 import type { FindRecordWithId } from "../composables/useFileMaker";
 import { useToastStore } from "../stores/toastStore";
 import { useTaxOverviewStore } from "../stores/taxOverviewStore";
+import { downloadCsv } from "../utils/exportData";
+
+withDefaults(defineProps<{ peekMode?: boolean }>(), { peekMode: false });
 
 const { createRecord, updateRecord, findRecordsWithIds, isConnected } =
   useFileMaker();
@@ -784,6 +861,7 @@ const form = ref<TaxValueFieldData>({
 const customTaxType = ref("");
 const formError = ref<string | null>(null);
 const saving = ref(false);
+const exporting = ref(false);
 
 const taxTypeSearch = ref("");
 const taxTypeDropdownOpen = ref(false);
@@ -894,6 +972,122 @@ function formatRate(value: number | string | undefined): string {
 function formatDate(value: string | undefined): string {
   if (!value?.trim()) return "—";
   return value.trim();
+}
+
+function escapeCsvCell(value: unknown): string {
+  if (value == null || value === "") return "";
+  const s = String(value);
+  if (s.includes(",") || s.includes('"') || s.includes("\n") || s.includes("\r")) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+function getExportRows(): string[][] {
+  const headers = [
+    "Tax Type",
+    "Tax Name",
+    "Rate",
+    "Action",
+    "Start Date",
+    "End Date",
+    "Status",
+  ];
+  const rows = sortedTaxList.value.map((r) => {
+    const fd = r.fieldData;
+    return [
+      fd.Tax_Type ?? "",
+      fd.Tax_Name ?? "",
+      formatRate(fd.Tax_Rate),
+      fd.Action?.trim() === "Sub" ? "Sub" : fd.Action?.trim() === "Add" ? "Add" : "",
+      formatDate(fd.Start_Date),
+      formatDate(fd.End_Date),
+      (fd.Status ?? "").trim(),
+    ];
+  });
+  return [headers, ...rows];
+}
+
+function onExport() {
+  if (filteredTaxList.value.length === 0) return;
+  exporting.value = true;
+  try {
+    const rows = getExportRows();
+    const content = rows.map((row) => row.map(escapeCsvCell).join(",")).join("\r\n");
+    const filename = `tax-codes-${new Date().toISOString().slice(0, 10)}.csv`;
+    downloadCsv(filename, content);
+    toast.success("CSV downloaded.");
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Export failed.";
+    toast.error(msg);
+  } finally {
+    exporting.value = false;
+  }
+}
+
+async function onExportPdf() {
+  if (filteredTaxList.value.length === 0) return;
+  exporting.value = true;
+  try {
+    const [pdfMakeModule, vfsModule] = await Promise.all([
+      import("pdfmake/build/pdfmake"),
+      import("pdfmake/build/vfs_fonts"),
+    ]);
+    const pdfMake = (pdfMakeModule as { default: unknown }).default as {
+      createPdf: (def: unknown) => { download: (name: string) => void };
+    };
+    const vfs = (vfsModule as { default: Record<string, string> }).default;
+    (pdfMake as unknown as { vfs: Record<string, string> }).vfs = vfs;
+    const rows = getExportRows();
+    const headerRow = rows[0] ?? [];
+    const dataRows = rows.slice(1);
+    const body = [
+      headerRow.map((cell, i) => ({
+        text: cell,
+        style: "tableHeader",
+        fillColor: "#1e293b",
+        ...(i === 0 ? { noWrap: true } : {}),
+      })),
+      ...dataRows.map((row) =>
+        row.map((cell) => ({ text: cell ?? "—", style: "tableCell" })),
+      ),
+    ];
+    const docDefinition = {
+      pageSize: "A4" as const,
+      pageOrientation: "landscape" as const,
+      pageMargins: [40, 40, 40, 60],
+      defaultStyle: { fontSize: 8 },
+      styles: {
+        tableHeader: { bold: true, color: "#f1f5f9", fontSize: 7 },
+        tableCell: { fontSize: 8 },
+      },
+      content: [
+        { text: "Tax Codes", fontSize: 16, bold: true, margin: [0, 0, 0, 12] },
+        {
+          table: {
+            headerRows: 1,
+            widths: ["auto", "*", "auto", "auto", "auto", "auto", "auto"],
+            body,
+          },
+          layout: "lightHorizontalLines",
+        },
+      ],
+      footer: (currentPage: number, pageCount: number) => ({
+        margin: [40, 8, 40, 0],
+        text: `Page ${currentPage} of ${pageCount}`,
+        fontSize: 8,
+        alignment: "center" as const,
+      }),
+    };
+    const filename = `tax-codes-${new Date().toISOString().slice(0, 10)}.pdf`;
+    pdfMake.createPdf(docDefinition).download(filename);
+    toast.success("PDF downloaded.");
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "PDF export failed.";
+    toast.error(msg);
+  } finally {
+    exporting.value = false;
+  }
 }
 
 /** Convert FileMaker date (MM/dd/yyyy) to HTML date input (yyyy-MM-dd). */

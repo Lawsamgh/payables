@@ -2656,21 +2656,28 @@ async function onBulkApprove() {
         failed++;
         continue;
       }
+      const itemFd = item.fieldData as Record<string, unknown> | undefined;
+      const amount = (itemFd?.Total ?? itemFd?.["Total"]) as
+        | string
+        | number
+        | null
+        | undefined;
       const activityErr = await writeActivityLog(
         createRecord,
         transRef,
         "Approved",
         approvedBy,
+        undefined,
+        amount,
       );
       if (activityErr) {
         toast.error(`Approved ${transRef} but activity log failed: ${activityErr}`);
       }
       if (documentSettings.approvalEmailToOfficerEnabled) {
-        const fd = item.fieldData as Record<string, unknown> | undefined;
         const postedName =
-          (fd?.PostedName ?? fd?.["Posted Name"] ?? "").toString().trim() || "";
+          (itemFd?.PostedName ?? itemFd?.["Posted Name"] ?? "").toString().trim() || "";
         const vendorName =
-          (fd?.VendorName ?? fd?.["Vendor Name"] ?? "").toString().trim() || "—";
+          (itemFd?.VendorName ?? itemFd?.["Vendor Name"] ?? "").toString().trim() || "—";
         const { error: notifyErr } = await notifyApprovalToOfficer({
           transRef,
           postedName,

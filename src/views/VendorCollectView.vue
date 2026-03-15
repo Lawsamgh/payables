@@ -591,6 +591,7 @@ import { useLoadingOverlayStore } from "../stores/loadingOverlayStore";
 import { useDocumentSettingsStore } from "../stores/documentSettingsStore";
 import { formatDateForFileMaker } from "../utils/filemakerMappers";
 import { formatNumberDisplay } from "../utils/formatNumber";
+import { writeActivityLog } from "../utils/activityLog";
 
 const {
   createRecord,
@@ -1012,6 +1013,33 @@ async function onSubmit() {
       return;
     }
     const transRef = form.value.TransRef?.trim();
+    if (transRef) {
+      const fd = payableRecord.value?.fieldData as Record<string, unknown> | undefined;
+      const amount =
+        amountNum ??
+        (typeof fd?.Total === "number"
+          ? fd.Total
+          : typeof fd?.Total === "string"
+            ? parseFloat(String(fd.Total))
+            : undefined);
+      const vendorName = fd
+        ? String(
+            fd.VendorName ?? fd["Vendor Name"] ?? fd.Vendor_Name ?? "",
+          ).trim() || undefined
+        : undefined;
+      const activityErr = await writeActivityLog(
+        createRecord,
+        transRef,
+        "Collected",
+        "Vendor (self-service)",
+        undefined,
+        amount,
+        vendorName,
+      );
+      if (activityErr) {
+        toast.error("Collection saved but activity log failed: " + activityErr);
+      }
+    }
     if (transRef && mainRecordId.value) {
       await updateRecord(LAYOUTS.PAYABLES_MAIN, mainRecordId.value, {
         ChequeIssued: "Yes",

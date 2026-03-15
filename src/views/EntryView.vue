@@ -34,7 +34,7 @@
     <DeleteDraftConfirmModal
       :visible="showDeleteDraftModal"
       :deleting="deletingDraft"
-      @confirm="onDeleteDraftConfirm"
+      @submit="onDeleteDraftConfirm"
       @cancel="showDeleteDraftModal = false"
     />
     <DeleteRowsConfirmModal
@@ -62,10 +62,7 @@
             <p class="transref-qr-modal__subtitle">
               Scan for cheque collection
             </p>
-            <div
-              v-if="transRefQrDataUrl"
-              class="transref-qr-modal__qr"
-            >
+            <div v-if="transRefQrDataUrl" class="transref-qr-modal__qr">
               <img
                 :src="transRefQrDataUrl"
                 :alt="`QR code for TransRef ${payableStore.currentTransRef}`"
@@ -87,6 +84,27 @@
         </div>
       </Transition>
     </Teleport>
+
+    <!-- Vendors / Tax right sidebar modals – check without leaving entry -->
+    <RightSidebarModal
+      title="Vendors"
+      :visible="showVendorsPeek"
+      width="700px"
+      content-class="right-sidebar-modal--vendors"
+      @close="showVendorsPeek = false"
+    >
+      <VendorsView peek-mode />
+    </RightSidebarModal>
+    <RightSidebarModal
+      title="Tax"
+      :visible="showTaxPeek"
+      width="700px"
+      content-class="right-sidebar-modal--tax"
+      @close="showTaxPeek = false"
+    >
+      <TaxView peek-mode />
+    </RightSidebarModal>
+
     <div class="flex flex-wrap items-center gap-2 mb-4">
       <router-link
         :to="backToListRoute"
@@ -121,11 +139,23 @@
             aria-label="Previous entry"
             @click="goPrev"
           >
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+            <svg
+              class="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M15 19l-7-7 7-7"
+              />
             </svg>
           </button>
-          <div class="booklet-bar glass-input inline-flex items-center overflow-hidden rounded-full">
+          <div
+            class="booklet-bar glass-input inline-flex items-center overflow-hidden rounded-full"
+          >
             <button
               v-for="(ref, index) in booklet.openEntryRefs"
               :key="ref"
@@ -137,7 +167,9 @@
                   : 'text-[var(--color-text-muted)] hover:bg-white/5 hover:text-[var(--color-text)]'
               "
               :aria-label="`Entry ${index + 1} of ${booklet.count}`"
-              :aria-current="index === booklet.currentOpenIndex ? 'true' : undefined"
+              :aria-current="
+                index === booklet.currentOpenIndex ? 'true' : undefined
+              "
               @click="goToPage(index)"
             >
               {{ index + 1 }}
@@ -151,8 +183,18 @@
             aria-label="Next entry"
             @click="goNext"
           >
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            <svg
+              class="h-5 w-5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M9 5l7 7-7 7"
+              />
             </svg>
           </button>
         </div>
@@ -248,7 +290,9 @@
         <Skeleton width="8rem" height="1.5rem" />
       </span>
       <button
-        v-else-if="payableStore.currentTransRef && payableStore.mainStatus === 'Approved'"
+        v-else-if="
+          payableStore.currentTransRef && payableStore.mainStatus === 'Approved'
+        "
         type="button"
         class="entry-transref-btn text-xl font-bold text-[var(--color-text)] tabular-nums tracking-tight cursor-pointer bg-transparent border-0 p-0 rounded-lg hover:bg-[var(--color-accent-soft)] hover:text-[var(--color-accent)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]"
         :title="'Click to show TransRef QR code for scanning'"
@@ -377,152 +421,154 @@
         role="status"
       >
         <span class="expiry-check-banner__icon" aria-hidden="true">
-        <svg
-          width="28"
-          height="28"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-          <line x1="16" y1="2" x2="16" y2="6" />
-          <line x1="8" y1="2" x2="8" y2="6" />
-          <line x1="3" y1="10" x2="21" y2="10" />
-        </svg>
-      </span>
-      <div class="expiry-check-banner__content">
-        <div
-          v-if="displayExpiryCheckBanner"
-          class="expiry-check-banner__item"
-          :class="{
-            'expiry-check-banner__item--invalid': isExpiryCheckInvalid(
-              payableStore.mainExpiryCheck,
-              displayExpiryCheckBanner,
-            ),
-            'expiry-check-banner__item--valid': isExpiryCheckValid(
-              payableStore.mainExpiryCheck,
-              displayExpiryCheckBanner,
-            ),
-          }"
-        >
-          <span class="expiry-check-banner__item-icon" aria-hidden="true">
-            <svg
-              v-if="
-                isExpiryCheckInvalid(
-                  payableStore.mainExpiryCheck,
-                  displayExpiryCheckBanner,
-                )
-              "
-              class="expiry-check-banner__icon-svg"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              viewBox="0 0 24 24"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M15 9l-6 6M9 9l6 6"
-              />
-            </svg>
-            <svg
-              v-else-if="
-                isExpiryCheckValid(
-                  payableStore.mainExpiryCheck,
-                  displayExpiryCheckBanner,
-                )
-              "
-              class="expiry-check-banner__icon-svg"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <span v-else class="expiry-check-banner__icon-placeholder" />
-          </span>
-          <strong class="expiry-check-banner__label">GRA Expiry:</strong>
-          <span class="expiry-check-banner__text">{{
-            displayExpiryCheckBanner
-          }}</span>
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+        </span>
+        <div class="expiry-check-banner__content">
+          <div
+            v-if="displayExpiryCheckBanner"
+            class="expiry-check-banner__item"
+            :class="{
+              'expiry-check-banner__item--invalid': isExpiryCheckInvalid(
+                payableStore.mainExpiryCheck,
+                displayExpiryCheckBanner,
+              ),
+              'expiry-check-banner__item--valid': isExpiryCheckValid(
+                payableStore.mainExpiryCheck,
+                displayExpiryCheckBanner,
+              ),
+            }"
+          >
+            <span class="expiry-check-banner__item-icon" aria-hidden="true">
+              <svg
+                v-if="
+                  isExpiryCheckInvalid(
+                    payableStore.mainExpiryCheck,
+                    displayExpiryCheckBanner,
+                  )
+                "
+                class="expiry-check-banner__icon-svg"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                viewBox="0 0 24 24"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15 9l-6 6M9 9l6 6"
+                />
+              </svg>
+              <svg
+                v-else-if="
+                  isExpiryCheckValid(
+                    payableStore.mainExpiryCheck,
+                    displayExpiryCheckBanner,
+                  )
+                "
+                class="expiry-check-banner__icon-svg"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span v-else class="expiry-check-banner__icon-placeholder" />
+            </span>
+            <strong class="expiry-check-banner__label">GRA Expiry:</strong>
+            <span class="expiry-check-banner__text">{{
+              displayExpiryCheckBanner
+            }}</span>
+          </div>
+          <div
+            v-if="displayWhtExpiryCheckBanner"
+            class="expiry-check-banner__item"
+            :class="{
+              'expiry-check-banner__item--invalid': isExpiryCheckInvalid(
+                payableStore.mainWhtExpiryCheck,
+                displayWhtExpiryCheckBanner,
+              ),
+              'expiry-check-banner__item--valid': isExpiryCheckValid(
+                payableStore.mainWhtExpiryCheck,
+                displayWhtExpiryCheckBanner,
+              ),
+            }"
+          >
+            <span class="expiry-check-banner__item-icon" aria-hidden="true">
+              <svg
+                v-if="
+                  isExpiryCheckInvalid(
+                    payableStore.mainWhtExpiryCheck,
+                    displayWhtExpiryCheckBanner,
+                  )
+                "
+                class="expiry-check-banner__icon-svg"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                viewBox="0 0 24 24"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M15 9l-6 6M9 9l6 6"
+                />
+              </svg>
+              <svg
+                v-else-if="
+                  isExpiryCheckValid(
+                    payableStore.mainWhtExpiryCheck,
+                    displayWhtExpiryCheckBanner,
+                  )
+                "
+                class="expiry-check-banner__icon-svg"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <span v-else class="expiry-check-banner__icon-placeholder" />
+            </span>
+            <strong class="expiry-check-banner__label">WHT Expiry:</strong>
+            <span class="expiry-check-banner__text">{{
+              displayWhtExpiryCheckBanner
+            }}</span>
+          </div>
         </div>
-        <div
-          v-if="displayWhtExpiryCheckBanner"
-          class="expiry-check-banner__item"
-          :class="{
-            'expiry-check-banner__item--invalid': isExpiryCheckInvalid(
-              payableStore.mainWhtExpiryCheck,
-              displayWhtExpiryCheckBanner,
-            ),
-            'expiry-check-banner__item--valid': isExpiryCheckValid(
-              payableStore.mainWhtExpiryCheck,
-              displayWhtExpiryCheckBanner,
-            ),
-          }"
-        >
-          <span class="expiry-check-banner__item-icon" aria-hidden="true">
-            <svg
-              v-if="
-                isExpiryCheckInvalid(
-                  payableStore.mainWhtExpiryCheck,
-                  displayWhtExpiryCheckBanner,
-                )
-              "
-              class="expiry-check-banner__icon-svg"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              viewBox="0 0 24 24"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M15 9l-6 6M9 9l6 6"
-              />
-            </svg>
-            <svg
-              v-else-if="
-                isExpiryCheckValid(
-                  payableStore.mainWhtExpiryCheck,
-                  displayWhtExpiryCheckBanner,
-                )
-              "
-              class="expiry-check-banner__icon-svg"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <span v-else class="expiry-check-banner__icon-placeholder" />
-          </span>
-          <strong class="expiry-check-banner__label">WHT Expiry:</strong>
-          <span class="expiry-check-banner__text">{{
-            displayWhtExpiryCheckBanner
-          }}</span>
-        </div>
-      </div>
       </div>
       <!-- Vendor balance in BC: outside GRA banner. Full width when Approved (no GRA), else inline on right -->
       <div
         v-if="showHeaderBalanceBanner"
         class="expiry-balance-row__balance"
-        :class="{ 'expiry-balance-row__balance--full-width': !showExpiryCheckBanner }"
+        :class="{
+          'expiry-balance-row__balance--full-width': !showExpiryCheckBanner,
+        }"
       >
         <VendorBalanceBanner
           :loading="vendorStore.vendorBalanceLoading"
@@ -761,19 +807,53 @@
           <div class="vendor-details-row mb-4">
             <VendorDetails />
           </div>
-          <div class="mb-3">
+          <div
+            v-if="payableStore.mainStatus !== 'Posted' && payableStore.mainStatus !== 'Approved'"
+            class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-bg-card)] px-3 py-2 backdrop-blur-[var(--blur-glass)]"
+          >
             <Toolbar @add-row="spreadsheet.addRow()" />
           </div>
           <p
             class="mb-3 text-[var(--label-size)] text-[var(--color-text-muted)]"
           >
             <strong class="text-[var(--color-text)]">Required to save:</strong>
-            Fill <span class="text-red-400/90">*</span> Purchase order, and
-            Vendor name or Vendor ID above; in the grid, each row must have at
-            least one of: Invoice Number, Amount, or Total.
+            Fill <span class="text-red-400/90">*</span> Purchase order and
+            Vendor ID above; in the grid, each row must have at least one of:
+            Invoice Number or Amount.
           </p>
           <div class="flex-1 min-h-[360px] flex flex-col min-w-0">
             <DataGrid @delete-row="handleDeleteRowByIndex" />
+          </div>
+
+          <!-- Floating action buttons: View Vendors / View Tax (new entry only) -->
+          <div
+            v-if="!route.query.transRef"
+            class="entry-fab-group"
+          >
+            <button
+              type="button"
+              class="entry-fab"
+              title="View Vendors"
+              aria-label="View Vendors"
+              @click="showVendorsPeek = true"
+            >
+              <svg class="entry-fab__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              <span class="entry-fab__label">Vendors</span>
+            </button>
+            <button
+              type="button"
+              class="entry-fab"
+              title="View Tax"
+              aria-label="View Tax"
+              @click="showTaxPeek = true"
+            >
+              <svg class="entry-fab__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+              </svg>
+              <span class="entry-fab__label">Tax</span>
+            </button>
           </div>
         </div>
       </Transition>
@@ -792,7 +872,10 @@ import RejectReasonModal from "../components/RejectReasonModal.vue";
 import EditRequestModal from "../components/EditRequestModal.vue";
 import DeleteDraftConfirmModal from "../components/DeleteDraftConfirmModal.vue";
 import DeleteRowsConfirmModal from "../components/DeleteRowsConfirmModal.vue";
+import RightSidebarModal from "../components/RightSidebarModal.vue";
 import Toolbar from "../components/Toolbar.vue";
+import VendorsView from "./VendorsView.vue";
+import TaxView from "./TaxView.vue";
 import DataGrid from "../components/DataGrid.vue";
 import Skeleton from "../components/Skeleton.vue";
 import { useSpreadsheet } from "../composables/useSpreadsheet";
@@ -891,6 +974,8 @@ const showDeleteRowsConfirmModal = ref(false);
 const pendingDeleteIndices = ref<number[]>([]);
 const deletingRows = ref(false);
 const showTransRefQrModal = ref(false);
+const showVendorsPeek = ref(false);
+const showTaxPeek = ref(false);
 const grantingEditRequest = ref(false);
 const showEditRequestModal = ref(false);
 const pendingEditRequestForModal = ref<PendingEditRequest | null>(null);
@@ -1437,7 +1522,7 @@ async function onDeleteRowsConfirm() {
   }
 }
 
-async function onDeleteDraftConfirm() {
+async function onDeleteDraftConfirm(reason: string) {
   const mainRecordId = payableStore.currentMainRecordId;
   const transRef = payableStore.currentTransRef;
   if (
@@ -1456,7 +1541,10 @@ async function onDeleteDraftConfirm() {
     for (const row of rows) {
       const recordId = (row as { recordId?: string })?.recordId;
       if (recordId && String(recordId).trim()) {
-        const { error } = await deleteRecord(LAYOUTS.PAYABLES_DETAILS, recordId);
+        const { error } = await deleteRecord(
+          LAYOUTS.PAYABLES_DETAILS,
+          recordId,
+        );
         if (error) {
           firstError = error;
           break;
@@ -1470,11 +1558,15 @@ async function onDeleteDraftConfirm() {
       return;
     }
     const actor = (userFullName.value || "").trim() || "—";
+    const vendorName = vendorStore.vendor?.vendor_name ?? "";
     const activityErr = await writeActivityLog(
       createRecord,
       transRef,
       "Deleted",
       actor,
+      reason?.trim() || undefined,
+      payableStore.entryTotal,
+      vendorName,
     );
     if (activityErr) {
       toast.error("Draft deleted but activity log failed: " + activityErr);
@@ -1560,6 +1652,7 @@ async function performReject(reason: string) {
       "Rejected",
       rejectedBy,
       reason.trim(),
+      payableStore.entryTotal,
     );
     if (activityErr) {
       toast.error("Rejected but failed to record activity: " + activityErr);
@@ -1614,6 +1707,8 @@ async function onApprove() {
       transRef,
       "Approved",
       approvedBy,
+      undefined,
+      payableStore.entryTotal,
     );
     if (activityErr) {
       toast.error("Approved but failed to record activity: " + activityErr);
@@ -1790,7 +1885,9 @@ async function downloadApprovedPdf() {
     const transRef = payableStore.currentTransRef?.trim() ?? "";
     const v = vendorStore.vendor;
     const amountToPayVal =
-      typeof payableStore.amountToPay === "number" ? payableStore.amountToPay : 0;
+      typeof payableStore.amountToPay === "number"
+        ? payableStore.amountToPay
+        : 0;
     const advancePaymentVal = payableStore.advancePaymentNum ?? 0;
     const advancePaymentStr =
       (v.currency ? `${v.currency} ` : "") + formatPdfNumber(advancePaymentVal);
@@ -1910,7 +2007,12 @@ async function downloadApprovedPdf() {
 
     const tableFontSize = 7;
     const tableHeaderRow = [
-      { text: "Invoice No.", fillColor: "#ebebeb", bold: true, fontSize: tableFontSize },
+      {
+        text: "Invoice No.",
+        fillColor: "#ebebeb",
+        bold: true,
+        fontSize: tableFontSize,
+      },
       {
         text: "Amount before VAT",
         fillColor: "#ebebeb",
@@ -1971,17 +2073,36 @@ async function downloadApprovedPdf() {
       ...rows.map((r) => {
         const taxAmount = (r.reference ?? "").trim() || (r.tax ?? "");
         return [
-          { text: (r.invoice_number ?? "").trim() || "—", fontSize: tableFontSize },
+          {
+            text: (r.invoice_number ?? "").trim() || "—",
+            fontSize: tableFontSize,
+          },
           {
             text: formatPdfNumber(r.amount ?? ""),
             alignment: "right" as const,
             fontSize: tableFontSize,
           },
-          { text: formatPdfNumber(r.tax ?? ""), alignment: "right" as const, fontSize: tableFontSize },
-          { text: formatPdfNumber(taxAmount), alignment: "right" as const, fontSize: tableFontSize },
+          {
+            text: formatPdfNumber(r.tax ?? ""),
+            alignment: "right" as const,
+            fontSize: tableFontSize,
+          },
+          {
+            text: formatPdfNumber(taxAmount),
+            alignment: "right" as const,
+            fontSize: tableFontSize,
+          },
           { text: buildTaxBreakdownText(r, "Add"), fontSize: tableFontSize },
-          { text: formatPdfNumber(r.wht_tax ?? ""), alignment: "right" as const, fontSize: tableFontSize },
-          { text: formatPdfNumber(r.wht_tax_amount ?? ""), alignment: "right" as const, fontSize: tableFontSize },
+          {
+            text: formatPdfNumber(r.wht_tax ?? ""),
+            alignment: "right" as const,
+            fontSize: tableFontSize,
+          },
+          {
+            text: formatPdfNumber(r.wht_tax_amount ?? ""),
+            alignment: "right" as const,
+            fontSize: tableFontSize,
+          },
           { text: buildTaxBreakdownText(r, "Sub"), fontSize: tableFontSize },
           {
             text: formatPdfNumber(r.total ?? ""),
@@ -2101,11 +2222,10 @@ async function downloadApprovedPdf() {
                   fontSize: 8,
                 },
                 {
-                  text:
-                    v.vendor_balance?.trim()
-                      ? (v.currency ? `${v.currency} ` : "") +
-                        formatPdfNumber(v.vendor_balance)
-                      : "—",
+                  text: v.vendor_balance?.trim()
+                    ? (v.currency ? `${v.currency} ` : "") +
+                      formatPdfNumber(v.vendor_balance)
+                    : "—",
                   fontSize: 8,
                 },
               ],
@@ -2198,8 +2318,7 @@ async function downloadApprovedPdf() {
                       fillColor: "#f5f5f5",
                     },
                     {
-                      text:
-                        advancePaymentVal > 0 ? advancePaymentStr : "—",
+                      text: advancePaymentVal > 0 ? advancePaymentStr : "—",
                       fontSize: 9,
                       alignment: "right" as const,
                       fillColor: "#f5f5f5",
@@ -2675,7 +2794,11 @@ async function downloadApprovedPdf() {
   width: 100%;
   max-width: 18rem;
   padding: 1.5rem;
-  background: linear-gradient(180deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.98) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(30, 41, 59, 0.98) 0%,
+    rgba(15, 23, 42, 0.98) 100%
+  );
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
@@ -2736,5 +2859,51 @@ async function downloadApprovedPdf() {
 .transref-qr-modal-enter-from,
 .transref-qr-modal-leave-to {
   opacity: 0;
+}
+
+/* Floating action buttons (new entry) */
+.entry-fab-group {
+  position: fixed;
+  bottom: calc(var(--app-footer-height, 3.25rem) + 1rem);
+  right: 1.5rem;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  pointer-events: none;
+}
+.entry-fab-group > * {
+  pointer-events: auto;
+}
+.entry-fab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: rgb(30, 41, 59);
+  border: 1px solid var(--color-border);
+  border-radius: 9999px;
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(0, 0, 0, 0.15);
+  transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease), background 0.2s ease;
+}
+.entry-fab:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3), 0 3px 8px rgba(0, 0, 0, 0.2);
+  background: rgb(51, 65, 85);
+}
+.entry-fab:active {
+  transform: translateY(0);
+}
+.entry-fab__icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+}
+.entry-fab__label {
+  white-space: nowrap;
 }
 </style>

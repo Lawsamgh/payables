@@ -1078,6 +1078,32 @@
         </div>
       </div>
 
+      <!-- User Guide: short description -->
+      <div
+        v-else-if="route.name === 'settings-user-guide'"
+        class="overview-cards space-y-3"
+      >
+        <p
+          class="text-[var(--label-size)] leading-relaxed text-[var(--color-text-muted)]"
+        >
+          View or download PDF guides for your role. Officer and Manager guides
+          cover create/post flows, approvals, vendors, invoices, and tax.
+        </p>
+        <div
+          class="overview-card rounded-xl border border-[var(--color-border)]/60 bg-white/[0.04] px-4 py-3"
+        >
+          <p
+            class="text-[11px] font-medium text-[var(--color-text-muted)] mb-1"
+          >
+            Overview
+          </p>
+          <p class="text-[13px] text-[var(--color-text)] leading-relaxed">
+            Use <strong>View</strong> to open a guide in-browser or
+            <strong>Download</strong> to save it locally.
+          </p>
+        </div>
+      </div>
+
       <!-- Settings (and Manage Users, Documents): short description -->
       <div
         v-else-if="

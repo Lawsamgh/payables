@@ -286,7 +286,7 @@
               :value="vendor.vendor_name"
               type="text"
               class="vendor-details__input opacity-75 cursor-not-allowed"
-              placeholder="Select vendor above"
+              placeholder="Select vendor id to populate vendor name"
               readonly
               @input="
                 onVendorFieldChange(

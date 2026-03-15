@@ -7,8 +7,18 @@
         to="/settings"
         class="inline-flex items-center gap-2 text-[var(--label-size)] text-[var(--color-text-muted)] hover:text-[var(--color-text)] no-underline mb-4 transition-colors"
       >
-        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        <svg
+          class="h-4 w-4"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M15 19l-7-7 7-7"
+          />
         </svg>
         Back to Settings
       </router-link>
@@ -19,7 +29,8 @@
         Activity Logs
       </h1>
       <p class="mt-1 text-[13px] text-[var(--color-text-muted)]">
-        View audit trail of Created, Edited, Posted, Rejected, Approved, Deleted, and Reposted events.
+        View audit trail of Created, Edited, Posted, Rejected, Approved,
+        Deleted, Reposted, and Collected events.
       </p>
     </header>
 
@@ -34,7 +45,16 @@
           :class="{ 'search-bar__wrap--has-value': searchQuery }"
         >
           <span class="search-bar__icon" aria-hidden="true">
-            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+            <svg
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              viewBox="0 0 24 24"
+            >
               <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </span>
@@ -53,15 +73,37 @@
             aria-label="Clear search"
             @click="searchQuery = ''"
           >
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            <svg
+              width="16"
+              height="16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         </div>
         <div class="tax-search-bar__filter-wrap">
           <span class="tax-search-bar__filter-icon" aria-hidden="true">
-            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-              <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            <svg
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+              />
             </svg>
           </span>
           <select
@@ -70,11 +112,24 @@
             aria-label="Filter by action"
           >
             <option value="">All actions</option>
-            <option v-for="a in ACTION_OPTIONS" :key="a" :value="a">{{ a }}</option>
+            <option v-for="a in ACTION_OPTIONS" :key="a" :value="a">
+              {{ a }}
+            </option>
           </select>
           <span class="tax-search-bar__filter-chevron" aria-hidden="true">
-            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            <svg
+              width="12"
+              height="12"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M19 9l-7 7-7-7"
+              />
             </svg>
           </span>
         </div>
@@ -124,7 +179,10 @@
             type="button"
             class="logs-date-range__clear"
             aria-label="Clear date range"
-            @click="dateFrom = ''; dateTo = ''"
+            @click="
+              dateFrom = '';
+              dateTo = '';
+            "
           >
             <svg
               class="h-4 w-4"
@@ -147,8 +205,20 @@
             aria-label="Export to Excel"
             @click="exportToExcel"
           >
-            <svg class="logs-export-btn__icon" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            <svg
+              class="logs-export-btn__icon"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
             </svg>
             Excel
           </button>
@@ -159,8 +229,20 @@
             aria-label="Export to PDF"
             @click="exportToPdf"
           >
-            <svg class="logs-export-btn__icon" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+            <svg
+              class="logs-export-btn__icon"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+              />
             </svg>
             PDF
           </button>
@@ -168,10 +250,17 @@
       </div>
     </div>
     <p
-      v-if="!loading && !loadError && logList.length > 0 && (searchQuery || actionFilter || dateFrom || dateTo)"
+      v-if="
+        !loading &&
+        !loadError &&
+        logList.length > 0 &&
+        (searchQuery || actionFilter || dateFrom || dateTo)
+      "
       class="tax-search-bar__hint mb-4"
     >
-      {{ filteredLogList.length }} result{{ filteredLogList.length === 1 ? '' : 's' }}
+      {{ filteredLogList.length }} result{{
+        filteredLogList.length === 1 ? "" : "s"
+      }}
     </p>
 
     <div class="logs-table-wrap">
@@ -180,20 +269,72 @@
           <table class="tax-table">
             <thead>
               <tr>
-                <th><Skeleton width="6rem" height="0.875rem" class="rounded" /></th>
-                <th><Skeleton width="5rem" height="0.875rem" class="rounded" /></th>
-                <th><Skeleton width="8rem" height="0.875rem" class="rounded" /></th>
-                <th><Skeleton width="10rem" height="0.875rem" class="rounded" /></th>
-                <th><Skeleton width="12rem" height="0.875rem" class="rounded" /></th>
+                <th>
+                  <Skeleton width="6rem" height="0.875rem" class="rounded" />
+                </th>
+                <th>
+                  <Skeleton width="8rem" height="0.875rem" class="rounded" />
+                </th>
+                <th>
+                  <Skeleton width="5rem" height="0.875rem" class="rounded" />
+                </th>
+                <th>
+                  <Skeleton width="5rem" height="0.875rem" class="rounded" />
+                </th>
+                <th>
+                  <Skeleton width="6rem" height="0.875rem" class="rounded" />
+                </th>
+                <th>
+                  <Skeleton width="10rem" height="0.875rem" class="rounded" />
+                </th>
+                <th>
+                  <Skeleton width="12rem" height="0.875rem" class="rounded" />
+                </th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="i in 8" :key="i" class="tax-table-skeleton__row">
-                <td><Skeleton width="70%" height="0.875rem" class="rounded max-w-[8rem]" /></td>
-                <td><Skeleton width="4rem" height="0.875rem" class="rounded" /></td>
-                <td><Skeleton width="60%" height="0.875rem" class="rounded max-w-[10rem]" /></td>
-                <td><Skeleton width="80%" height="0.875rem" class="rounded max-w-[12rem]" /></td>
-                <td><Skeleton width="50%" height="0.875rem" class="rounded max-w-[14rem]" /></td>
+                <td>
+                  <Skeleton
+                    width="70%"
+                    height="0.875rem"
+                    class="rounded max-w-[8rem]"
+                  />
+                </td>
+                <td>
+                  <Skeleton
+                    width="60%"
+                    height="0.875rem"
+                    class="rounded max-w-[10rem]"
+                  />
+                </td>
+                <td>
+                  <Skeleton width="4rem" height="0.875rem" class="rounded" />
+                </td>
+                <td>
+                  <Skeleton width="4rem" height="0.875rem" class="rounded" />
+                </td>
+                <td>
+                  <Skeleton
+                    width="60%"
+                    height="0.875rem"
+                    class="rounded max-w-[10rem]"
+                  />
+                </td>
+                <td>
+                  <Skeleton
+                    width="80%"
+                    height="0.875rem"
+                    class="rounded max-w-[12rem]"
+                  />
+                </td>
+                <td>
+                  <Skeleton
+                    width="50%"
+                    height="0.875rem"
+                    class="rounded max-w-[14rem]"
+                  />
+                </td>
               </tr>
             </tbody>
           </table>
@@ -213,7 +354,12 @@
         <button
           type="button"
           class="pill-btn mt-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
-          @click="searchQuery = ''; actionFilter = ''; dateFrom = ''; dateTo = ''"
+          @click="
+            searchQuery = '';
+            actionFilter = '';
+            dateFrom = '';
+            dateTo = '';
+          "
         >
           Clear filters
         </button>
@@ -224,6 +370,8 @@
             <thead>
               <tr>
                 <th>TransRef</th>
+                <th>Vendor</th>
+                <th class="logs-table__th-amount">Amount</th>
                 <th>Action</th>
                 <th>Actor</th>
                 <th>Timestamp</th>
@@ -237,14 +385,34 @@
               >
                 <td>
                   <router-link
-                    v-if="getField(row, 'TransRef') && getField(row, 'Action') !== 'Deleted'"
-                    :to="{ name: 'entry', query: { transRef: getField(row, 'TransRef'), from: 'settings-logs' } }"
+                    v-if="
+                      getField(row, 'TransRef') &&
+                      getField(row, 'Action') !== 'Deleted'
+                    "
+                    :to="{
+                      name: 'entry',
+                      query: {
+                        transRef: getField(row, 'TransRef'),
+                        from: 'settings-logs',
+                      },
+                    }"
                     class="text-[var(--color-accent)] hover:underline no-underline"
                   >
-                    {{ getField(row, 'TransRef') }}
+                    {{ getField(row, "TransRef") }}
                   </router-link>
-                  <span v-else-if="getField(row, 'TransRef')">{{ getField(row, 'TransRef') }}</span>
+                  <span v-else-if="getField(row, 'TransRef')">{{
+                    getField(row, "TransRef")
+                  }}</span>
                   <span v-else>—</span>
+                </td>
+                <td
+                  class="max-w-[180px] truncate"
+                  :title="getField(row, 'VendorName')"
+                >
+                  {{ getField(row, "VendorName") || "—" }}
+                </td>
+                <td class="text-right tabular-nums">
+                  {{ getAmountForDisplay(row) }}
                 </td>
                 <td>
                   <span
@@ -252,13 +420,16 @@
                     :class="getActionBadgeClass(getField(row, 'Action'))"
                     :title="getField(row, 'Action')"
                   >
-                    {{ getField(row, 'Action') || '—' }}
+                    {{ getField(row, "Action") || "—" }}
                   </span>
                 </td>
-                <td>{{ getField(row, 'Actor') || '—' }}</td>
-                <td>{{ formatTimestamp(getField(row, 'Timestamp')) }}</td>
-                <td class="max-w-[200px] truncate" :title="getField(row, 'Reason')">
-                  {{ getField(row, 'Reason') || '—' }}
+                <td>{{ getField(row, "Actor") || "—" }}</td>
+                <td>{{ formatTimestamp(getField(row, "Timestamp")) }}</td>
+                <td
+                  class="max-w-[200px] truncate"
+                  :title="getField(row, 'Reason')"
+                >
+                  {{ getField(row, "Reason") || "—" }}
                 </td>
               </tr>
             </tbody>
@@ -281,6 +452,7 @@ import type {
 import type { FindRecordWithId } from "../composables/useFileMaker";
 import Skeleton from "../components/Skeleton.vue";
 import { useToastStore } from "../stores/toastStore";
+import { formatNumberDisplay } from "../utils/formatNumber";
 import { useActivityLogOverviewStore } from "../stores/activityLogOverviewStore";
 
 const ACTION_OPTIONS = [
@@ -291,6 +463,7 @@ const ACTION_OPTIONS = [
   "Approved",
   "Reposted",
   "Deleted",
+  "Collected",
   "EditRequested",
   "EditAllowed",
 ] as const;
@@ -314,23 +487,84 @@ const dateFrom = ref("");
 const dateTo = ref("");
 const exporting = ref(false);
 
+const FIELD_ALIASES: Record<string, string[]> = {
+  VendorName: [
+    "VendorNameAtAction",
+    "Vendor Name At Action",
+    "vendorNameAtAction",
+    "Payables_Main::VendorName",
+    "VendorName",
+    "Vendor Name",
+    "vendorName",
+  ],
+  Total: ["Payables_Main::Total", "Total", "total"],
+  AmountAtAction: [
+    "AmountAtAction",
+    "Amount At Action",
+    "Amount_At_Action",
+    "amountAtAction",
+    "amount_at_action",
+  ],
+};
+
+function getAmountForDisplay(
+  row:
+    | PayablesActivityLogFieldData
+    | { fieldData?: PayablesActivityLogFieldData },
+): string {
+  const amountAtAction = getFieldRaw(row, "AmountAtAction");
+  if (amountAtAction != null && amountAtAction !== "") {
+    return formatNumberDisplay(amountAtAction);
+  }
+  const total = getFieldRaw(row, "Total");
+  if (total != null && total !== "") {
+    return formatNumberDisplay(total);
+  }
+  return "—";
+}
+
 function getField(
-  row: PayablesActivityLogFieldData | { fieldData?: PayablesActivityLogFieldData },
-  key: string
+  row:
+    | PayablesActivityLogFieldData
+    | { fieldData?: PayablesActivityLogFieldData },
+  key: string,
 ): string {
   const fd =
     "fieldData" in row ? row.fieldData : (row as PayablesActivityLogFieldData);
   if (!fd) return "";
-  const v =
-    (fd as Record<string, unknown>)[key] ??
-    (fd as Record<string, unknown>)[
-      key.replace(/([A-Z])/g, " $1").trim()
-    ] ??
-    (fd as Record<string, unknown>)[
-      key.charAt(0).toLowerCase() + key.slice(1)
-    ];
+  const keysToTry = FIELD_ALIASES[key] ?? [
+    key,
+    key.replace(/([A-Z])/g, " $1").trim(),
+    key.charAt(0).toLowerCase() + key.slice(1),
+  ];
+  let v: unknown = null;
+  for (const k of keysToTry) {
+    v = (fd as Record<string, unknown>)[k];
+    if (v != null && v !== "") break;
+  }
   if (v == null || v === "") return "";
   return String(v).trim();
+}
+
+function getFieldRaw(
+  row:
+    | PayablesActivityLogFieldData
+    | { fieldData?: PayablesActivityLogFieldData },
+  key: string,
+): string | number | null | undefined {
+  const fd =
+    "fieldData" in row ? row.fieldData : (row as PayablesActivityLogFieldData);
+  if (!fd) return null;
+  const keysToTry = FIELD_ALIASES[key] ?? [
+    key,
+    key.replace(/([A-Z])/g, " $1").trim(),
+    key.charAt(0).toLowerCase() + key.slice(1),
+  ];
+  for (const k of keysToTry) {
+    const v = (fd as Record<string, unknown>)[k];
+    if (v != null && v !== "") return v as string | number;
+  }
+  return null;
 }
 
 function formatTimestamp(val: string): string {
@@ -351,6 +585,7 @@ function getActionBadgeClass(action: string): string {
   if (a === "rejected") return "action-badge--rejected";
   if (a === "approved") return "action-badge--approved";
   if (a === "deleted") return "action-badge--rejected";
+  if (a === "collected") return "action-badge--posted";
   if (a === "editrequested") return "action-badge--posted";
   if (a === "editallowed") return "action-badge--approved";
   return "";
@@ -403,14 +638,70 @@ const filteredLogList = computed(() => {
 });
 
 function getExportRows(): string[][] {
-  const headers = ["TransRef", "Action", "Actor", "Timestamp", "Reason"];
+  const headers = [
+    "TransRef",
+    "Vendor",
+    "Amount",
+    "Action",
+    "Actor",
+    "Timestamp",
+    "Reason",
+  ];
   const rows = filteredLogList.value.map((r) => [
     getField(r, "TransRef") || "—",
+    getField(r, "VendorName") || "—",
+    getAmountForDisplay(r),
     getField(r, "Action") || "—",
     getField(r, "Actor") || "—",
     formatTimestamp(getField(r, "Timestamp")),
     getField(r, "Reason") || "—",
   ]);
+  return [headers, ...rows];
+}
+
+/** PDF-specific: mark bulk approved (same timestamp) and label rejection reason. */
+function getPdfExportRows(): string[][] {
+  const list = filteredLogList.value;
+  const timestampCount = new Map<string, number>();
+  for (const r of list) {
+    const action = getField(r, "Action").toLowerCase();
+    if (action === "approved") {
+      const ts = getField(r, "Timestamp") || "";
+      timestampCount.set(ts, (timestampCount.get(ts) ?? 0) + 1);
+    }
+  }
+  const headers = [
+    "TransRef",
+    "Vendor",
+    "Amount",
+    "Action",
+    "Actor",
+    "Timestamp",
+    "Reason",
+  ];
+  const rows = list.map((r) => {
+    const action = getField(r, "Action") || "—";
+    const actionLower = action.toLowerCase();
+    const ts = getField(r, "Timestamp") || "";
+    const reasonRaw = getField(r, "Reason") || "";
+    let actionDisplay = action;
+    if (actionLower === "approved" && (timestampCount.get(ts) ?? 0) >= 2) {
+      actionDisplay = "Approved (bulk)";
+    }
+    let reasonDisplay = reasonRaw || "—";
+    if (actionLower === "rejected" && reasonRaw.trim()) {
+      reasonDisplay = "Rejection reason: " + reasonRaw.trim();
+    }
+    return [
+      getField(r, "TransRef") || "—",
+      getField(r, "VendorName") || "—",
+      getAmountForDisplay(r),
+      actionDisplay,
+      getField(r, "Actor") || "—",
+      formatTimestamp(ts),
+      reasonDisplay,
+    ];
+  });
   return [headers, ...rows];
 }
 
@@ -450,27 +741,44 @@ async function exportToPdf() {
     if (pdfMake.addVirtualFileSystem && vfs) {
       pdfMake.addVirtualFileSystem(vfs);
     }
-    const rows = getExportRows();
+    const rows = getPdfExportRows();
     const [headerRow, ...dataRows] = rows;
     const body = [
-      headerRow.map((cell) => ({ text: cell, style: "tableHeader", fillColor: "#1e293b" })),
-      ...dataRows.map((row) => row.map((cell) => ({ text: cell, style: "tableCell" }))),
+      headerRow.map((cell) => ({
+        text: cell,
+        style: "tableHeader",
+        fillColor: "#1e293b",
+      })),
+      ...dataRows.map((row) =>
+        row.map((cell) => ({ text: cell, style: "tableCell" })),
+      ),
     ];
     const docDefinition = {
       pageSize: "A4" as const,
       pageOrientation: "landscape" as const,
       pageMargins: [40, 40, 40, 60],
-      defaultStyle: { fontSize: 9 },
+      defaultStyle: { fontSize: 8 },
       styles: {
-        tableHeader: { bold: true, color: "#f1f5f9" },
-        tableCell: {},
+        tableHeader: { bold: true, color: "#f1f5f9", fontSize: 7 },
+        tableCell: { fontSize: 8 },
       },
       content: [
-        { text: "Activity Logs", fontSize: 16, bold: true, margin: [0, 0, 0, 12] },
+        {
+          text: "Activity Logs",
+          fontSize: 16,
+          bold: true,
+          margin: [0, 0, 0, 8],
+        },
+        {
+          text: "• Approved (bulk): Same timestamp indicates multiple entries were approved together.\n• Reason: For Rejected entries, shows why the entry was rejected; for Deleted entries, shows why it was deleted.",
+          fontSize: 8,
+          color: "#64748b",
+          margin: [0, 0, 0, 12],
+        },
         {
           table: {
             headerRows: 1,
-            widths: ["*", "auto", "*", "auto", "*"],
+            widths: ["auto", "*", "auto", "auto", "*", "auto", "*"],
             body,
           },
           layout: "lightHorizontalLines",
@@ -503,15 +811,16 @@ async function loadLogs() {
   loading.value = true;
   loadError.value = null;
   try {
-    const { data, error } = await findRecordsWithIds<PayablesActivityLogFieldData>(
-      LAYOUTS.PAYABLES_ACTIVITY_LOG,
-      {
-        limit: 500,
-        sort: JSON.stringify([
-          { fieldName: "Timestamp", sortOrder: "descend" },
-        ]),
-      }
-    );
+    const { data, error } =
+      await findRecordsWithIds<PayablesActivityLogFieldData>(
+        LAYOUTS.PAYABLES_ACTIVITY_LOG,
+        {
+          limit: 500,
+          sort: JSON.stringify([
+            { fieldName: "Timestamp", sortOrder: "descend" },
+          ]),
+        },
+      );
     if (error) {
       loadError.value = error;
       logList.value = [];
@@ -539,7 +848,7 @@ onMounted(async () => {
     const { data } = await findRecordsByQueryWithIds<PayablesUsersFieldData>(
       LAYOUTS.PAYABLES_USERS,
       { Email: email },
-      1
+      1,
     );
     const role = (data?.[0]?.fieldData?.Role ?? "")
       .toString()
@@ -743,7 +1052,9 @@ watch(isConnected, (connected) => {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-input);
   cursor: pointer;
-  transition: background 0.2s, border-color 0.2s;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
 }
 
 .logs-export-btn:hover:not(:disabled) {
@@ -796,5 +1107,10 @@ watch(isConnected, (connected) => {
   background: rgb(30, 41, 59);
   border-bottom: 1px solid var(--color-border);
   box-shadow: 0 1px 0 var(--color-border);
+}
+
+.logs-table__th-amount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 </style>
