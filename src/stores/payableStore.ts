@@ -19,6 +19,7 @@ import {
 import { writeActivityLog } from "../utils/activityLog";
 import type { PayableRow, PayableStatus } from "../types";
 import type { ColumnKey } from "../composables/useSpreadsheet";
+import { useUserRole } from "../composables/useUserRole";
 import {
   getRowStr,
   normalizeFileMakerError,
@@ -88,6 +89,17 @@ export const usePayableStore = defineStore("payable", () => {
   );
   const hasUndoDelete = computed(() => lastDeleted.value != null);
 
+  /** Soft lock (Draft): blocks edits when another officer is editing. */
+  const softLockEditingByEmail = ref<string | null>(null);
+  const softLockEditingByName = ref<string | null>(null);
+  const softLockEditingAt = ref<string | null>(null);
+  const softLockIsMine = ref(false);
+  const softLockLockedByOther = ref(false);
+  const softLockMessage = ref<string | null>(null);
+  let softLockHeartbeat: ReturnType<typeof setInterval> | null = null;
+
+  const softLockReadOnly = computed(() => softLockLockedByOther.value);
+
   const hasNewRows = computed(() =>
     rows.value.some((r) => {
       const id = r?.id;
@@ -116,6 +128,332 @@ export const usePayableStore = defineStore("payable", () => {
   function setMainAdvancePayment(value: string | number | null): void {
     mainAdvancePayment.value = value;
     isDirty.value = true;
+  }
+
+  function clearSoftLockState(): void {
+    softLockEditingByEmail.value = null;
+    softLockEditingByName.value = null;
+    softLockEditingAt.value = null;
+    softLockIsMine.value = false;
+    softLockLockedByOther.value = false;
+    softLockMessage.value = null;
+    if (softLockHeartbeat) {
+      clearInterval(softLockHeartbeat);
+      softLockHeartbeat = null;
+    }
+  }
+
+  function parseSoftLockTimestamp(raw: string | null): number | null {
+    const s = String(raw ?? "").trim();
+    if (!s) return null;
+    // FileMaker timestamp often looks like "MM/dd/yyyy HH:mm:ss"
+    const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(
+      s,
+    );
+    if (us) {
+      const m = parseInt(us[1], 10) - 1;
+      const d = parseInt(us[2], 10);
+      const y = parseInt(us[3], 10);
+      const hh = parseInt(us[4], 10);
+      const mm = parseInt(us[5], 10);
+      const ss = us[6] ? parseInt(us[6], 10) : 0;
+      const dt = new Date(y, m, d, hh, mm, ss);
+      const t = dt.getTime();
+      return Number.isNaN(t) ? null : t;
+    }
+    const dt = new Date(s);
+    const t = dt.getTime();
+    return Number.isNaN(t) ? null : t;
+  }
+
+  function formatSoftLockSince(raw: string | null): string {
+    const s = String(raw ?? "").trim();
+    if (!s) return "";
+    return s;
+  }
+
+  async function acquireSoftLockIfDraft(
+    mainRecordId: string | null,
+    mainFd: Record<string, unknown> | undefined,
+    opts?: { force?: boolean },
+  ): Promise<void> {
+    clearSoftLockState();
+    const id = String(mainRecordId ?? "").trim();
+    if (!id) return;
+
+    const { updateRecord, isConnected, loggedInEmail } = useFileMaker();
+    const { userFullName } = useUserRole();
+    if (!isConnected.value) return;
+
+    const status = String(mainFd?.Status ?? mainFd?.["Status"] ?? "").trim();
+    const posted = String(mainFd?.Posted ?? mainFd?.["Posted"] ?? "").trim();
+    const isDraft = status.toLowerCase() === "draft" || posted.toLowerCase() !== "yes";
+    if (!isDraft) return;
+
+    const myEmail = String(loggedInEmail.value ?? "").trim().toLowerCase();
+    if (!myEmail) return;
+    const myName = String(userFullName.value ?? "").trim() || myEmail;
+
+    const editingByEmail = String(
+      mainFd?.EditingByEmail ??
+        mainFd?.["EditingByEmail"] ??
+        mainFd?.["Editing By Email"] ??
+        "",
+    )
+      .trim()
+      .toLowerCase();
+    const editingByName = String(
+      mainFd?.EditingByName ??
+        mainFd?.["EditingByName"] ??
+        mainFd?.["Editing By Name"] ??
+        "",
+    ).trim();
+    const editingAt = String(
+      mainFd?.EditingAt ?? mainFd?.["EditingAt"] ?? mainFd?.["Editing At"] ?? "",
+    ).trim();
+
+    const ttlMs = 10 * 60 * 1000; // 10 minutes
+    const editingAtMs = parseSoftLockTimestamp(editingAt);
+    const expired =
+      !editingByEmail ||
+      !editingAtMs ||
+      Date.now() - editingAtMs > ttlMs;
+
+    const lockedByMe = editingByEmail && editingByEmail === myEmail;
+
+    if (!opts?.force && editingByEmail && !expired && !lockedByMe) {
+      softLockEditingByEmail.value = editingByEmail;
+      softLockEditingByName.value = editingByName || editingByEmail;
+      softLockEditingAt.value = editingAt || null;
+      softLockIsMine.value = false;
+      softLockLockedByOther.value = true;
+      softLockMessage.value = `This draft is currently being edited by ${
+        editingByName || editingByEmail
+      } (since ${formatSoftLockSince(editingAt)}).`;
+      return;
+    }
+
+    // Claim / refresh lock (also used for "take over").
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    const hh = String(now.getHours()).padStart(2, "0");
+    const min = String(now.getMinutes()).padStart(2, "0");
+    const ss = String(now.getSeconds()).padStart(2, "0");
+    const stamp = `${mm}/${dd}/${yyyy} ${hh}:${min}:${ss}`;
+
+    const { error: lockErr } = await updateRecord(LAYOUTS.PAYABLES_MAIN, id, {
+      EditingByEmail: myEmail,
+      EditingByName: myName,
+      EditingAt: stamp,
+    });
+    if (lockErr) return;
+
+    softLockEditingByEmail.value = myEmail;
+    softLockEditingByName.value = myName;
+    softLockEditingAt.value = stamp;
+    softLockIsMine.value = true;
+    softLockLockedByOther.value = false;
+    softLockMessage.value = null;
+
+    // Heartbeat: refresh EditingAt every 60s while on this draft.
+    if (softLockHeartbeat) clearInterval(softLockHeartbeat);
+    softLockHeartbeat = setInterval(async () => {
+      if (!softLockIsMine.value) return;
+      const currentId = String(currentMainRecordId.value ?? "").trim();
+      if (!currentId) return;
+      const now2 = new Date();
+      const yyyy2 = now2.getFullYear();
+      const mm2 = String(now2.getMonth() + 1).padStart(2, "0");
+      const dd2 = String(now2.getDate()).padStart(2, "0");
+      const hh2 = String(now2.getHours()).padStart(2, "0");
+      const min2 = String(now2.getMinutes()).padStart(2, "0");
+      const ss2 = String(now2.getSeconds()).padStart(2, "0");
+      const stamp2 = `${mm2}/${dd2}/${yyyy2} ${hh2}:${min2}:${ss2}`;
+      await updateRecord(LAYOUTS.PAYABLES_MAIN, currentId, { EditingAt: stamp2 });
+      softLockEditingAt.value = stamp2;
+    }, 60_000);
+  }
+
+  async function releaseSoftLock(): Promise<void> {
+    if (!softLockIsMine.value) {
+      clearSoftLockState();
+      return;
+    }
+    const id = String(currentMainRecordId.value ?? "").trim();
+    if (!id) {
+      clearSoftLockState();
+      return;
+    }
+    const { updateRecord, isConnected } = useFileMaker();
+    if (isConnected.value) {
+      await updateRecord(
+        LAYOUTS.PAYABLES_MAIN,
+        id,
+        { EditingByEmail: "", EditingByName: "", EditingAt: "" },
+        { allowEmptyStrings: true },
+      );
+    }
+    clearSoftLockState();
+  }
+
+  /** Read soft-lock fields from Payables_Main fieldData (layout key names vary). */
+  function readSoftLockFieldsFromMainFd(
+    mainFd: Record<string, unknown>,
+  ): { editingByEmail: string; editingByName: string; editingAt: string } {
+    let editingByEmail = "";
+    let editingByName = "";
+    let editingAt = "";
+    const normKey = (k: string) =>
+      k.replace(/\s+/g, "").replace(/_/g, "").toLowerCase();
+    for (const [k, v] of Object.entries(mainFd)) {
+      const nk = normKey(k);
+      const s = v != null && v !== "" ? String(v).trim() : "";
+      if (
+        nk === "editingbyemail" ||
+        nk === "editingemail" ||
+        nk === "editingby"
+      ) {
+        editingByEmail = s.toLowerCase();
+      } else if (nk === "editingbyname" || nk === "editingname") {
+        editingByName = s;
+      } else if (nk === "editingat" || nk === "editingtimestamp") {
+        editingAt = s;
+      }
+    }
+    if (!editingByEmail) {
+      editingByEmail = String(
+        mainFd?.EditingByEmail ??
+          mainFd?.["EditingByEmail"] ??
+          mainFd?.["Editing By Email"] ??
+          "",
+      )
+        .trim()
+        .toLowerCase();
+    }
+    if (!editingByName) {
+      editingByName = String(
+        mainFd?.EditingByName ??
+          mainFd?.["EditingByName"] ??
+          mainFd?.["Editing By Name"] ??
+          "",
+      ).trim();
+    }
+    if (!editingAt) {
+      editingAt = String(
+        mainFd?.EditingAt ??
+          mainFd?.["EditingAt"] ??
+          mainFd?.["Editing At"] ??
+          "",
+      ).trim();
+    }
+    return { editingByEmail, editingByName, editingAt };
+  }
+
+  /**
+   * Re-read Payables_Main from FileMaker before save/post. If an active soft lock
+   * is held by another user, block persistence (prevents stale tabs after take-over).
+   */
+  async function assertServerDraftEditingLock(
+    mainRecordId: string,
+  ): Promise<string | null> {
+    const id = String(mainRecordId ?? "").trim();
+    if (!id) return null;
+    const { getRecord, loggedInEmail } = useFileMaker();
+    const myEmail = String(loggedInEmail.value ?? "").trim().toLowerCase();
+    const { data: mainFd, error: getErr } =
+      await getRecord<Record<string, unknown>>(LAYOUTS.PAYABLES_MAIN, id);
+    if (getErr || !mainFd) {
+      return (
+        getErr ?? "Could not verify editing lock on the server. Please try again."
+      );
+    }
+    const status = String(mainFd?.Status ?? mainFd?.["Status"] ?? "").trim();
+    const posted = String(mainFd?.Posted ?? mainFd?.["Posted"] ?? "").trim();
+    const postedLc = posted.toLowerCase();
+    const statusLc = status.toLowerCase();
+    /** Enforce lock on drafts, rejected (repost), and anything not yet Posted=Yes. */
+    const draftLike =
+      postedLc !== "yes" ||
+      statusLc === "draft" ||
+      statusLc === "rejected" ||
+      mainStatus.value === "Draft" ||
+      mainStatus.value === "Rejected";
+    if (!draftLike) return null;
+
+    const { editingByEmail, editingByName, editingAt } =
+      readSoftLockFieldsFromMainFd(mainFd);
+    if (!editingByEmail) return null;
+
+    const ttlMs = 10 * 60 * 1000;
+    const editingAtMs = parseSoftLockTimestamp(editingAt);
+    /** If timestamp is missing or unparseable, still treat lock as active (was wrongly expiring before). */
+    let lockExpired = false;
+    if (editingAtMs != null) {
+      lockExpired = Date.now() - editingAtMs > ttlMs;
+    }
+    if (lockExpired) return null;
+
+    if (!myEmail) {
+      return "This draft is locked for editing. Sign in with your officer account email to save or post.";
+    }
+    if (editingByEmail !== myEmail) {
+      const who = editingByName || editingByEmail;
+      return `Cannot save or post: this draft is locked by ${who}. Refresh the page or use Take over editing if you need to make changes.`;
+    }
+    return null;
+  }
+
+  /**
+   * Delete draft: only block when lock is clearly fresh and held by someone else.
+   * If EditingAt is missing/unparseable, do not block (avoids stuck deletes on bad FM timestamps).
+   */
+  async function assertServerDraftEditingLockForDelete(
+    mainRecordId: string,
+  ): Promise<string | null> {
+    const id = String(mainRecordId ?? "").trim();
+    if (!id) return null;
+    const { getRecord, loggedInEmail } = useFileMaker();
+    const myEmail = String(loggedInEmail.value ?? "").trim().toLowerCase();
+    const { data: mainFd, error: getErr } =
+      await getRecord<Record<string, unknown>>(LAYOUTS.PAYABLES_MAIN, id);
+    if (getErr || !mainFd) {
+      return (
+        getErr ??
+        "Could not verify this draft on the server. Check your connection and try again."
+      );
+    }
+    const status = String(mainFd?.Status ?? mainFd?.["Status"] ?? "").trim();
+    const posted = String(mainFd?.Posted ?? mainFd?.["Posted"] ?? "").trim();
+    const postedLc = posted.toLowerCase();
+    const statusLc = status.toLowerCase();
+    const draftLike =
+      postedLc !== "yes" ||
+      statusLc === "draft" ||
+      statusLc === "rejected" ||
+      mainStatus.value === "Draft" ||
+      mainStatus.value === "Rejected";
+    if (!draftLike) return null;
+
+    const { editingByEmail, editingByName, editingAt } =
+      readSoftLockFieldsFromMainFd(mainFd);
+    if (!editingByEmail) return null;
+
+    const editingAtMs = parseSoftLockTimestamp(editingAt);
+    const ttlMs = 10 * 60 * 1000;
+    if (editingAtMs == null || Date.now() - editingAtMs > ttlMs) {
+      return null;
+    }
+
+    if (!myEmail) {
+      return "Sign in with your officer account email to delete this draft.";
+    }
+    if (editingByEmail !== myEmail) {
+      const who = editingByName || editingByEmail;
+      return `Cannot delete: ${who} is actively editing this draft. Take over editing first, or wait and try again.`;
+    }
+    return null;
   }
 
   /** Entry total: from Payables_Main when loaded and not dirty, otherwise sum of grid row totals. */
@@ -259,6 +597,7 @@ export const usePayableStore = defineStore("payable", () => {
     mainCreatedName.value = null;
     mainPostedDate.value = null;
     mainRejectedBy.value = null;
+    clearSoftLockState();
   }
 
   async function fetchFromFileMaker(): Promise<void> {
@@ -495,6 +834,11 @@ export const usePayableStore = defineStore("payable", () => {
       const { data: mainFieldData } = await getRecord<Record<string, unknown>>(
         LAYOUTS.PAYABLES_MAIN,
         String(mainWithId.recordId),
+      );
+      // Soft lock Draft entries (prevents two officers editing same draft)
+      await acquireSoftLockIfDraft(
+        String(mainWithId.recordId),
+        mainFieldData ?? undefined,
       );
       const totalVal = mainFieldData?.Total ?? mainFieldData?.["Total"];
       const advPayVal =
@@ -910,6 +1254,22 @@ export const usePayableStore = defineStore("payable", () => {
             error.value = `Invoice number "${invRaw}" already exists in FileMaker (in another record). Use a unique invoice number.`;
             return { posted: 0, updated: 0, deleted: 0, error: error.value };
           }
+        }
+      }
+
+      if (currentMainRecordId.value) {
+        const lockErr = await assertServerDraftEditingLock(
+          currentMainRecordId.value,
+        );
+        if (lockErr) {
+          error.value = lockErr;
+          syncing.value = false;
+          return {
+            posted: 0,
+            updated: 0,
+            deleted: 0,
+            error: lockErr,
+          };
         }
       }
 
@@ -1463,6 +1823,26 @@ export const usePayableStore = defineStore("payable", () => {
     mainPostedDate: computed(() => mainPostedDate.value),
     mainRejectedBy: computed(() => mainRejectedBy.value),
     mainAdvancePayment: computed(() => mainAdvancePayment.value),
+    softLockReadOnly,
+    softLockLockedByOther: computed(() => softLockLockedByOther.value),
+    softLockIsMine: computed(() => softLockIsMine.value),
+    softLockMessage: computed(() => softLockMessage.value),
+    softLockEditingByEmail: computed(() => softLockEditingByEmail.value),
+    softLockEditingByName: computed(() => softLockEditingByName.value),
+    softLockEditingAt: computed(() => softLockEditingAt.value),
+    acquireSoftLockIfDraft,
+    releaseSoftLock,
+    takeOverSoftLock: async () => {
+      const id = String(currentMainRecordId.value ?? "").trim();
+      if (!id) return;
+      const { getRecord, isConnected } = useFileMaker();
+      if (!isConnected.value) return;
+      const { data } = await getRecord<Record<string, unknown>>(
+        LAYOUTS.PAYABLES_MAIN,
+        id,
+      );
+      await acquireSoftLockIfDraft(id, data ?? undefined, { force: true });
+    },
     setMainRejectedBy,
     setMainAdvancePayment,
     entryTotal,
@@ -1485,5 +1865,19 @@ export const usePayableStore = defineStore("payable", () => {
     fetchFromFileMaker,
     fetchDetailsByTransRef,
     syncToFileMaker,
+    /**
+     * Re-read Payables_Main before mutating a draft.
+     * @param options.forDelete — relaxed timestamp rules so delete isn’t stuck on bad FM dates.
+     */
+    verifyServerDraftEditingLock: async (options?: {
+      forDelete?: boolean;
+    }): Promise<string | null> => {
+      const id = String(currentMainRecordId.value ?? "").trim();
+      if (!id) return null;
+      if (options?.forDelete) {
+        return assertServerDraftEditingLockForDelete(id);
+      }
+      return assertServerDraftEditingLock(id);
+    },
   };
 });

@@ -743,7 +743,8 @@ const STATUS_OPTIONS = payableStore.STATUS_OPTIONS;
 const readOnly = computed(
   () =>
     (isManager.value && !documentSettings.managerEditDraftEnabled) ||
-    (payableStore.mainPosted && payableStore.mainStatus !== "Rejected"),
+    (payableStore.mainPosted && payableStore.mainStatus !== "Rejected") ||
+    payableStore.softLockReadOnly,
 );
 
 const TAX_COL_INDEX = COLUMN_KEYS.indexOf("tax");

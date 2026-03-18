@@ -289,24 +289,33 @@
       >
         <Skeleton width="8rem" height="1.5rem" />
       </span>
-      <button
-        v-else-if="
-          payableStore.currentTransRef && payableStore.mainStatus === 'Approved'
-        "
-        type="button"
-        class="entry-transref-btn text-xl font-bold text-[var(--color-text)] tabular-nums tracking-tight cursor-pointer bg-transparent border-0 p-0 rounded-lg hover:bg-[var(--color-accent-soft)] hover:text-[var(--color-accent)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]"
-        :title="'Click to show TransRef QR code for scanning'"
-        @click="showTransRefQrModal = true"
-      >
-        {{ payableStore.currentTransRef }}
-      </button>
-      <span
+      <div
         v-else-if="payableStore.currentTransRef"
-        class="text-xl font-bold text-[var(--color-text)] tabular-nums tracking-tight"
+        class="entry-transref-with-chip"
       >
-        {{ payableStore.currentTransRef }}
-      </span>
-      <!-- Delete draft: icon only on the right, visible for Draft entries -->
+        <span
+          v-if="payableStore.softLockLockedByOther && payableStore.softLockMessage"
+          class="soft-lock-chip"
+        >
+          READ-ONLY
+        </span>
+        <button
+          v-if="payableStore.mainStatus === 'Approved'"
+          type="button"
+          class="entry-transref-btn text-xl font-bold text-[var(--color-text)] tabular-nums tracking-tight cursor-pointer bg-transparent border-0 p-0 rounded-lg hover:bg-[var(--color-accent-soft)] hover:text-[var(--color-accent)] transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)]/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)]"
+          :title="'Click to show TransRef QR code for scanning'"
+          @click="showTransRefQrModal = true"
+        >
+          {{ payableStore.currentTransRef }}
+        </button>
+        <span
+          v-else
+          class="text-xl font-bold text-[var(--color-text)] tabular-nums tracking-tight"
+        >
+          {{ payableStore.currentTransRef }}
+        </span>
+      </div>
+      <!-- Delete draft: icon on the right for Draft; disabled while another user has the lock -->
       <button
         v-if="
           !payableStore.loading &&
@@ -315,9 +324,20 @@
           payableStore.mainStatus === 'Draft'
         "
         type="button"
-        class="entry-delete-draft-btn ml-auto inline-flex items-center justify-center w-10 h-10 rounded-xl border border-red-500/40 bg-red-500/20 text-red-400 hover:bg-red-500/30 hover:border-red-500/60 hover:text-red-300 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50"
-        :disabled="deletingDraft"
-        :aria-label="'Delete draft entry'"
+        class="entry-delete-draft-btn ml-auto inline-flex items-center justify-center w-10 h-10 rounded-xl border border-red-500/40 bg-red-500/20 text-red-400 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500/50 enabled:hover:bg-red-500/30 enabled:hover:border-red-500/60 enabled:hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-red-500/20 disabled:hover:border-red-500/40"
+        :disabled="
+          deletingDraft || payableStore.softLockReadOnly
+        "
+        :title="
+          payableStore.softLockReadOnly
+            ? 'Cannot delete: another user is editing this draft'
+            : 'Delete draft entry'
+        "
+        :aria-label="
+          payableStore.softLockReadOnly
+            ? 'Delete draft unavailable — draft locked by another user'
+            : 'Delete draft entry'
+        "
         @click="showDeleteDraftModal = true"
       >
         <svg
@@ -804,11 +824,34 @@
           :key="`entry-${route.query.transRef || 'new'}`"
           class="entry-page flex flex-col flex-1 min-h-0"
         >
+          <div
+            v-if="payableStore.softLockLockedByOther && payableStore.softLockMessage"
+            class="soft-lock-banner mb-4"
+            role="status"
+          >
+            <div class="soft-lock-banner__content">
+              <div class="soft-lock-banner__top">
+                <span class="soft-lock-banner__title">Draft locked for editing</span>
+                <p class="soft-lock-banner__text">
+                  <span class="soft-lock-banner__text-main">
+                    {{ payableStore.softLockMessage }}
+                  </span>
+                </p>
+              </div>
+              <button
+                type="button"
+                class="soft-lock-inline-btn soft-lock-inline-btn--banner"
+                @click="payableStore.takeOverSoftLock()"
+              >
+                Take over editing
+              </button>
+            </div>
+          </div>
           <div class="vendor-details-row mb-4">
             <VendorDetails />
           </div>
           <div
-            v-if="payableStore.mainStatus !== 'Posted' && payableStore.mainStatus !== 'Approved'"
+            v-if="payableStore.mainStatus !== 'Posted' && payableStore.mainStatus !== 'Approved' && !payableStore.softLockReadOnly"
             class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-bg-card)] px-3 py-2 backdrop-blur-[var(--blur-glass)]"
           >
             <Toolbar @add-row="spreadsheet.addRow()" />
@@ -1194,6 +1237,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener("beforeunload", onBeforeUnload);
+  void payableStore.releaseSoftLock();
 });
 
 const showLeaveConfirmModal = ref(false);
@@ -1288,6 +1332,7 @@ onBeforeRouteLeave((_to, _from, next) => {
     showLeaveConfirmModal.value = true;
     leaveConfirmNext = next;
   } else {
+    void payableStore.releaseSoftLock();
     next();
   }
 });
@@ -1300,6 +1345,7 @@ async function onLeaveConfirm() {
       await deleteRecord(LAYOUTS.PAYABLE_INVOICE, recordId);
     }
   }
+  await payableStore.releaseSoftLock();
   if (leaveConfirmNext) {
     (leaveConfirmNext as () => void)();
     leaveConfirmNext = null;
@@ -1531,11 +1577,24 @@ async function onDeleteDraftConfirm(reason: string) {
     !isConnected.value ||
     payableStore.mainStatus !== "Draft"
   ) {
+    if (payableStore.softLockReadOnly) {
+      toast.warning(
+        "You can’t delete this draft while another user is editing it.",
+      );
+    }
     showDeleteDraftModal.value = false;
     return;
   }
   deletingDraft.value = true;
   try {
+    const serverLockErr = await payableStore.verifyServerDraftEditingLock({
+      forDelete: true,
+    });
+    if (serverLockErr) {
+      toast.error(serverLockErr);
+      showDeleteDraftModal.value = false;
+      return;
+    }
     const rows = payableStore.rows;
     let firstError: string | null = null;
     for (const row of rows) {
@@ -1586,6 +1645,10 @@ async function onDeleteDraftConfirm(reason: string) {
     vendorStore.reset();
     toast.success("Draft entry deleted.");
     router.push({ name: "entry" });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Delete failed unexpectedly.";
+    toast.error(msg);
+    showDeleteDraftModal.value = false;
   } finally {
     deletingDraft.value = false;
   }
@@ -2905,5 +2968,82 @@ async function downloadApprovedPdf() {
 }
 .entry-fab__label {
   white-space: nowrap;
+}
+
+.entry-transref-with-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.soft-lock-chip {
+  padding: 0.18rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1px solid rgba(148, 163, 184, 0.7);
+  color: rgba(191, 219, 254, 0.95);
+  background: rgba(15, 23, 42, 0.9);
+}
+
+.app-layout.theme-light .soft-lock-chip {
+  background: #e5f1ff;
+  color: #1d4ed8;
+  border-color: rgba(59, 130, 246, 0.6);
+}
+
+.soft-lock-inline-btn {
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid rgba(59, 130, 246, 0.7);
+  background: transparent;
+  color: #bfdbfe;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.soft-lock-inline-btn:hover {
+  background: rgba(37, 99, 235, 0.2);
+  border-color: rgba(59, 130, 246, 0.9);
+}
+
+.app-layout.theme-light .soft-lock-inline-btn {
+  color: #1d4ed8;
+  border-color: rgba(59, 130, 246, 0.7);
+}
+
+.app-layout.theme-light .soft-lock-inline-btn:hover {
+  background: rgba(219, 234, 254, 0.9);
+}
+
+.soft-lock-inline-btn--banner {
+  padding-inline: 1rem;
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #f9fafb;
+  font-weight: 600;
+}
+
+.soft-lock-inline-btn--banner:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.app-layout.theme-light .soft-lock-inline-btn--banner {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #f9fafb;
+}
+
+.app-layout.theme-light .soft-lock-inline-btn--banner:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
 }
 </style>

@@ -68,7 +68,7 @@
         <button
           type="button"
           class="pill-btn glass-input inline-flex items-center gap-2 px-4 py-2.5 text-[var(--label-size)] font-semibold text-[var(--color-text)] disabled:opacity-50 disabled:cursor-not-allowed"
-          :disabled="payableStore.syncing"
+          :disabled="payableStore.syncing || vendorStore.purchaseOrderDuplicate || payableStore.softLockLockedByOther"
           :title="isMac ? 'Save (⌘S)' : 'Save (Ctrl+S)'"
           @click="onSave"
         >
@@ -91,7 +91,7 @@
           v-if="payableStore.mainStatus === 'Rejected'"
           type="button"
           class="pill-btn inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2.5 text-[var(--label-size)] font-semibold text-white shadow-md hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          :disabled="payableStore.syncing"
+          :disabled="payableStore.syncing || vendorStore.purchaseOrderDuplicate || payableStore.softLockLockedByOther"
           :title="isMac ? 'Save and Repost (⌘P)' : 'Save and Repost (Ctrl+P)'"
           @click="onRepost"
         >
@@ -114,7 +114,7 @@
           v-else-if="!payableStore.mainPosted"
           type="button"
           class="pill-btn inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2.5 text-[var(--label-size)] font-semibold text-white shadow-md hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          :disabled="payableStore.syncing"
+          :disabled="payableStore.syncing || vendorStore.purchaseOrderDuplicate || payableStore.softLockLockedByOther"
           :title="isMac ? 'Save and Post (⌘P)' : 'Save and Post (Ctrl+P)'"
           @click="onPost"
         >
@@ -237,9 +237,9 @@
         </button>
       </div>
       <span
-        v-if="isConnected && loggedInEmail"
+        v-if="isConnected && displayEmail"
         class="user-email-badge inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[var(--label-size)] text-[var(--color-text)] bg-white/5 border border-[var(--color-border)] hover:bg-white/[0.08] transition-colors"
-        :title="loggedInEmail"
+        :title="displayEmail"
       >
         <span
           class="user-email-badge__icon flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent-soft)] text-[var(--color-accent)]"
@@ -259,7 +259,7 @@
             />
           </svg>
         </span>
-        <span class="font-medium">{{ loggedInEmail }}</span>
+        <span class="font-medium">{{ displayEmail }}</span>
       </span>
     </div>
   </header>
@@ -319,6 +319,11 @@ const { userFullName, isManager, isAdmin } = useUserRole();
 const documentSettings = useDocumentSettingsStore();
 const themeStore = useThemeStore();
 
+/** Email for display in header: always lowercase regardless of login input. */
+const displayEmail = computed(() =>
+  String(loggedInEmail.value ?? "").trim().toLowerCase(),
+);
+
 /** Save/Post keyboard shortcuts (Ctrl+S, Ctrl+P) - only when on entry and palette closed */
 function handleEntryShortcuts(e: KeyboardEvent) {
   if (paletteStore.visible) return;
@@ -331,6 +336,12 @@ function handleEntryShortcuts(e: KeyboardEvent) {
       (payableStore.mainStatus != null &&
         (!payableStore.mainPosted || payableStore.mainStatus === "Rejected")));
   if (!showActionDiv) return;
+
+  const poDuplicate = vendorStore.purchaseOrderDuplicate;
+  if (poDuplicate) {
+    toast.error("Purchase order already exists. Use a unique value.");
+    return;
+  }
 
   if (e.key === "s") {
     e.preventDefault();

@@ -24,6 +24,12 @@ export const useVendorStore = defineStore("vendor", () => {
   const vendor = ref<Vendor>({ ...DEFAULT_VENDOR });
   const loading = ref(false);
   const error = ref<string | null>(null);
+  /** True when current purchase order value matches another entry (duplicate). */
+  const purchaseOrderDuplicate = ref(false);
+  /** True when vendor was set by "Get PO vendor details" and not yet overridden. */
+  const vendorSetByPoFetch = ref(false);
+  /** True when officer clicked "Change vendor" or otherwise overrode the PO-fetched vendor. */
+  const vendorManuallyOverridden = ref(false);
   /** Expiry check display from selected vendor (for new entry). */
   const selectedVendorExpiryCheckDis = ref<string | null>(null);
   const selectedVendorWhtExpiryCheckDis = ref<string | null>(null);
@@ -41,8 +47,34 @@ export const useVendorStore = defineStore("vendor", () => {
   function reset(): void {
     vendor.value = { ...DEFAULT_VENDOR };
     error.value = null;
+    purchaseOrderDuplicate.value = false;
+    vendorSetByPoFetch.value = false;
+    vendorManuallyOverridden.value = false;
     selectedVendorExpiryCheckDis.value = null;
     selectedVendorWhtExpiryCheckDis.value = null;
+  }
+
+  /** Call after PO lookup has set vendor; locks Vendor ID until officer clicks "Change vendor". */
+  function setVendorFromPoFetch(): void {
+    vendorSetByPoFetch.value = true;
+    vendorManuallyOverridden.value = false;
+  }
+
+  /** Call when officer clicks "Change vendor"; unlocks field and marks as overridden for save confirmation. */
+  function allowVendorOverride(): void {
+    vendorSetByPoFetch.value = false;
+    vendorManuallyOverridden.value = true;
+  }
+
+  /** Clear PO-fetch state (e.g. when PO number is cleared). */
+  function clearVendorFromPoFetch(): void {
+    vendorSetByPoFetch.value = false;
+    vendorManuallyOverridden.value = false;
+  }
+
+  /** Clear override flag after successful save. */
+  function clearVendorManuallyOverridden(): void {
+    vendorManuallyOverridden.value = false;
   }
 
   /** Set expiry check display from vendor record (when user selects vendor in new entry). */
@@ -93,6 +125,10 @@ export const useVendorStore = defineStore("vendor", () => {
           : value;
       vendor.value = { ...vendor.value, [field]: normalized };
     }
+  }
+
+  function setPurchaseOrderDuplicate(value: boolean): void {
+    purchaseOrderDuplicate.value = value;
   }
 
   /** Convert FileMaker date (MM/DD/YYYY) to YYYY-MM-DD for HTML date input. */
@@ -183,6 +219,8 @@ export const useVendorStore = defineStore("vendor", () => {
       reset();
       return;
     }
+    vendorSetByPoFetch.value = false;
+    vendorManuallyOverridden.value = false;
     selectedVendorExpiryCheckDis.value = null;
     selectedVendorWhtExpiryCheckDis.value = null;
     selectedVendorExpiryCheck.value = null;
@@ -276,6 +314,10 @@ export const useVendorStore = defineStore("vendor", () => {
 
   return {
     vendor: computed(() => vendor.value),
+    /** True when the current purchase order value is known to be a duplicate. */
+    purchaseOrderDuplicate: computed(() => purchaseOrderDuplicate.value),
+    vendorSetByPoFetch: computed(() => vendorSetByPoFetch.value),
+    vendorManuallyOverridden: computed(() => vendorManuallyOverridden.value),
     vendorBalanceLoading: computed(() => vendorBalanceLoading.value),
     loading,
     error,
@@ -292,6 +334,11 @@ export const useVendorStore = defineStore("vendor", () => {
     ),
     reset,
     setField,
+    setPurchaseOrderDuplicate,
+    setVendorFromPoFetch,
+    allowVendorOverride,
+    clearVendorFromPoFetch,
+    clearVendorManuallyOverridden,
     setFromMain,
     setExpiryFromVendorRecord,
     startVendorBalanceLoad,

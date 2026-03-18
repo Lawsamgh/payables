@@ -90,7 +90,7 @@
         v-if="peekMode"
         class="tax-peek-hint text-[13px] text-[var(--color-text-muted)] mb-4"
       >
-        Vendors for reference. Search or filter by expiry.
+        Vendors with active GRA and WHT only. Search to narrow down.
       </p>
       <!-- Search -->
       <div
@@ -148,7 +148,7 @@
             </svg>
           </button>
         </div>
-        <div class="tax-search-bar__filter-wrap">
+        <div v-if="!peekMode" class="tax-search-bar__filter-wrap">
           <span class="tax-search-bar__filter-icon" aria-hidden="true">
             <svg
               width="18"
@@ -191,7 +191,7 @@
             </svg>
           </span>
         </div>
-        <div class="tax-search-bar__filter-wrap">
+        <div v-if="!peekMode" class="tax-search-bar__filter-wrap">
           <span class="tax-search-bar__filter-icon" aria-hidden="true">
             <svg
               width="18"
@@ -236,9 +236,14 @@
         </div>
       </div>
       <p v-if="searchQuery || graExpiryFilter || whtExpiryFilter" class="tax-search-bar__hint">
-        {{ filteredVendorList.length }} result{{
-          filteredVendorList.length === 1 ? "" : "s"
+        {{ (peekMode ? displayVendorList.length : filteredVendorList.length) }} result{{
+          (peekMode ? displayVendorList.length : filteredVendorList.length) === 1 ? "" : "s"
         }}
+      </p>
+      <p v-else-if="peekMode && displayVendorList.length > 0" class="tax-search-bar__hint">
+        {{ displayVendorList.length }} vendor{{
+          displayVendorList.length === 1 ? "" : "s"
+        }} with active GRA & WHT
       </p>
       </div>
     </div>
@@ -337,6 +342,13 @@
           Clear filters
         </button>
       </div>
+      <div
+        v-else-if="peekMode && displayVendorList.length === 0"
+        class="tax-table-empty"
+        :class="{ 'opacity-75 pointer-events-none': refreshing }"
+      >
+        <p>No vendors with active GRA and WHT.</p>
+      </div>
       <!-- Peek mode: modern card list -->
       <div
         v-else-if="peekMode"
@@ -344,7 +356,7 @@
         :class="{ 'opacity-75 pointer-events-none': refreshing }"
       >
         <div
-          v-for="(row, index) in filteredVendorList"
+          v-for="(row, index) in displayVendorList"
           :key="row.recordId || index"
           class="peek-card peek-card--vendor"
         >
@@ -825,7 +837,7 @@ import {
 } from "../utils/filemakerMappers";
 import { downloadCsv } from "../utils/exportData";
 
-withDefaults(defineProps<{ peekMode?: boolean }>(), { peekMode: false });
+const props = withDefaults(defineProps<{ peekMode?: boolean }>(), { peekMode: false });
 
 const {
   updateRecord,
@@ -959,6 +971,25 @@ const filteredVendorList = computed(() => {
     });
   }
   return result;
+});
+
+/** In peek mode (sidebar), show only vendors with active (valid) GRA and WHT. */
+const displayVendorList = computed(() => {
+  const list = filteredVendorList.value;
+  if (!props.peekMode) return list;
+  return list.filter((r) => {
+    const fd = r.fieldData as Record<string, unknown>;
+    const graCheck = String(
+      fd.Expiry_Check ?? fd["Expiry Check"] ?? "",
+    ).trim();
+    const whtCheck = String(
+      fd.WHT_Expiry_Check ?? fd["WHT Expiry Check"] ?? "",
+    ).trim();
+    return (
+      matchesExpiryFilter(graCheck, "valid") &&
+      matchesExpiryFilter(whtCheck, "valid")
+    );
+  });
 });
 
 function clearFilters() {

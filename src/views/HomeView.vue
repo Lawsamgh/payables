@@ -318,6 +318,61 @@
             <span class="stat-card__sublabel">entries</span>
           </div>
         </div>
+
+        <!-- Officer alerts: middle space between KPIs and Vendors card -->
+        <div
+          v-if="roleLoaded && isConnected"
+          class="stats-dashboard__alerts"
+          :class="{ 'stats-dashboard__alerts--all-clear': !officerAlerts.hasAny }"
+        >
+          <div v-if="officerAlerts.hasAny" class="officer-alerts-card">
+            <div class="officer-alerts-card__header">
+              <span class="officer-alerts-card__icon" aria-hidden="true">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </span>
+              <span class="officer-alerts-card__title">Attention needed</span>
+            </div>
+            <div class="officer-alerts-card__ticker-wrap" aria-label="Alerts scrolling">
+              <div class="officer-alerts-card__ticker">
+                <div class="officer-alerts-card__ticker-track">
+                  <router-link
+                    v-for="(item, idx) in officerAlertTickerItems"
+                    :key="'a-' + idx"
+                    :to="item.to"
+                    class="officer-alerts-card__item"
+                  >
+                    <span class="officer-alerts-card__count">{{ item.count }}</span>
+                    <span class="officer-alerts-card__label">{{ item.label }}</span>
+                    <svg class="officer-alerts-card__arrow" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                  </router-link>
+                </div>
+                <div class="officer-alerts-card__ticker-track" aria-hidden="true">
+                  <router-link
+                    v-for="(item, idx) in officerAlertTickerItems"
+                    :key="'b-' + idx"
+                    :to="item.to"
+                    class="officer-alerts-card__item"
+                  >
+                    <span class="officer-alerts-card__count">{{ item.count }}</span>
+                    <span class="officer-alerts-card__label">{{ item.label }}</span>
+                    <svg class="officer-alerts-card__arrow" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
+                  </router-link>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else class="officer-alerts-card officer-alerts-card--all-clear">
+            <span class="officer-alerts-card__icon officer-alerts-card__icon--success" aria-hidden="true">
+              <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </span>
+            <span class="officer-alerts-card__title">Vendor & tax compliance up to date</span>
+          </div>
+        </div>
+
         <div class="stats-dashboard__charts">
           <router-link
             to="/vendors"
@@ -1640,7 +1695,10 @@ import {
 } from "../utils/homeViewHelpers";
 import { useUserRole } from "../composables/useUserRole";
 import { writeActivityLog } from "../utils/activityLog";
-import type { PayablesMainFieldData } from "../utils/filemakerApi";
+import type {
+  PayablesMainFieldData,
+  TaxValueFieldData,
+} from "../utils/filemakerApi";
 import { formatNumberDisplay } from "../utils/formatNumber";
 import type { FindRecordWithId } from "../composables/useFileMaker";
 import { useLoadingOverlayStore } from "../stores/loadingOverlayStore";
@@ -1712,6 +1770,8 @@ function openBookletWithSelected() {
 
 const list = ref<FindRecordWithId<PayablesMainFieldData>[]>([]);
 const vendorCount = ref(0);
+const vendorList = ref<FindRecordWithId<Record<string, unknown>>[]>([]);
+const taxList = ref<FindRecordWithId<TaxValueFieldData>[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
 
@@ -2347,6 +2407,100 @@ watch(
   { immediate: true },
 );
 
+/** Expiry check is "valid" (GRA/WHT up to date) if value is valid, ok, yes, or good. */
+function isExpiryValid(check: string | undefined): boolean {
+  const s = (check ?? "").trim().toLowerCase();
+  return ["valid", "ok", "yes", "good"].includes(s);
+}
+
+/** Officer alerts: vendors needing GRA update, WHT update, and tax expiring within 30 days. */
+const officerAlerts = computed(() => {
+  const vendors = vendorList.value;
+  const graNeedingUpdate = vendors.filter(
+    (r) => !isExpiryValid((r.fieldData?.Expiry_Check ?? r.fieldData?.["Expiry Check"]) as string),
+  ).length;
+  const whtNeedingUpdate = vendors.filter(
+    (r) => !isExpiryValid((r.fieldData?.WHT_Expiry_Check ?? r.fieldData?.["WHT Expiry Check"]) as string),
+  ).length;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const in30Days = new Date(today);
+  in30Days.setDate(in30Days.getDate() + 30);
+
+  function parseEndDate(raw: string | undefined): Date | null {
+    const s = (raw ?? "").trim();
+    if (!s) return null;
+    const us = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
+    if (us) {
+      const d = new Date(parseInt(us[3], 10), parseInt(us[1], 10) - 1, parseInt(us[2], 10));
+      return isNaN(d.getTime()) ? null : d;
+    }
+    const iso = /^\d{4}-\d{2}-\d{2}/.exec(s);
+    if (iso) {
+      const d = new Date(s);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    return null;
+  }
+
+  const taxExpiringSoon = taxList.value.filter((r) => {
+    const status = (r.fieldData?.Status ?? "").trim().toLowerCase();
+    if (status !== "valid") return false;
+    const endDate = parseEndDate(r.fieldData?.End_Date as string);
+    if (!endDate) return false;
+    endDate.setHours(0, 0, 0, 0);
+    return endDate >= today && endDate <= in30Days;
+  }).length;
+
+  return {
+    graNeedingUpdate,
+    whtNeedingUpdate,
+    taxExpiringSoon,
+    hasAny: graNeedingUpdate > 0 || whtNeedingUpdate > 0 || taxExpiringSoon > 0,
+  };
+});
+
+/** Alert items for the ticker (only those with count > 0). */
+const officerAlertTickerItems = computed(() => {
+  const a = officerAlerts.value;
+  const items: { type: string; count: number; label: string; to: string }[] = [];
+  if (a.graNeedingUpdate > 0) {
+    items.push({
+      type: "gra",
+      count: a.graNeedingUpdate,
+      label:
+        a.graNeedingUpdate === 1
+          ? "Vendor requiring GRA (Ghana Revenue Authority) certificate update"
+          : "Vendors requiring GRA (Ghana Revenue Authority) certificate update",
+      to: "/vendors",
+    });
+  }
+  if (a.whtNeedingUpdate > 0) {
+    items.push({
+      type: "wht",
+      count: a.whtNeedingUpdate,
+      label:
+        a.whtNeedingUpdate === 1
+          ? "Vendor requiring WHT (Withholding Tax) certificate update"
+          : "Vendors requiring WHT (Withholding Tax) certificate update",
+      to: "/vendors",
+    });
+  }
+  if (a.taxExpiringSoon > 0) {
+    items.push({
+      type: "tax",
+      count: a.taxExpiringSoon,
+      label:
+        a.taxExpiringSoon === 1
+          ? "Tax code due to expire within the next thirty days"
+          : "Tax codes due to expire within the next thirty days",
+      to: "/tax",
+    });
+  }
+  return items;
+});
+
 const filteredDraftList = computed(() =>
   draftList.value.filter((item) => matchesSearch(item, searchQuery.value)),
 );
@@ -2712,6 +2866,8 @@ async function load() {
   if (!isConnected.value) {
     list.value = [];
     vendorCount.value = 0;
+    vendorList.value = [];
+    taxList.value = [];
     loading.value = false;
     return;
   }
@@ -2719,7 +2875,7 @@ async function load() {
   listSummary.setOverdueLoading(true);
   error.value = null;
   try {
-    const [mainRes, vendorRes] = await Promise.all([
+    const [mainRes, vendorRes, taxRes] = await Promise.all([
       findRecordsWithIds<PayablesMainFieldData>(LAYOUTS.PAYABLES_MAIN, {
         limit: 500,
         sort: JSON.stringify([{ fieldName: "CreationTimestamp", sortOrder: "descend" }]),
@@ -2727,6 +2883,7 @@ async function load() {
       findRecordsWithIds<Record<string, unknown>>(LAYOUTS.VENDOR_TBL, {
         limit: 5000,
       }),
+      findRecordsWithIds<TaxValueFieldData>(LAYOUTS.TAX_VALUE, { limit: 500 }),
     ]);
     if (mainRes.error) {
       toast.error(mainRes.error);
@@ -2738,8 +2895,15 @@ async function load() {
     if (vendorRes.error) {
       toast.error(vendorRes.error);
       vendorCount.value = 0;
+      vendorList.value = [];
     } else {
+      vendorList.value = vendorRes.data;
       vendorCount.value = vendorRes.data.length;
+    }
+    if (taxRes.error) {
+      taxList.value = [];
+    } else {
+      taxList.value = taxRes.data;
     }
   } finally {
     loading.value = false;

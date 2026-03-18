@@ -87,7 +87,7 @@
         v-if="peekMode"
         class="tax-peek-hint text-[13px] text-[var(--color-text-muted)] mb-4"
       >
-        Tax codes for reference. Search or filter by status.
+        Valid tax codes only. Search to narrow down.
       </p>
       <!-- Search and filter -->
       <div
@@ -144,7 +144,7 @@
             </svg>
           </button>
         </div>
-        <div class="tax-search-bar__filter-wrap">
+        <div v-if="!peekMode" class="tax-search-bar__filter-wrap">
           <span class="tax-search-bar__filter-icon" aria-hidden="true">
             <svg
               width="18"
@@ -188,8 +188,13 @@
         </div>
       </div>
       <p v-if="searchQuery || statusFilter" class="tax-search-bar__hint">
-        {{ filteredTaxList.length }} result{{
-          filteredTaxList.length === 1 ? "" : "s"
+        {{ (peekMode ? listToSort.length : filteredTaxList.length) }} result{{
+          (peekMode ? listToSort.length : filteredTaxList.length) === 1 ? "" : "s"
+        }}
+      </p>
+      <p v-else-if="peekMode && listToSort.length > 0" class="tax-search-bar__hint">
+        {{ listToSort.length }} valid tax code{{
+          listToSort.length === 1 ? "" : "s"
         }}
       </p>
       </div>
@@ -275,6 +280,7 @@
       <div v-else-if="taxList.length === 0" class="tax-table-empty">
         <p>No tax codes yet.</p>
         <button
+          v-if="!peekMode"
           type="button"
           class="pill-btn mt-2 inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2.5 text-[var(--label-size)] font-semibold text-white shadow-md hover:bg-orange-600 transition-colors"
           @click="showAddModal = true"
@@ -302,6 +308,12 @@
           Clear filters
         </button>
       </div>
+      <div
+        v-else-if="peekMode && sortedTaxList.length === 0"
+        class="tax-table-empty"
+      >
+        <p>No valid tax codes.</p>
+      </div>
       <!-- Peek mode: modern card list -->
       <div v-else-if="peekMode" class="peek-cards">
         <div
@@ -312,7 +324,20 @@
           <div class="peek-card__main">
             <span class="peek-card__type-badge">{{ row.fieldData.Tax_Type ?? "—" }}</span>
             <span class="peek-card__title">{{ row.fieldData.Tax_Name ?? "—" }}</span>
-            <span class="peek-card__rate tabular-nums">{{ formatRate(row.fieldData.Tax_Rate) }}</span>
+            <div class="peek-card__rate-and-date">
+              <span class="peek-card__rate tabular-nums">{{ formatRate(row.fieldData.Tax_Rate) }}</span>
+              <span class="peek-card__dates">
+                <span class="peek-card__date-range">
+                  {{ formatDate(row.fieldData.Start_Date) }} – {{ formatDate(row.fieldData.End_Date) }}
+                </span>
+                <span class="peek-card__expiry" :title="'Expires ' + formatDate(row.fieldData.End_Date)">
+                  <svg class="peek-card__expiry-icon" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  {{ formatDate(row.fieldData.End_Date) }}
+                </span>
+              </span>
+            </div>
             <span
               class="peek-card__status peek-card__status--right"
               :class="row.fieldData.Status?.trim() ? statusCellClass(row.fieldData.Status) : 'peek-card__status--empty'"
@@ -321,9 +346,14 @@
             </span>
           </div>
           <div class="peek-card__meta">
-            <span class="peek-card__action">{{ row.fieldData.Action?.trim() === "Sub" ? "Sub" : row.fieldData.Action?.trim() === "Add" ? "Add" : "—" }}</span>
-            <span class="peek-card__dates">
-              {{ formatDate(row.fieldData.Start_Date) }} – {{ formatDate(row.fieldData.End_Date) }}
+            <span
+              class="peek-card__action"
+              :class="{
+                'peek-card__action--add': row.fieldData.Action?.trim() === 'Add',
+                'peek-card__action--sub': row.fieldData.Action?.trim() === 'Sub',
+              }"
+            >
+              {{ row.fieldData.Action?.trim() === "Sub" ? "Sub" : row.fieldData.Action?.trim() === "Add" ? "Add" : "—" }}
             </span>
           </div>
         </div>
@@ -750,7 +780,7 @@ import { useToastStore } from "../stores/toastStore";
 import { useTaxOverviewStore } from "../stores/taxOverviewStore";
 import { downloadCsv } from "../utils/exportData";
 
-withDefaults(defineProps<{ peekMode?: boolean }>(), { peekMode: false });
+const props = withDefaults(defineProps<{ peekMode?: boolean }>(), { peekMode: false });
 
 const { createRecord, updateRecord, findRecordsWithIds, isConnected } =
   useFileMaker();
@@ -822,8 +852,19 @@ function parseDateForSort(value: string | undefined): number {
   return 0;
 }
 
+/** In peek mode (sidebar), show only tax with Status "Valid". */
+const listToSort = computed(() => {
+  const list = filteredTaxList.value;
+  if (props.peekMode) {
+    return list.filter(
+      (r) => (r.fieldData.Status ?? "").trim().toLowerCase() === "valid",
+    );
+  }
+  return list;
+});
+
 const sortedTaxList = computed(() => {
-  const list = [...filteredTaxList.value];
+  const list = [...listToSort.value];
   const dir = sortDir.value === "asc" ? 1 : -1;
   const field = sortField.value;
 

@@ -31,6 +31,21 @@
 
     <Transition name="vendor-details-body">
       <div v-show="!collapsed" class="vendor-details__body">
+        <div
+          v-if="purchaseOrderLookupLoading"
+          class="vendor-details__po-loading-overlay"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <div class="vendor-details__po-loading-inner">
+            <span class="vendor-details__po-loading-text">
+              Fetching PO vendor details....
+            </span>
+            <div class="vendor-details__po-progress-track" aria-hidden="true">
+              <div class="vendor-details__po-progress-bar" />
+            </div>
+          </div>
+        </div>
         <div class="vendor-details__top-row">
           <div
             v-if="showExpiryCheck"
@@ -159,29 +174,64 @@
               >Purchase order
               <span class="vendor-details__required">Required</span></span
             >
-            <input
-              :value="vendor.purchase_order"
-              type="text"
-              class="vendor-details__input"
-              :class="{
-                'vendor-details__input--duplicate': purchaseOrderDuplicate,
-              }"
-              placeholder="Purchase order"
-              :readonly="readOnly"
-              required
-              @input="
-                onVendorFieldChange(
-                  'purchase_order',
-                  ($event.target as HTMLInputElement).value,
-                )
-              "
-            />
+            <div class="vendor-details__input-wrap">
+              <input
+                :value="vendor.purchase_order"
+                type="text"
+                class="vendor-details__input vendor-details__input--with-po-button"
+                :class="{
+                  'vendor-details__input--duplicate': purchaseOrderDuplicate,
+                }"
+                placeholder="Purchase order"
+                :readonly="readOnly"
+                required
+                @input="
+                  onVendorFieldChange(
+                    'purchase_order',
+                    ($event.target as HTMLInputElement).value,
+                  )
+                "
+              />
+              <button
+                v-if="!readOnly"
+                type="button"
+                class="vendor-details__po-lookup-btn"
+                :disabled="
+                  !vendor.purchase_order?.trim() ||
+                  !isConnected ||
+                  purchaseOrderLookupLoading
+                "
+                title="Get PO vendor details"
+                @click="onPurchaseOrderLookupClick"
+              >
+                <span
+                  v-if="!purchaseOrderLookupLoading"
+                  class="vendor-details__po-lookup-label"
+                >
+                  Get PO vendor details
+                </span>
+                <span
+                  v-else
+                  class="vendor-details__po-lookup-label vendor-details__po-lookup-label--loading"
+                >
+                  …
+                </span>
+              </button>
+            </div>
             <p
-              v-if="purchaseOrderDuplicate"
+              v-if="purchaseOrderDuplicate || purchaseOrderLookupMessage"
               class="vendor-details__field-error"
               role="alert"
             >
-              Purchase order already exists. Use a unique value.
+              <span v-if="purchaseOrderDuplicate">
+                Purchase order already exists. Use a unique value.
+              </span>
+              <span v-if="purchaseOrderDuplicate && purchaseOrderLookupMessage">
+                &nbsp;·&nbsp;
+              </span>
+              <span v-if="purchaseOrderLookupMessage">
+                {{ purchaseOrderLookupMessage }}
+              </span>
             </p>
           </label>
           <label class="vendor-details__field">
@@ -189,20 +239,41 @@
               >Vendor ID
               <span class="vendor-details__required">Required</span></span
             >
-            <div ref="vendorDropdownRef" class="tax-modal__search-dropdown">
+            <div
+              ref="vendorDropdownRef"
+              class="tax-modal__search-dropdown"
+              :class="{
+                'vendor-details__vendor-id--locked': vendorStore.vendorSetByPoFetch,
+              }"
+            >
               <div class="tax-modal__search-dropdown-input-wrap">
                 <input
                   :value="vendor.vendor_id"
                   type="text"
                   class="tax-modal__search-dropdown-input"
+                  :class="{
+                    'vendor-details__input--locked-by-po':
+                      vendorStore.vendorSetByPoFetch,
+                  }"
                   placeholder="Search or select vendor…"
-                  :readonly="readOnly"
+                  :readonly="readOnly || vendorStore.vendorSetByPoFetch"
                   autocomplete="off"
-                  @focus="readOnly ? null : (vendorDropdownOpen = true)"
+                  @focus="
+                    readOnly || vendorStore.vendorSetByPoFetch
+                      ? null
+                      : (vendorDropdownOpen = true)
+                  "
                   @input="
                     onVendorIdInput(($event.target as HTMLInputElement).value)
                   "
                 />
+                <span
+                  v-if="vendorStore.vendorSetByPoFetch && vendor.vendor_id?.trim()"
+                  class="vendor-details__from-po-badge"
+                  title="Vendor was set from PO; click Change vendor above to edit"
+                >
+                  From PO
+                </span>
                 <span
                   class="tax-modal__search-dropdown-chevron"
                   :class="{
@@ -400,11 +471,19 @@ const vendorStore = useVendorStore();
 const payableStore = usePayableStore();
 const { isManager } = useUserRole();
 const documentSettings = useDocumentSettingsStore();
-const { findRecordsWithIds, isConnected } = useFileMaker();
-const purchaseOrderDuplicate = ref(false);
+const { findRecordsWithIds, runScript, isConnected } = useFileMaker();
+const purchaseOrderDuplicate = computed(
+  () => vendorStore.purchaseOrderDuplicate,
+);
 const purchaseOrderCheckTimeout = ref<ReturnType<typeof setTimeout> | null>(
   null,
 );
+const purchaseOrderLookupTimeout = ref<ReturnType<typeof setTimeout> | null>(
+  null,
+);
+const lastPurchaseOrderLookupToken = ref(0);
+const purchaseOrderLookupLoading = ref(false);
+const purchaseOrderLookupMessage = ref<string | null>(null);
 const vendor = computed(() => vendorStore.vendor);
 const advancePaymentFocused = ref(false);
 /** When focused: raw value for editing. When blurred: formatted with thousand separators. */
@@ -436,11 +515,14 @@ const collapsed = ref(false);
 const vendorDropdownRef = ref<HTMLElement | null>(null);
 const vendorDropdownOpen = ref(false);
 const vendorSearch = ref("");
+/** PO value we last successfully fetched vendor for; when user changes PO to something else, we clear vendor. */
+const lastPoValueFetchedFor = ref("");
 /** Editable except when Posted (Rejected stay editable for Officer). Manager cannot edit Draft/Rejected unless ManagerEditDraft is enabled. */
 const readOnly = computed(
   () =>
     (isManager.value && !documentSettings.managerEditDraftEnabled) ||
-    (payableStore.mainPosted && payableStore.mainStatus !== "Rejected"),
+    (payableStore.mainPosted && payableStore.mainStatus !== "Rejected") ||
+    payableStore.softLockReadOnly,
 );
 
 /** Don't show expiry for Approved/Posted. New entry: VendorDetails. Existing Draft/Rejected: EntryView banner. */
@@ -625,7 +707,20 @@ function onVendorFieldChange(field: keyof Vendor, value: string): void {
   vendorStore.setField(field, value);
   if (!readOnly.value) payableStore.markDirty();
   if (field === "purchase_order") {
-    debouncedPurchaseOrderDuplicateCheck(value.trim().toUpperCase());
+    const po = value.trim().toUpperCase();
+    debouncedPurchaseOrderDuplicateCheck(po);
+    purchaseOrderLookupMessage.value = null;
+    // When PO is updated to something other than what we last fetched for, clear vendor and related fields
+    if (po !== lastPoValueFetchedFor.value) {
+      lastPoValueFetchedFor.value = "";
+      vendorStore.clearVendorFromPoFetch();
+      vendorStore.setField("vendor_id", "");
+      vendorStore.setField("vendor_name", "");
+      vendorStore.setField("contact_email", "");
+      vendorStore.setField("vendor_balance", "");
+      vendorStore.setExpiryFromVendorRecord(undefined);
+      vendorSearch.value = "";
+    }
   }
 }
 
@@ -634,14 +729,94 @@ function debouncedPurchaseOrderDuplicateCheck(val: string): void {
     clearTimeout(purchaseOrderCheckTimeout.value);
   }
   if (!val || !isConnected.value) {
-    purchaseOrderDuplicate.value = false;
+    vendorStore.setPurchaseOrderDuplicate(false);
     return;
   }
-  purchaseOrderDuplicate.value = false;
+  vendorStore.setPurchaseOrderDuplicate(false);
   purchaseOrderCheckTimeout.value = setTimeout(() => {
     purchaseOrderCheckTimeout.value = null;
     checkPurchaseOrderDuplicate(val);
   }, 500);
+}
+
+async function onPurchaseOrderLookupClick(): Promise<void> {
+  const po = String(vendor.value.purchase_order ?? "")
+    .trim()
+    .toUpperCase();
+  if (!po || !isConnected.value) return;
+  await lookupVendorIdByPurchaseOrder(po);
+}
+
+function debouncedPurchaseOrderVendorLookup(purchaseOrderVal: string): void {
+  if (purchaseOrderLookupTimeout.value) {
+    clearTimeout(purchaseOrderLookupTimeout.value);
+  }
+  // Only auto-fill when creating a new entry (don't override existing entries).
+  if (payableStore.currentTransRef) return;
+  if (!purchaseOrderVal || !isConnected.value) return;
+  purchaseOrderLookupTimeout.value = setTimeout(() => {
+    purchaseOrderLookupTimeout.value = null;
+    lookupVendorIdByPurchaseOrder(purchaseOrderVal);
+  }, 550);
+}
+
+async function lookupVendorIdByPurchaseOrder(
+  purchaseOrderVal: string,
+): Promise<void> {
+  // Guard again (timeout might fire after navigation/status changes)
+  if (payableStore.currentTransRef) return;
+  if (!purchaseOrderVal?.trim() || !isConnected.value) return;
+
+  const token = ++lastPurchaseOrderLookupToken.value;
+  purchaseOrderLookupLoading.value = true;
+  purchaseOrderLookupMessage.value = null;
+  const { error, scriptResult } = await runScript(
+    LAYOUTS.PAYABLES_MAIN,
+    "ImportPOHeaderbyPONumber",
+    purchaseOrderVal.trim(),
+  );
+  purchaseOrderLookupLoading.value = false;
+  // Ignore stale results when user typed a newer PO
+  if (token !== lastPurchaseOrderLookupToken.value) return;
+  if (error) {
+    purchaseOrderLookupMessage.value = "Could not fetch vendor from FileMaker.";
+    return;
+  }
+
+  const raw = String(scriptResult ?? "").trim();
+  const isNotValidVendorId =
+    !raw || /^NOT\s*FOUND$/i.test(raw) || /^ERROR:/i.test(raw);
+  // Match "not a local vendor" and typo "not a local vendoer"
+  const isNotLocalVendor = /not\s+a\s+local\s+vend(o|oe)r/i.test(raw);
+  if (isNotValidVendorId || isNotLocalVendor) {
+    vendorStore.setField("vendor_id", "");
+    vendorStore.setField("vendor_name", "");
+    vendorStore.setField("contact_email", "");
+    vendorStore.setField("vendor_balance", "");
+    vendorStore.setExpiryFromVendorRecord(undefined);
+    vendorSearch.value = "";
+    purchaseOrderLookupMessage.value = isNotLocalVendor
+      ? "This vendor is not a local vendor."
+      : "Purchase order not found in BC.";
+    return;
+  }
+
+  const vendorId = raw;
+
+  const match = vendorList.value.find((r) => getVendorId(r) === vendorId);
+  if (match) {
+    await onVendorSelect(match);
+    vendorStore.setVendorFromPoFetch();
+    lastPoValueFetchedFor.value = purchaseOrderVal.trim().toUpperCase();
+    purchaseOrderLookupMessage.value = null;
+    return;
+  }
+
+  vendorStore.setField("vendor_id", vendorId);
+  vendorStore.setVendorFromPoFetch();
+  lastPoValueFetchedFor.value = purchaseOrderVal.trim().toUpperCase();
+  if (!readOnly.value) payableStore.markDirty();
+  purchaseOrderLookupMessage.value = null;
 }
 
 async function checkPurchaseOrderDuplicate(
@@ -664,7 +839,7 @@ async function checkPurchaseOrderDuplicate(
   const otherMatches = currentMainId
     ? matches.filter((r) => String(r.recordId) !== String(currentMainId))
     : matches;
-  purchaseOrderDuplicate.value = otherMatches.length > 0;
+  vendorStore.setPurchaseOrderDuplicate(otherMatches.length > 0);
 }
 
 function handleClickOutside(e: MouseEvent) {
@@ -679,7 +854,7 @@ function handleClickOutside(e: MouseEvent) {
 watch(
   () => vendor.value.purchase_order,
   (val) => {
-    if (!val?.trim()) purchaseOrderDuplicate.value = false;
+    if (!val?.trim()) vendorStore.setPurchaseOrderDuplicate(false);
   },
 );
 
@@ -691,6 +866,10 @@ onUnmounted(() => {
   if (purchaseOrderCheckTimeout.value) {
     clearTimeout(purchaseOrderCheckTimeout.value);
     purchaseOrderCheckTimeout.value = null;
+  }
+  if (purchaseOrderLookupTimeout.value) {
+    clearTimeout(purchaseOrderLookupTimeout.value);
+    purchaseOrderLookupTimeout.value = null;
   }
   document.removeEventListener("click", handleClickOutside);
 });
@@ -746,8 +925,91 @@ watch(isConnected, (connected) => {
 }
 
 .vendor-details__body {
+  position: relative;
   border-top: 1px solid var(--color-border);
   padding: 1.25rem 1.25rem 1.5rem;
+}
+
+.vendor-details__po-loading-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  /* Dim the card without turning it fully black – works in light and dark themes */
+  background: color-mix(in srgb, var(--color-bg, #020617) 75%, #000 25%);
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(6px);
+  border-radius: 0 0 1rem 1rem;
+}
+
+.vendor-details__po-loading-spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid rgba(148, 163, 184, 0.4);
+  border-top-color: var(--color-accent, #f97316);
+  border-radius: 50%;
+  animation: vd-po-overlay-spin 0.7s linear infinite;
+}
+
+@keyframes vd-po-overlay-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.vendor-details__po-loading-text {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  /* High-contrast text only (no badge background).
+     Use white so it stands out clearly in light mode over the darkened overlay. */
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.vendor-details__po-loading-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.vendor-details__po-progress-track {
+  position: relative;
+  width: 220px;
+  height: 4px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(148, 163, 184, 0.45);
+}
+
+.vendor-details__po-progress-bar {
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    rgba(59, 130, 246, 0) 0%,
+    rgba(59, 130, 246, 0.1) 20%,
+    rgba(59, 130, 246, 0.9) 50%,
+    rgba(59, 130, 246, 0.1) 80%,
+    rgba(59, 130, 246, 0) 100%
+  );
+  animation: vd-po-progress 1.1s ease-in-out infinite;
+}
+
+@keyframes vd-po-progress {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .vendor-details__top-row {
@@ -861,6 +1123,33 @@ watch(isConnected, (connected) => {
   letter-spacing: 0.01em;
 }
 
+.vendor-details__from-po-badge {
+  position: absolute;
+  right: 2.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  background: rgba(59, 130, 246, 0.25);
+  color: rgb(147, 197, 253);
+  pointer-events: none;
+}
+
+.tax-modal__search-dropdown.vendor-details__vendor-id--locked
+  .tax-modal__search-dropdown-input-wrap {
+  position: relative;
+}
+
+.vendor-details__input--locked-by-po.tax-modal__search-dropdown-input,
+.tax-modal__search-dropdown.vendor-details__vendor-id--locked .tax-modal__search-dropdown-input {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
 .vendor-details__required {
   margin-left: 0.25rem;
   font-size: 0.6875rem;
@@ -909,6 +1198,91 @@ watch(isConnected, (connected) => {
 .vendor-details__input--duplicate:focus {
   border-color: rgb(248, 113, 113);
   box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.25);
+}
+
+.vendor-details__input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.vendor-details__input-wrap .vendor-details__input {
+  flex: 1;
+  min-width: 0;
+}
+
+.vendor-details__input--with-po-button {
+  padding-right: 2.75rem;
+}
+
+.vendor-details__po-lookup-btn {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.5rem;
+  min-width: 2.5rem;
+  min-height: 2rem;
+  border: none;
+  border-radius: 6px;
+  /* Match the blue banner UI color */
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.9),
+    rgba(37, 99, 235, 0.95)
+  );
+  color: #e5f0ff;
+  box-shadow:
+    0 0 0 1px rgba(147, 197, 253, 0.5),
+    0 4px 10px rgba(15, 23, 42, 0.45);
+  cursor: pointer;
+}
+
+.vendor-details__po-lookup-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.vendor-details__po-lookup-icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}
+
+.vendor-details__po-lookup-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.vendor-details__po-lookup-label--loading {
+  letter-spacing: 0.2em;
+}
+
+.vendor-details__po-lookup-spinner {
+  stroke: var(--color-accent, #f97316);
+  stroke-width: 2;
+  fill: none;
+  stroke-dasharray: 18;
+  stroke-dashoffset: 18;
+  animation: vd-po-spin 0.9s linear infinite;
+}
+
+@keyframes vd-po-spin {
+  0% {
+    stroke-dashoffset: 18;
+    transform: rotate(0deg);
+  }
+  100% {
+    stroke-dashoffset: 0;
+    transform: rotate(360deg);
+  }
 }
 
 .vendor-details__input--skeleton-wrap {

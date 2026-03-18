@@ -127,6 +127,10 @@ export interface PayablesMainFieldData {
   Code?: string;
   /** Advance payment amount (deducted from Amount to Pay). */
   AdvancePayment?: number | string;
+  /** Soft lock fields: who is editing this Draft. */
+  EditingByEmail?: string;
+  EditingByName?: string;
+  EditingAt?: string;
 }
 
 /**
