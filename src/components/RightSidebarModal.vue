@@ -168,6 +168,19 @@ function close() {
   border-bottom: 1px solid var(--color-border);
 }
 
+/* Vendors peek modal: remove separator lines outside vendor cards. */
+.right-sidebar-modal--tax :deep(.peek-sidebar-sticky),
+.right-sidebar-modal--vendors :deep(.peek-sidebar-sticky) {
+  border-bottom: none;
+}
+
+.right-sidebar-modal--tax :deep(.logs-table-wrap),
+.right-sidebar-modal--vendors :deep(.logs-table-wrap) {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
 .right-sidebar-modal__body :deep(.tax-search-bar) {
   margin-bottom: 0;
 }

@@ -1,6 +1,6 @@
 <template>
   <div
-    class="content-area flex flex-col flex-1 min-h-0 w-full max-w-[1600px] mx-auto px-4 py-5 md:px-6 md:py-6"
+    class="content-area relative flex flex-col flex-1 min-h-0 w-full max-w-[1600px] mx-auto px-4 py-5 md:px-6 md:py-6"
   >
     <UnsavedChangesModal
       :visible="showLeaveConfirmModal"
@@ -105,7 +105,53 @@
       <TaxView peek-mode />
     </RightSidebarModal>
 
-    <div class="flex flex-wrap items-center gap-2 mb-4">
+    <div class="entry-topbar flex flex-wrap items-center gap-2 mb-4">
+      <button
+        v-if="documentSettings.bookletEnabled && booklet.count > 1"
+        type="button"
+        :disabled="!booklet.hasPrev"
+        class="entry-side-page-btn entry-side-page-btn--left"
+        :title="isMac ? 'Previous entry (⌘←)' : 'Previous entry (Ctrl+←)'"
+        aria-label="Previous entry"
+        @click="goPrev"
+      >
+        <svg
+          class="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M15 19l-7-7 7-7"
+          />
+        </svg>
+      </button>
+      <button
+        v-if="documentSettings.bookletEnabled && booklet.count > 1"
+        type="button"
+        :disabled="!booklet.hasNext"
+        class="entry-side-page-btn entry-side-page-btn--right"
+        :title="isMac ? 'Next entry (⌘→)' : 'Next entry (Ctrl+→)'"
+        aria-label="Next entry"
+        @click="goNext"
+      >
+        <svg
+          class="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M9 5l7 7-7 7"
+          />
+        </svg>
+      </button>
       <router-link
         :to="backToListRoute"
         class="pill-btn glass-input inline-flex items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-white/5 px-4 py-2.5 text-[var(--label-size)] font-medium text-[var(--color-text-muted)] no-underline transition-colors hover:bg-white/10 hover:text-[var(--color-text)]"
@@ -125,79 +171,15 @@
         </svg>
         Back to list
       </router-link>
-      <!-- Center: booklet prev/next + page numbers + Reject + Approve -->
+      <!-- Center: Reject + Approve -->
       <div class="flex flex-1 flex-wrap items-center justify-center gap-2">
-        <div
+        <span
           v-if="documentSettings.bookletEnabled && booklet.count > 1"
-          class="booklet-nav inline-flex items-center gap-1 rounded-full border border-[var(--color-border)] bg-white/[0.04] p-1"
+          class="entry-page-indicator"
+          aria-live="polite"
         >
-          <button
-            type="button"
-            :disabled="!booklet.hasPrev"
-            class="booklet-nav-btn flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-orange-400/90 hover:bg-orange-500/10 hover:text-orange-400 disabled:opacity-30 disabled:pointer-events-none disabled:text-[var(--color-text-muted)] transition-colors"
-            :title="isMac ? 'Previous entry (⌘←)' : 'Previous entry (Ctrl+←)'"
-            aria-label="Previous entry"
-            @click="goPrev"
-          >
-            <svg
-              class="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-          </button>
-          <div
-            class="booklet-bar glass-input inline-flex items-center overflow-hidden rounded-full"
-          >
-            <button
-              v-for="(ref, index) in booklet.openEntryRefs"
-              :key="ref"
-              type="button"
-              class="booklet-page-btn min-w-[2rem] px-2.5 py-2 text-[var(--label-size)] font-medium transition-colors"
-              :class="
-                index === booklet.currentOpenIndex
-                  ? 'bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
-                  : 'text-[var(--color-text-muted)] hover:bg-white/5 hover:text-[var(--color-text)]'
-              "
-              :aria-label="`Entry ${index + 1} of ${booklet.count}`"
-              :aria-current="
-                index === booklet.currentOpenIndex ? 'true' : undefined
-              "
-              @click="goToPage(index)"
-            >
-              {{ index + 1 }}
-            </button>
-          </div>
-          <button
-            type="button"
-            :disabled="!booklet.hasNext"
-            class="booklet-nav-btn flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-orange-400/90 hover:bg-orange-500/10 hover:text-orange-400 disabled:opacity-30 disabled:pointer-events-none disabled:text-[var(--color-text-muted)] transition-colors"
-            :title="isMac ? 'Next entry (⌘→)' : 'Next entry (Ctrl+→)'"
-            aria-label="Next entry"
-            @click="goNext"
-          >
-            <svg
-              class="h-5 w-5"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
-          </button>
-        </div>
+          {{ booklet.currentOpenIndex + 1 }} / {{ booklet.count }}
+        </span>
         <template
           v-if="
             canApproveOrReject &&
@@ -2974,6 +2956,95 @@ async function downloadApprovedPdf() {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.entry-side-page-btn {
+  position: absolute;
+  top: clamp(6.25rem, 12vh, 8.5rem);
+  transform: none;
+  z-index: 80;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 9999px;
+  border: 1px solid var(--color-border);
+  background: rgba(15, 23, 42, 0.75);
+  color: rgb(251 146 60 / 0.95);
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.entry-side-page-btn svg {
+  width: 1.55rem;
+  height: 1.55rem;
+}
+
+.entry-page-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 4.5rem;
+  padding: 0.58rem 1.15rem;
+  border-radius: 999px;
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  background: linear-gradient(
+    160deg,
+    rgba(30, 41, 59, 0.96),
+    rgba(15, 23, 42, 0.93)
+  );
+  color: rgba(248, 250, 252, 0.99);
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  box-shadow:
+    0 10px 24px rgba(2, 6, 23, 0.42),
+    0 0 0 1px rgba(59, 130, 246, 0.2) inset;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.entry-side-page-btn--left {
+  left: -2.4rem;
+}
+
+.entry-side-page-btn--right {
+  right: -2.4rem;
+}
+
+.entry-side-page-btn:hover:not(:disabled) {
+  background: rgba(249, 115, 22, 0.14);
+  border-color: rgba(251, 146, 60, 0.45);
+}
+
+.entry-side-page-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.app-layout.theme-light .entry-page-indicator {
+  border-color: rgba(37, 99, 235, 0.3);
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.96),
+    rgba(241, 245, 249, 0.94)
+  );
+  color: rgba(15, 23, 42, 0.88);
+  box-shadow:
+    0 8px 18px rgba(148, 163, 184, 0.22),
+    0 0 0 1px rgba(37, 99, 235, 0.08) inset;
+}
+
+@media (max-width: 1320px) {
+  .entry-side-page-btn {
+    display: none;
+  }
 }
 
 .soft-lock-chip {

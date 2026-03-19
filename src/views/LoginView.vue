@@ -795,6 +795,13 @@ async function submit() {
   animation: login-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Full-HD desktop: reduce login card size only (keep background full-size). */
+@media (min-width: 1800px) and (max-width: 2000px) and (min-height: 850px) and (max-height: 1200px) {
+  .login__card {
+    zoom: 0.6 !important;
+  }
+}
+
 .login__brand {
   text-align: center;
   margin-bottom: 2.25rem;
